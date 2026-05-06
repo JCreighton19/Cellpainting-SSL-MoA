@@ -7,14 +7,15 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
 
-module load python/3.13.5
+# make sure logs directory exists
+mkdir -p logs
 
-source ~/miniconda3/bin/activate your_env  # if applicable
+# activate conda environment
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate cellpaint
 
+# go to repo root
 cd ~/Cellpainting-SSL-MoA
 
-python train_dino.py \
-    --data_dir /scratch/$USER/cellpainting/plate1 \
-    --batch_size 16 \
-    --epochs 1 \
-    --num_workers 8
+# run training
+python train_dino.py
