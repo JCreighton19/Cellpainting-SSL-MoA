@@ -32,4 +32,4 @@ echo "Torch check:"
 python -c "import torch; print(torch.__version__)"
 
 echo "Starting training..."
-python models/train_dino.py
+python /home/creighton.jo/.conda/envs/cellpainting/bin/python models/train_dino.py
