@@ -29,7 +29,7 @@ def main():
         dataset,
         batch_size=8,
         shuffle=True,
-        num_workers=4
+        num_workers=2
     )
 
     # Augmentation
