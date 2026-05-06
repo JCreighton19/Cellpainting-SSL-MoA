@@ -13,6 +13,10 @@ mkdir -p logs
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
 
-cd ~/Cellpainting-SSL-MoA
+# Debug step
+which python
+python -c "import torch; print('torch OK')"
+
+cd /home/creighton.jo/Cellpainting-SSL-MoA
 
 python models/train_dino.py
