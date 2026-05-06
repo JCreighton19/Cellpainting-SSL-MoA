@@ -12,10 +12,16 @@ mkdir -p logs
 
 cd ~/Cellpainting-SSL-MoA
 
-echo "Using python:"
-conda run -n cellpainting which python
+# initialize conda properly
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+conda activate cellpainting
 
-echo "Testing torch:"
-conda run -n cellpainting python -c "import torch; print(torch.__version__)"
+# sanity check (IMPORTANT)
+echo "Python used:"
+which python
 
-conda run -n cellpainting python models/train_dino.py
+echo "Torch check:"
+python -c "import torch; print(torch.__version__)"
+
+# run training
+python models/train_dino.py
