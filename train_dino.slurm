@@ -8,20 +8,28 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
-mkdir -p logs
+set -e  # fail fast if anything breaks
 
+mkdir -p logs
 cd ~/Cellpainting-SSL-MoA
 
 echo "Initializing conda..."
-eval "$(/shared/EL9/explorer/anaconda3/2024.06/bin/conda shell.bash hook)"
+
+# Load conda properly (more reliable than eval-only usage)
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 
 echo "Activating env..."
 conda activate cellpainting
 
 echo "Python used:"
 which python
+python --version
+
+echo "Conda env:"
+echo $CONDA_PREFIX
 
 echo "Torch check:"
 python -c "import torch; print(torch.__version__)"
 
+echo "Starting training..."
 python models/train_dino.py
