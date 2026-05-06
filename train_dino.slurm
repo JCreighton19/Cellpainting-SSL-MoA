@@ -10,7 +10,7 @@
 
 mkdir -p logs
 
-source ~/miniconda3/etc/profile.d/conda.sh
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpaint
 
 cd ~/Cellpainting-SSL-MoA
