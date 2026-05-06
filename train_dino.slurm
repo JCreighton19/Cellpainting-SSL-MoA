@@ -5,7 +5,7 @@
 #SBATCH --time=02:00:00
 #SBATCH --mem=24G
 #SBATCH --cpus-per-task=2
-#SBATCH --partition=gpu-short
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
 mkdir -p logs
