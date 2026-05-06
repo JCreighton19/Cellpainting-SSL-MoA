@@ -15,4 +15,4 @@ conda activate base
 
 cd ~/Cellpainting-SSL-MoA
 
-python train_dino.py
+python models/train_dino.py
