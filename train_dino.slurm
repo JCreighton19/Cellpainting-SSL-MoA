@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=dino-cp
 #SBATCH --output=logs/dino_%j.out
 #SBATCH --error=logs/dino_%j.err
@@ -10,13 +10,12 @@
 
 mkdir -p logs
 
-source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
-conda activate cellpainting
+cd ~/Cellpainting-SSL-MoA
 
-# Debug step
-which python
-python -c "import torch; print('torch OK')"
+echo "Using python:"
+conda run -n cellpainting which python
 
-cd /home/creighton.jo/Cellpainting-SSL-MoA
+echo "Testing torch:"
+conda run -n cellpainting python -c "import torch; print(torch.__version__)"
 
-python models/train_dino.py
+conda run -n cellpainting python models/train_dino.py
