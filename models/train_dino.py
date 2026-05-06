@@ -19,10 +19,8 @@ def main():
     print("Using device:", device)
 
     # Dataset
-    import os
 
-    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'plate1')
-
+    data_dir = '/scratch/creighton.jo/cellpainting/plate1'
     dataset = CellPaintingDataset(
         data_dir=data_dir,
         channels=[1,2,3,4,5],
