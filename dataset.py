@@ -17,7 +17,15 @@ class CellPaintingDataset(Dataset):
         self.files = glob.glob(os.path.join(data_dir, "*.tiff"))
         self._cache = {}  # used to reduce number of disk reads
         self.fields = self._group_files()   # list of field file-lists
-        self.tiles = self._index_tiles()    # flat list of (field_idx, row, col)
+        self.tiles = None # use lazy indexing to improve scalability
+
+    def build_index(self):
+        if self.tiles is None:
+            self.tiles = self._index_tiles()
+
+    def __len__(self):
+        self.build_index()
+        return len(self.tiles)
 
     def _group_files(self):
         pattern = re.compile(r"(r\d+c\d+f\d+p\d+)")
@@ -83,10 +91,8 @@ class CellPaintingDataset(Dataset):
         self._cache[field_idx] = image
         return image
 
-    def __len__(self):
-        return len(self.tiles)
-
     def __getitem__(self, idx):
+        self.build_index()
         field_idx, r, c = self.tiles[idx]
         image = self._load_field(field_idx)
 
