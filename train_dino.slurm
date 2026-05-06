@@ -12,16 +12,16 @@ mkdir -p logs
 
 cd ~/Cellpainting-SSL-MoA
 
-# initialize conda properly
-source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+echo "Initializing conda..."
+eval "$(/shared/EL9/explorer/anaconda3/2024.06/bin/conda shell.bash hook)"
+
+echo "Activating env..."
 conda activate cellpainting
 
-# sanity check (IMPORTANT)
 echo "Python used:"
 which python
 
 echo "Torch check:"
 python -c "import torch; print(torch.__version__)"
 
-# run training
 python models/train_dino.py
