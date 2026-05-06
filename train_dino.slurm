@@ -11,7 +11,7 @@
 mkdir -p logs
 
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
-conda activate base
+conda activate cellpainting
 
 cd ~/Cellpainting-SSL-MoA
 
