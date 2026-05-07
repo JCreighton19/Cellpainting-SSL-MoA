@@ -31,7 +31,7 @@ def main():
 
     # Extract embeddings (streaming)
     embeddings = []
-    max_batches = None  # set to e.g. 100 for debugging
+    max_batches = 100
 
     with torch.no_grad():
         for i, batch in enumerate(loader):
