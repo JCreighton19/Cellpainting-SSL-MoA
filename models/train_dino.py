@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import os
+import sys
 
 from dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -9,6 +11,10 @@ from models.dino import CellPaintingViT
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
+
+    # Make checkpoints dir, if it does not yet exist
+    os.makedirs("checkpoints", exist_ok=True)
 
     # Device
     device = (
@@ -93,6 +99,7 @@ def main():
 
     # Training loop
     n_epochs = 8
+    losses = []
 
     for epoch in range(n_epochs):
         total_loss = 0
@@ -124,8 +131,18 @@ def main():
 
             total_loss += loss.item()
 
-        print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f}")
+        avg_loss = total_loss / len(loader)
+        losses.append(avg_loss)
 
+        torch.save({
+            "student_enc": student_enc.state_dict(),
+            "student_head": student_head.state_dict(),
+            "teacher_enc": teacher_enc.state_dict(),
+            "epoch": epoch,
+            "loss": avg_loss
+        }, f"checkpoints/dino_epoch_{epoch + 1}.pt")
+
+        print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f}")
 
 if __name__ == "__main__":
     main()
