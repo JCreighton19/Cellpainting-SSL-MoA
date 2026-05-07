@@ -16,8 +16,12 @@ def main():
 
     # Load model
     model = CellPaintingViT(in_channels=5).to(device)
+    checkpoint_path = os.path.expanduser(
+        "~/Cellpainting-SSL-MoA/checkpoints/dino_epoch_8.pt"
+    )
+
     checkpoint = torch.load(
-        "/scratch/creighton.jo/cellpainting/checkpoints/dino_epoch_8.pt",
+        checkpoint_path,
         map_location=device
     )
     model.load_state_dict(checkpoint["student_enc"])
