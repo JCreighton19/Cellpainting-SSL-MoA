@@ -16,7 +16,10 @@ def main():
 
     # Load model
     model = CellPaintingViT(in_channels=5).to(device)
-    checkpoint = torch.load("checkpoints/dino_epoch_8.pt", map_location=device)
+    checkpoint = torch.load(
+        "/scratch/creighton.jo/cellpainting/checkpoints/dino_epoch_8.pt",
+        map_location=device
+    )
     model.load_state_dict(checkpoint["student_enc"])
     model.eval()
 
@@ -47,9 +50,6 @@ def main():
 
     print("Final embedding shape:", embeddings.shape)
 
-    # save embeddings for reuse
-    torch.save(embeddings, "figures/embeddings.pt")
-
     # UMAP
     embeddings_np = embeddings.numpy()
     reducer = umap.UMAP(
@@ -61,13 +61,27 @@ def main():
     emb_2d = reducer.fit_transform(embeddings_np)
 
     # Plot
+    output_dir = "/scratch/creighton.jo/cellpainting/figures"
+    os.makedirs(output_dir, exist_ok=True)
+
     plt.figure(figsize=(8, 6))
     plt.scatter(emb_2d[:, 0], emb_2d[:, 1], s=2)
     plt.title("Cell Painting DINO Embeddings (UMAP)")
-    plt.savefig("figures/umap_embeddings.png", dpi=300, bbox_inches="tight")
+
+    plt.savefig(
+        os.path.join(output_dir, "umap_embeddings.png"),
+        dpi=300,
+        bbox_inches="tight"
+    )
     plt.close()
 
-    print("Saved: figures/umap_embeddings.png")
+    # Save embeddings
+    torch.save(
+        embeddings,
+        os.path.join(output_dir, "embeddings.pt")
+    )
+
+    print(f"Saved outputs to: {output_dir}")
 
 
 if __name__ == "__main__":
