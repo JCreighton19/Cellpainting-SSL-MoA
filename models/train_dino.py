@@ -92,7 +92,7 @@ def main():
             pt.data.mul_(momentum).add_((1 - momentum) * ps.data)
 
     # Training loop
-    n_epochs = 1
+    n_epochs = 8
 
     for epoch in range(n_epochs):
         total_loss = 0
