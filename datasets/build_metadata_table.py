@@ -1,4 +1,4 @@
-# analysis/build_metadata_table.py
+# datasets/build_metadata_table.py
 
 from pathlib import Path
 import pandas as pd
@@ -14,20 +14,21 @@ OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
 
 # LOAD IMAGING INDEX (CORE TABLE)
 def load_imaging_index(load_data_path: Path) -> pd.DataFrame:
-    """
-    This is the KEY table in Cell Painting.
-    It defines plate/well/site structure.
-    """
-
     df = pd.read_csv(load_data_path)
-
-    # Normalize expected column names (varies slightly across JUMP versions)
     df.columns = [c.lower() for c in df.columns]
 
-    required_cols = {"plate", "well"}
-    if not required_cols.issubset(df.columns):
-        raise ValueError(f"Missing required columns in load_data.csv: {required_cols}")
+    rename_map = {
+        "metadata_plate": "plate",
+        "metadata_well": "well",
+        "metadata_site": "site",
+    }
 
+    df = df.rename(columns=rename_map)
+
+    if "plate" not in df.columns or "well" not in df.columns:
+        raise ValueError(
+            f"Missing plate/well after renaming. Columns are: {df.columns.tolist()}"
+        )
     print(f"Loaded imaging index: {len(df)} rows")
 
     return df
@@ -55,6 +56,7 @@ def load_plate_layouts(layout_dir: Path) -> pd.DataFrame:
 
     return layout_df
 
+
 # LOAD COMPOUND METADATA
 def load_compound_metadata(filepath: Path) -> pd.DataFrame:
     """
@@ -66,11 +68,12 @@ def load_compound_metadata(filepath: Path) -> pd.DataFrame:
 
     return df
 
+
 # ATTACH IMAGE PATHS
 def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
     """
-    Instead of parsing filenames (fragile),
-    we assume directory = plate and images are already organized.
+    Instead of parsing filenames, assume directory = plate and images are
+    already organized
     """
 
     def resolve_image_paths(row):
@@ -79,7 +82,6 @@ def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
         plate_dir = image_root
 
         # find all images for that plate
-        # (robust fallback — avoids regex fragility)
         matches = list(plate_dir.rglob(f"*{well}*"))
 
         return [str(p) for p in matches] if matches else None
