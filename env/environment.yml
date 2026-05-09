@@ -1,0 +1,37 @@
+name: cellpainting
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+
+  # Core scientific stack
+  - numpy=1.26
+  - pandas
+  - scipy
+  - scikit-learn
+  - pyarrow
+  - matplotlib
+
+  # Imaging + embeddings
+  - tifffile
+  - umap-learn
+
+  # PyTorch GPU stack
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+
+  # Utilities
+  - pip
+  - jupyterlab
+  - ipykernel
+
+  # Pip-only packages
+  - pip:
+      - timm
