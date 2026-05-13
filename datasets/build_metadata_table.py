@@ -14,19 +14,12 @@ OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
 
 # WELL NORMALIZATION
 def rc_to_a01(well: str):
-    """
-    Convert r01c01 → A01
-    """
-    if well is None:
-        return None
     match = re.match(r"r(\d{2})c(\d{2})", well.lower())
     if not match:
         return None
-
     row = int(match.group(1))
     col = int(match.group(2))
-    row_letter = chr(ord("A") + row - 1)
-    return f"{row_letter}{col:02d}"
+    return f"{chr(ord('A') + row - 1)}{col:02d}"
 
 
 def extract_rc_from_filename(name: str):
@@ -49,7 +42,7 @@ def load_imaging_index(path: Path) -> pd.DataFrame:
         "metadata_site": "site",
     })
 
-    df["well"] = df["well"].apply(rc_to_a01)
+    df["well"] = df["well"].str.upper().str.strip()
 
     print(f"[load_data] rows={len(df)} wells={df['well'].nunique()}")
     return df
@@ -62,9 +55,8 @@ def load_plate_layouts(layout_dir: Path) -> pd.DataFrame:
         df = pd.read_csv(fp, sep="\t")
         # normalize column
         df = df.rename(columns={"well_position": "well"})
-        # convert to A01
-        df["well"] = df["well"].apply(rc_to_a01)
-        df["plate"] = fp.stem
+        df["well"] = df["well"].str.upper().str.strip()
+        df["plate"] = PLATE
         dfs.append(df)
 
     if len(dfs) == 0:
@@ -93,12 +85,12 @@ def build_image_index(image_root: Path) -> pd.DataFrame:
         well = rc_to_a01(rc)
         if well is None:
             continue
-        records.append((well, str(path)))
 
-    df = pd.DataFrame(records, columns=["well", "image_path"])
-    df = df.groupby("well")["image_path"].apply(list).reset_index()
+        records.append((PLATE, well, str(path)))
+    df = pd.DataFrame(records, columns=["plate", "well", "image_path"])
+    df = df.groupby(["plate", "well"])["image_path"].apply(list).reset_index()
+
     print(f"[images] wells={df['well'].nunique()} images={len(records)}")
-
     return df
 
 
@@ -119,8 +111,8 @@ def build_master_metadata(load_df, layout_df, compound_df):
 # IMAGE ATTACHMENT
 def attach_image_paths(df, image_root: Path):
     img_df = build_image_index(image_root)
-    merged = df.merge(img_df, on="well", how="left")
-    missing = merged["image_paths"].isna().mean()
+    merged = df.merge(img_df, on=["plate", "well"], how="left")
+    missing = merged["image_path"].isna().mean()
     print(f"[images] missing fraction: {missing:.3f}")
 
     return merged.rename(columns={"image_path": "image_paths"})
