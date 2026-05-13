@@ -12,146 +12,116 @@ PLATEMAP_DIR = Path(f"data/raw/platemaps/{PLATE}")
 COMPOUND_METADATA_PATH = Path(f"data/raw/compound_metadata/{PLATE}/compound_metadata.tsv")
 OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
 
-# EXTRACT WELL NAMES
-def extract_well(name: str):
+# WELL NORMALIZATION
+def rc_to_a01(well: str):
     """
-    Extracts well like r01c01 from filenames like:
+    Convert r01c01 → A01
+    """
+    if well is None:
+        return None
+    match = re.match(r"r(\d{2})c(\d{2})", well.lower())
+    if not match:
+        return None
+
+    row = int(match.group(1))
+    col = int(match.group(2))
+    row_letter = chr(ord("A") + row - 1)
+    return f"{row_letter}{col:02d}"
+
+
+def extract_rc_from_filename(name: str):
+    """
+    Extract r01c01 from filenames like:
     r01c01f01p01-ch1sk1fk1fl1.tiff
     """
     match = re.search(r"(r\d{2}c\d{2})", name.lower())
     return match.group(1) if match else None
 
-# CONVERT WELL NAMES
-def rc_to_a01(name: str):
-    match = re.match(r"r(\d{2})c(\d{2})", name.lower())
-    if not match:
-        return None
 
-    row = int(match.group(1))   # 01 → 1
-    col = int(match.group(2))   # 01 → 1
-    row_letter = chr(ord("A") + row - 1)
-
-    return f"{row_letter}{col:02d}"
-
-
-# LOAD IMAGING INDEX (CORE TABLE)
-def load_imaging_index(load_data_path: Path) -> pd.DataFrame:
-    df = pd.read_csv(load_data_path)
+# LOAD IMAGING INDEX
+def load_imaging_index(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
     df.columns = [c.lower() for c in df.columns]
 
-    rename_map = {
+    df = df.rename(columns={
         "metadata_plate": "plate",
         "metadata_well": "well",
         "metadata_site": "site",
-    }
+    })
 
-    df = df.rename(columns=rename_map)
+    df["well"] = df["well"].apply(rc_to_a01)
 
-    if "plate" not in df.columns or "well" not in df.columns:
-        raise ValueError(
-            f"Missing plate/well after renaming. Columns are: {df.columns.tolist()}"
-        )
-    print(f"Loaded imaging index: {len(df)} rows")
-
+    print(f"[load_data] rows={len(df)} wells={df['well'].nunique()}")
     return df
 
 
-# LOAD PLATEMAP
+# LOAD PLATEMAPS
 def load_plate_layouts(layout_dir: Path) -> pd.DataFrame:
-    """
-    Maps well → compound (broad_sample)
-    """
-
     dfs = []
-    for filepath in layout_dir.glob("*.txt"):
-        df = pd.read_csv(filepath, sep="\t")
-        df = df.rename(columns={
-            "well_position": "well"
-        })
-
-        # plate id inferred from filename
-        df["plate"] = filepath.stem
+    for fp in layout_dir.glob("*.txt"):
+        df = pd.read_csv(fp, sep="\t")
+        # normalize column
+        df = df.rename(columns={"well_position": "well"})
+        # convert to A01
+        df["well"] = df["well"].apply(rc_to_a01)
+        df["plate"] = fp.stem
         dfs.append(df)
 
-    layout_df = pd.concat(dfs, ignore_index=True)
-    print(f"Loaded platemap rows: {len(layout_df)}")
+    if len(dfs) == 0:
+        raise ValueError(f"No platemap files found in {layout_dir}")
 
+    layout_df = pd.concat(dfs, ignore_index=True)
+    print(f"[platemap] rows={len(layout_df)} wells={layout_df['well'].nunique()}")
     return layout_df
 
 
-# LOAD COMPOUND METADATA
-def load_compound_metadata(filepath: Path) -> pd.DataFrame:
-    """
-    Optional enrichment table (gene, SMILES, etc.)
-    """
-
-    df = pd.read_csv(filepath, sep="\t")
-    print(f"Loaded compound metadata: {len(df)} rows")
-
+# COMPOUND METADATA
+def load_compound_metadata(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path, sep="\t")
+    print(f"[compound] rows={len(df)}")
     return df
 
 
-# ATTACH IMAGE PATHS
+# IMAGE INDEX
 def build_image_index(image_root: Path) -> pd.DataFrame:
     records = []
-    for path in image_root.rglob("*"):
-        if path.is_file():
-            rc = extract_well(path.name)
-            if rc is None:
-                continue
-            well = rc_to_a01(rc)
-            if well is None:
-                continue
-            else:
-                records.append((well, str(path)))
+    for path in image_root.rglob("*.tiff"):
+        rc = extract_rc_from_filename(path.name)
+        if rc is None:
+            continue
+
+        well = rc_to_a01(rc)
+        if well is None:
+            continue
+        records.append((well, str(path)))
 
     df = pd.DataFrame(records, columns=["well", "image_path"])
     df = df.groupby("well")["image_path"].apply(list).reset_index()
-    print(f"Indexed wells: {df['well'].nunique()}, images: {len(records)}")
+    print(f"[images] wells={df['well'].nunique()} images={len(records)}")
 
     return df
 
 
-# MASTER MERGE PIPELINE
+# MASTER MERGE
 def build_master_metadata(load_df, layout_df, compound_df):
-    """
-    Core joins:
-    1. imaging index (load_data)
-    2. platemap (well → compound)
-    3. compound metadata enrichment
-    """
+    merged = load_df.merge(layout_df, on=["plate", "well"], how="left")
+    print(f"[merge] after platemap: {merged.shape}")
+    missing = merged["broad_sample"].isna().mean() if "broad_sample" in merged else 1.0
+    print(f"[merge] missing broad_sample: {missing:.3f}")
 
-    # 1. join imaging → platemap
-    merged = load_df.merge(
-        layout_df,
-        how="left",
-        on=["plate", "well"]
-    )
-
-    print(f"After platemap join: {merged.shape}")
-
-    # 2. join compound metadata
-    if compound_df is not None:
-        if "broad_sample" in merged.columns and "broad_sample" in compound_df.columns:
-            merged = merged.merge(
-                compound_df,
-                how="left",
-                on="broad_sample"
-            )
-
-    print(f"After compound join: {merged.shape}")
+    if compound_df is not None and "broad_sample" in merged.columns:
+        merged = merged.merge(compound_df, on="broad_sample", how="left")
+    print(f"[merge] after compound: {merged.shape}")
 
     return merged
 
 
-def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
-    """
-    Join precomputed image index
-    """
+# IMAGE ATTACHMENT
+def attach_image_paths(df, image_root: Path):
     img_df = build_image_index(image_root)
-    merged = load_df.merge(img_df, how="left", on="well")
-    missing = merged["image_path"].isna().mean()
-    print(f"Fraction missing images: {missing:.3f}")
+    merged = df.merge(img_df, on="well", how="left")
+    missing = merged["image_paths"].isna().mean()
+    print(f"[images] missing fraction: {missing:.3f}")
 
     return merged.rename(columns={"image_path": "image_paths"})
 
@@ -159,18 +129,30 @@ def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
 # VALIDATION
 def validate(df):
 
-    print("\n================ VALIDATION ================\n")
-    print("Rows:", len(df))
-    print("Missing broad_sample:", df["broad_sample"].isna().mean())
-    print("Unique compounds:", df["broad_sample"].nunique())
-    print("Unique wells:", df["well"].nunique())
-    print("Perturbation types:")
+    print("\n========== VALIDATION ==========\n")
+    print("rows:", len(df))
+    print("wells:", df["well"].nunique())
+
+    if "broad_sample" in df.columns:
+        miss = df["broad_sample"].isna().mean()
+        print("missing broad_sample:", miss)
+        if miss > 0.5:
+            raise ValueError(
+                "Platemap join failed: >50% missing broad_sample. "
+                "Check well format consistency between load_data and platemap."
+            )
+
+    if "image_paths" in df.columns:
+        print("missing images:", df["image_paths"].isna().mean())
+
+    print("\npert_type:")
     if "pert_type" in df.columns:
-        print(df["pert_type"].value_counts(dropna=False))
-    print("\nMissing images:", df["image_paths"].isna().mean())
+        print(df["pert_type"].value_counts())
 
 
+# MAIN
 def main():
+
     print("\nLoading imaging index...")
     load_df = load_imaging_index(LOAD_DATA_PATH)
 
@@ -183,17 +165,16 @@ def main():
     print("\nBuilding master table...")
     master = build_master_metadata(load_df, layout_df, compound_df)
 
-    print("\nAttaching image paths...")
+    print("\nAttaching images...")
     master = attach_image_paths(master, IMAGE_ROOT)
 
-    print("\nValidating...")
     validate(master)
-
-    print("\nSaving parquet...")
+    print("\nSaving...")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     master.to_parquet(OUTPUT_PATH, index=False)
-    print(f"\nSaved to: {OUTPUT_PATH}")
+
+    print(f"\nSaved → {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":
