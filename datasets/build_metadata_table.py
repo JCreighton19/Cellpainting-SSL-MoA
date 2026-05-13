@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
+import re
 
 # CONFIG
 PLATE = "BR00116991"
@@ -10,6 +11,15 @@ LOAD_DATA_PATH = Path(f"data/raw/load_data_csv/{PLATE}/load_data.csv")
 PLATEMAP_DIR = Path(f"data/raw/platemaps/{PLATE}")
 COMPOUND_METADATA_PATH = Path(f"data/raw/compound_metadata/{PLATE}/compound_metadata.tsv")
 OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
+
+# EXTRACT WELL NAMES
+def extract_well(name: str):
+    """
+    Extracts well like r01c01 from filenames like:
+    r01c01f01p01-ch1sk1fk1fl1.tiff
+    """
+    match = re.search(r"(r\d{2}c\d{2})", name.lower())
+    return match.group(1) if match else None
 
 
 # LOAD IMAGING INDEX (CORE TABLE)
@@ -70,27 +80,20 @@ def load_compound_metadata(filepath: Path) -> pd.DataFrame:
 
 
 # ATTACH IMAGE PATHS
-def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
-    """
-    Instead of parsing filenames, assume directory = plate and images are
-    already organized
-    """
+def build_image_index(image_root: Path) -> pd.DataFrame:
+    records = []
+    for path in image_root.rglob("*"):
+        if path.is_file():
+            well = extract_well(path.name)
+            if well:
+                records.append((well, str(path)))
 
-    def resolve_image_paths(row):
-        plate = row["plate"]
-        well = row["well"]
-        plate_dir = image_root
+    df = pd.DataFrame(records, columns=["well", "image_path"])
+    df = df.groupby("well")["image_path"].apply(list).reset_index()
+    print(f"Indexed wells: {df['well'].nunique()}, images: {len(records)}")
 
-        # find all images for that plate
-        matches = list(plate_dir.rglob(f"*{well}*"))
+    return df
 
-        return [str(p) for p in matches] if matches else None
-
-    load_df["image_paths"] = load_df.apply(resolve_image_paths, axis=1)
-    missing = load_df["image_paths"].isna().mean()
-    print(f"Fraction missing images: {missing:.3f}")
-
-    return load_df
 
 # MASTER MERGE PIPELINE
 def build_master_metadata(load_df, layout_df, compound_df):
@@ -122,6 +125,19 @@ def build_master_metadata(load_df, layout_df, compound_df):
     print(f"After compound join: {merged.shape}")
 
     return merged
+
+
+def attach_image_paths(load_df: pd.DataFrame, image_root: Path) -> pd.DataFrame:
+    """
+    Join precomputed image index
+    """
+    img_df = build_image_index(image_root)
+    merged = load_df.merge(img_df, how="left", on="well")
+    missing = merged["image_path"].isna().mean()
+    print(f"Fraction missing images: {missing:.3f}")
+
+    return merged.rename(columns={"image_path": "image_paths"})
+
 
 # VALIDATION
 def validate(df):
