@@ -21,6 +21,18 @@ def extract_well(name: str):
     match = re.search(r"(r\d{2}c\d{2})", name.lower())
     return match.group(1) if match else None
 
+# CONVERT WELL NAMES
+def rc_to_a01(name: str):
+    match = re.match(r"r(\d{2})c(\d{2})", name.lower())
+    if not match:
+        return None
+
+    row = int(match.group(1))   # 01 → 1
+    col = int(match.group(2))   # 01 → 1
+    row_letter = chr(ord("A") + row - 1)
+
+    return f"{row_letter}{col:02d}"
+
 
 # LOAD IMAGING INDEX (CORE TABLE)
 def load_imaging_index(load_data_path: Path) -> pd.DataFrame:
@@ -84,8 +96,13 @@ def build_image_index(image_root: Path) -> pd.DataFrame:
     records = []
     for path in image_root.rglob("*"):
         if path.is_file():
-            well = extract_well(path.name)
-            if well:
+            rc = extract_well(path.name)
+            if rc is None:
+                continue
+            well = rc_to_a01(rc)
+            if well is None:
+                continue
+            else:
                 records.append((well, str(path)))
 
     df = pd.DataFrame(records, columns=["well", "image_path"])
