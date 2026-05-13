@@ -7,8 +7,8 @@ import pandas as pd
 PLATE = "BR00116991"
 IMAGE_ROOT = Path(f"data/raw/images/{PLATE}")
 LOAD_DATA_PATH = Path(f"data/raw/load_data_csv/{PLATE}/load_data.csv")
-PLATEMAP_DIR = Path("data/raw/platemaps")
-COMPOUND_METADATA_PATH = Path("data/raw/compound_metadata/compound_metadata.tsv")
+PLATEMAP_DIR = Path(f"data/raw/{PLATE}/platemaps")
+COMPOUND_METADATA_PATH = Path(f"data/raw/compound_metadata/{PLATE}/compound_metadata.tsv")
 OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
 
 
