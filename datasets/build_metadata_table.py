@@ -98,12 +98,17 @@ def build_image_index(image_root: Path) -> pd.DataFrame:
 def build_master_metadata(load_df, layout_df, compound_df):
     merged = load_df.merge(layout_df, on=["plate", "well"], how="left")
     print(f"[merge] after platemap: {merged.shape}")
+    print("dup (plate,well,site):", merged.duplicated(["plate", "well", "site"]).sum())
+    print("row growth factor:", len(merged) / len(load_df))
+
     missing = merged["broad_sample"].isna().mean() if "broad_sample" in merged else 1.0
     print(f"[merge] missing broad_sample: {missing:.3f}")
 
     if compound_df is not None and "broad_sample" in merged.columns:
         merged = merged.merge(compound_df, on="broad_sample", how="left")
     print(f"[merge] after compound: {merged.shape}")
+    print("dup (plate,well,site):", merged.duplicated(["plate", "well", "site"]).sum())
+    print("row growth factor:", len(merged) / len(load_df))
 
     return merged
 
@@ -148,18 +153,28 @@ def main():
 
     print("\nLoading imaging index...")
     load_df = load_imaging_index(LOAD_DATA_PATH)
+    print("load_df shape:", load_df.shape)
+    print("dup (plate,well,site):", load_df.duplicated(["plate", "well", "site"]).sum())
 
     print("\nLoading platemaps...")
     layout_df = load_plate_layouts(PLATEMAP_DIR)
+    print("layout_df shape:", layout_df.shape)
+    print("dup (plate,well):", layout_df.duplicated(["plate", "well"]).sum())
 
     print("\nLoading compound metadata...")
     compound_df = load_compound_metadata(COMPOUND_METADATA_PATH)
+    print("compound_df shape:", compound_df.shape)
+    print("dup (broad_sample):", compound_df.duplicated(["broad_sample"]).sum())
 
     print("\nBuilding master table...")
     master = build_master_metadata(load_df, layout_df, compound_df)
 
     print("\nAttaching images...")
     master = attach_image_paths(master, IMAGE_ROOT)
+
+    print("final shape:", master.shape)
+    print("final duplicates:", master.duplicated(["plate", "well", "site"]).sum())
+    print(master.groupby(["plate", "well", "site"]).size().max())
 
     validate(master)
     print("\nSaving...")
