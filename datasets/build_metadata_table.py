@@ -75,22 +75,24 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
 
 
 # IMAGE INDEX
-def build_image_index(image_root: Path) -> pd.DataFrame:
+def build_image_index(image_root: Path):
     records = []
+
     for path in image_root.rglob("*.tiff"):
         rc = extract_rc_from_filename(path.name)
         if rc is None:
             continue
-
         well = rc_to_a01(rc)
-        if well is None:
+        site_match = re.search(r"f(\d{2})p\d{2}", path.name.lower())
+        if site_match:
+            site = int(site_match.group(1))
+        else:
             continue
+        records.append((PLATE, well, site, str(path)))
 
-        records.append((PLATE, well, str(path)))
-    df = pd.DataFrame(records, columns=["plate", "well", "image_path"])
-    df = df.groupby(["plate", "well"])["image_path"].apply(list).reset_index()
+    df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
+    df = df.groupby(["plate", "well", "site"])["image_path"].apply(list).reset_index()
 
-    print(f"[images] wells={df['well'].nunique()} images={len(records)}")
     return df
 
 
@@ -117,7 +119,7 @@ def attach_image_paths(df, image_root: Path):
     img_df = build_image_index(image_root)
 
     # Inner join to keep only rows that actually have downloaded images
-    merged = df.merge(img_df, on=["plate", "well"], how="inner")
+    merged = df.merge(img_df, on=["plate", "well", "site"], how="inner")
     print(f"[images] final rows with images: {len(merged)}")
     print(f"[images] wells with images: {merged['well'].nunique()}")
 
