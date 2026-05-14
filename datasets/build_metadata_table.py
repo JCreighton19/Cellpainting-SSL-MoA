@@ -111,9 +111,11 @@ def build_master_metadata(load_df, layout_df, compound_df):
 # IMAGE ATTACHMENT
 def attach_image_paths(df, image_root: Path):
     img_df = build_image_index(image_root)
-    merged = df.merge(img_df, on=["plate", "well"], how="left")
-    missing = merged["image_path"].isna().mean()
-    print(f"[images] missing fraction: {missing:.3f}")
+
+    # Inner join to keep only rows that actually have downloaded images
+    merged = df.merge(img_df, on=["plate", "well"], how="inner")
+    print(f"[images] final rows with images: {len(merged)}")
+    print(f"[images] wells with images: {merged['well'].nunique()}")
 
     return merged.rename(columns={"image_path": "image_paths"})
 
