@@ -108,16 +108,41 @@ def build_master_metadata(load_df, layout_df, compound_df):
     return merged
 
 
+# WELL TO RC
+def well_to_rc(well):
+    """
+    Convert well like M13 -> (13, 13)
+    """
+    row_letter = well[0]
+    col_num = int(well[1:])
+    row_num = ord(row_letter.upper()) - ord("A") + 1
+
+    return row_num, col_num
+
+
 # IMAGE ATTACHMENT
-def attach_image_paths(df, image_root: Path):
-    img_df = build_image_index(image_root)
+def attach_image_paths(load_df: pd.DataFrame,
+                       image_root: Path) -> pd.DataFrame:
+    def resolve_image_paths(row):
 
-    # Inner join to keep only rows that actually have downloaded images
-    merged = df.merge(img_df, on=["plate", "well"], how="inner")
-    print(f"[images] final rows with images: {len(merged)}")
-    print(f"[images] wells with images: {merged['well'].nunique()}")
+        well = row["well"]
+        site = int(row["site"])
+        row_num, col_num = well_to_rc(well)
+        prefix = f"r{row_num:02d}c{col_num:02d}f{site:02d}"
+        matches = sorted(
+            image_root.glob(f"{prefix}*.tiff")
+        )
 
-    return merged.rename(columns={"image_path": "image_paths"})
+        return [str(p) for p in matches] if matches else None
+
+    load_df["image_paths"] = load_df.apply(
+        resolve_image_paths,
+        axis=1
+    )
+    missing = load_df["image_paths"].isna().mean()
+    print(f"Fraction missing images: {missing:.3f}")
+
+    return load_df
 
 
 # VALIDATION
