@@ -121,26 +121,28 @@ def well_to_rc(well):
 
 
 # IMAGE ATTACHMENT
-def attach_image_paths(load_df: pd.DataFrame,
-                       image_root: Path) -> pd.DataFrame:
-    def resolve_image_paths(row):
+def attach_image_paths(load_df, image_root):
 
+    def resolve_image_paths(row):
         well = row["well"]
         site = int(row["site"])
-        row_num, col_num = well_to_rc(well)
+        row_letter = well[0]
+        col_num = int(well[1:])
+        row_num = ord(row_letter.upper()) - ord("A") + 1
         prefix = f"r{row_num:02d}c{col_num:02d}f{site:02d}"
         matches = sorted(
             image_root.glob(f"{prefix}*.tiff")
         )
 
-        return [str(p) for p in matches] if matches else None
+        if len(matches) != 5:
+            return None
+
+        return [str(p) for p in matches]
 
     load_df["image_paths"] = load_df.apply(
         resolve_image_paths,
         axis=1
     )
-    missing = load_df["image_paths"].isna().mean()
-    print(f"Fraction missing images: {missing:.3f}")
 
     return load_df
 
