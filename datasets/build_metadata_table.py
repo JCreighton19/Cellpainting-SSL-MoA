@@ -107,44 +107,16 @@ def build_master_metadata(load_df, layout_df, compound_df):
 
     return merged
 
-
-# WELL TO RC
-def well_to_rc(well):
-    """
-    Convert well like M13 -> (13, 13)
-    """
-    row_letter = well[0]
-    col_num = int(well[1:])
-    row_num = ord(row_letter.upper()) - ord("A") + 1
-
-    return row_num, col_num
-
-
 # IMAGE ATTACHMENT
-def attach_image_paths(load_df, image_root):
+def attach_image_paths(df, image_root: Path):
+    img_df = build_image_index(image_root)
 
-    def resolve_image_paths(row):
-        well = row["well"]
-        site = int(row["site"])
-        row_letter = well[0]
-        col_num = int(well[1:])
-        row_num = ord(row_letter.upper()) - ord("A") + 1
-        prefix = f"r{row_num:02d}c{col_num:02d}f{site:02d}"
-        matches = sorted(
-            image_root.glob(f"{prefix}*.tiff")
-        )
+    # Inner join to keep only rows that actually have downloaded images
+    merged = df.merge(img_df, on=["plate", "well"], how="inner")
+    print(f"[images] final rows with images: {len(merged)}")
+    print(f"[images] wells with images: {merged['well'].nunique()}")
 
-        if len(matches) != 5:
-            return None
-
-        return [str(p) for p in matches]
-
-    load_df["image_paths"] = load_df.apply(
-        resolve_image_paths,
-        axis=1
-    )
-
-    return load_df
+    return merged.rename(columns={"image_path": "image_paths"})
 
 
 # VALIDATION
