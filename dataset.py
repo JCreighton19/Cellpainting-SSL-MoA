@@ -9,21 +9,29 @@ class CellPaintingDataset(Dataset):
     def __init__(
             self,
             metadata_path,
+            data_root,
             transform=None,
             channels=None,
             tile_size=224
         ):
-        self.project_root = Path("data").resolve()
+        self.project_root = Path(data_root).resolve()
         self.metadata = pd.read_parquet(metadata_path)
         self.transform = transform
         self.channels = channels if channels is not None else [1,2,3,4,5]
         self.tile_size = tile_size
 
         self._cache = {}  # used to reduce number of disk reads
-        self.fields = self._build_fields()
+        self.fields = [
+            f for f in self._build_fields()
+            if all(self._file_exists(p) for p in f["files"])
+        ]
+
         if len(self.fields) == 0:
             raise ValueError("No valid fields found")
         self.tiles = None # use lazy indexing to improve scalability
+
+    def _file_exists(self, p):
+        return Path(p).exists()
 
     def build_index(self):
         if self.tiles is None:
@@ -34,13 +42,10 @@ class CellPaintingDataset(Dataset):
         return len(self.tiles)
 
     def _build_fields(self):
-
         fields = []
 
         for _, row in self.metadata.iterrows():
-
             image_paths = row["image_paths"]
-
             selected_paths = [
                 str(self.project_root / image_paths[ch - 1])
                 for ch in self.channels
@@ -51,7 +56,6 @@ class CellPaintingDataset(Dataset):
                 "plate": row["plate"],
                 "well": row["well"],
                 "site": row["site"],
-                "moa": row.get("moa", None),
                 "compound": row["pert_iname"],
                 "broad_sample": row["broad_sample"],
                 "gene": row["gene"],
@@ -83,6 +87,7 @@ class CellPaintingDataset(Dataset):
 
         return tiles
 
+
     def _load_field(self, field_idx):
         """Load and normalize a full field of view as (C, H, W)."""
         if field_idx in self._cache:
@@ -90,11 +95,14 @@ class CellPaintingDataset(Dataset):
 
         file_list = self.fields[field_idx]["files"]
         imgs = [tiff.imread(f) for f in file_list]
+        if len(imgs) == 0:
+            raise ValueError(f"No valid images for field {field_idx}")
         image = np.stack(imgs, axis=0).astype(np.float32)
         image = self._normalize_channels(image)
 
         self._cache[field_idx] = image
         return image
+
 
     def __getitem__(self, idx):
         self.build_index()
@@ -111,8 +119,8 @@ class CellPaintingDataset(Dataset):
 
         return {
             "image": tile,
-            "moa": meta["moa"],
             "compound": meta["compound"],
+            "broad_sample": meta["broad_sample"],
             "plate": meta["plate"],
             "well": meta["well"],
             "site": meta["site"],
