@@ -77,6 +77,7 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
 # IMAGE INDEX
 def build_image_index(image_root: Path):
     records = []
+    DATA_ROOT = Path("data").resolve()
 
     for path in image_root.rglob("*.tiff"):
         rc = extract_rc_from_filename(path.name)
@@ -84,11 +85,11 @@ def build_image_index(image_root: Path):
             continue
         well = rc_to_a01(rc)
         site_match = re.search(r"f(\d{2})p\d{2}", path.name.lower())
-        if site_match:
-            site = int(site_match.group(1))
-        else:
+        if not site_match:
             continue
-        records.append((PLATE, well, site, str(path)))
+        site = int(site_match.group(1))
+        rel_path = str(path.resolve().relative_to(DATA_ROOT))
+        records.append((PLATE, well, site, rel_path))
 
     df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
     df = df.groupby(["plate", "well", "site"])["image_path"].apply(list).reset_index()
