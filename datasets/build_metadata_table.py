@@ -180,6 +180,12 @@ def main():
     print(master.groupby(["plate", "well", "site"]).size().max())
 
     validate(master)
+
+    # Fill nas with 'unknown'
+    master["broad_sample"] = master["broad_sample"].fillna("unknown")
+    master["gene"] = master["gene"].fillna("unknown")
+    master["control_type"] = master["control_type"].fillna("unknown")
+
     print("\nSaving...")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
