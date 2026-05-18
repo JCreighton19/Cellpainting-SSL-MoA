@@ -135,7 +135,6 @@ class CellPaintingDataset(Dataset):
             p1 = np.percentile(channel, 1)
             p99 = np.percentile(channel, 99)
             normed[c] = (channel - p1) / (p99 - p1 + 1e-6)
-            normed[c] = np.clip(normed[c], 0, 1)
         return normed
 
     def _is_informative(self, tile):

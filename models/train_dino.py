@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import os
 import sys
+import random
+import numpy as np
 
 from dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -11,6 +13,10 @@ from models.dino import CellPaintingViT
 
 
 def main():
+    torch.manual_seed(42)
+    np.random.seed(42)
+    random.seed(42)
+
     sys.stdout.reconfigure(line_buffering=True)
 
     # Make checkpoints dir, if it does not yet exist
@@ -25,10 +31,11 @@ def main():
     print("Using device:", device)
 
     # Dataset
-
-    data_dir = '/scratch/creighton.jo/cellpainting/plate1'
+    metadata_path = "../data/processed/master_metadata.parquet"
+    data_root = "../data"
     dataset = CellPaintingDataset(
-        data_dir=data_dir,
+        metadata_path=metadata_path,
+        data_root=data_root,
         channels=[1,2,3,4,5],
         tile_size=224
     )
@@ -42,11 +49,13 @@ def main():
 
     # Augmentation
     augment = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.4, 1.0)),
+        # Start with simple augmentations
+        #transforms.RandomResizedCrop(224, scale=(0.4, 1.0)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(180),
-        transforms.GaussianBlur(kernel_size=9, sigma=(0.1, 2.0)),
+        transforms.Lambda(lambda x: x + 0.01 * torch.randn_like(x))
+        #transforms.RandomRotation(180),
+        #transforms.GaussianBlur(kernel_size=9, sigma=(0.1, 2.0)),
     ])
 
     def apply_augment(batch):
@@ -76,6 +85,9 @@ def main():
     teacher_head = DINOHead().to(device)
     teacher_head.load_state_dict(student_head.state_dict())
 
+    teacher_enc.eval()
+    teacher_head.eval()
+
     for p in teacher_head.parameters():
         p.requires_grad = False
 
@@ -98,31 +110,53 @@ def main():
             pt.data.mul_(momentum).add_((1 - momentum) * ps.data)
 
     # Training loop
-    n_epochs = 8
+    n_epochs = 10
     losses = []
 
     for epoch in range(n_epochs):
+        student_enc.train()
+        student_head.train()
         total_loss = 0
 
-        for batch in loader:
-            batch = batch.to(device)
+        for step, batch in enumerate(loader):
+            images = batch["image"]
 
-            x1 = apply_augment(batch)
-            x2 = apply_augment(batch)
+            x1 = apply_augment(images)
+            x2 = apply_augment(images)
+
+            # Confirm shapes are as expected
+            assert x1.ndim == 4
+            assert x1.shape[1] == 5
+            assert x1.shape[-1] == 224
+
+            x1 = x1.to(device)
+            x2 = x2.to(device)
 
             s1 = student_head(student_enc(x1))
             s2 = student_head(student_enc(x2))
+            with torch.no_grad():
+                embed_std = torch.cat([s1, s2]).std(dim=0).mean().item()
+                embed_norm = torch.cat([s1, s2]).norm(dim=1).mean().item()
 
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(x1)).detach()
-                t2 = teacher_head(teacher_enc(x2)).detach()
+                t1 = teacher_head(teacher_enc(x1))
+                t2 = teacher_head(teacher_enc(x2))
 
             loss = (dino_loss(s1, t2) + dino_loss(s2, t1)) / 2
+
+            if step % 20 == 0:
+                print(
+                    f"loss={loss.item():.4f} "
+                    f"std={embed_std:.4f} "
+                    f"norm={embed_norm:.4f} "
+                )
 
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(
-                list(student_enc.parameters()), 3.0
+                list(student_enc.parameters()) +
+                list(student_head.parameters()),
+                3.0
             )
             optimizer.step()
 

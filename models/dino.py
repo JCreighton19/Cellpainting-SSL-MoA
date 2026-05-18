@@ -32,13 +32,14 @@ class CellPaintingViT(nn.Module):
         # initialize new projection weights
         with torch.no_grad():
             # copy pretrained RGB weights for first 3 channels
-            new_proj.weight[:, :3].copy_(old_proj.weight)
+            if in_channels >= 3:
+                new_proj.weight[:, :3].copy_(old_proj.weight[:, :3])
 
             # initialize extra channels as mean of RGB
             if in_channels > 3:
-                mean_weight = old_proj.weight.mean(dim=1, keepdim=True)
+                mean_weight = old_proj.weight[:, :3].mean(dim=1, keepdim=True)
                 for i in range(3, in_channels):
-                    new_proj.weight[:, i:i + 1, :, :] = mean_weight
+                    new_proj.weight[:, i:i + 1].copy_(mean_weight)
 
             if old_proj.bias is not None:
                 new_proj.bias.data.copy_(old_proj.bias.data)
@@ -46,8 +47,9 @@ class CellPaintingViT(nn.Module):
         self.vit.patch_embed.proj = new_proj
 
     def forward(self, x):
-        # x: (B, 5, 224, 224)
-        return self.vit(x)  # (B, embed_dim) — 384 for ViT-S
+        x = self.vit.forward_features(x)
+        x = x[:, 0]  # CLS token ONLY
+        return x
 
 
 if __name__ == "__main__":

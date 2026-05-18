@@ -18,19 +18,18 @@ class DINOLoss(nn.Module):
         student_out: (B, proj_dim)
         teacher_out: (B, proj_dim)
         """
-        # sharpen teacher output
-        teacher_out = F.softmax(
+        # student log softmax
+        student_temp = 0.1
+        student_log_probs = F.log_softmax(student_out / student_temp, dim=-1)
+
+        # update center (EMA of teacher outputs)
+        teacher_probs = F.softmax(
             (teacher_out - self.center) / self.teacher_temp, dim=-1
         ).detach()
 
-        # student log softmax
-        student_temp = 0.1
-        student_out = F.log_softmax(student_out / student_temp, dim=-1)
-
         # cross entropy loss
-        loss = -(teacher_out * student_out).sum(dim=-1).mean()
+        loss = -(teacher_probs * student_log_probs).sum(dim=-1).mean()
 
-        # update center (EMA of teacher outputs)
         self.update_center(teacher_out)
 
         return loss
@@ -38,5 +37,5 @@ class DINOLoss(nn.Module):
     @torch.no_grad()
     def update_center(self, teacher_output):
         batch_center = teacher_output.mean(dim=0, keepdim=True)
-        self.center = (self.center * self.center_momentum
-                      + batch_center * (1 - self.center_momentum))
+        self.center.mul_(self.center_momentum)
+        self.center.add_(batch_center * (1 - self.center_momentum))
