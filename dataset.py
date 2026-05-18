@@ -34,10 +34,12 @@ class CellPaintingDataset(Dataset):
         return Path(p).exists()
 
     def __len__(self):
-        return 100_000  # or 200_000, acts like "steps per epoch"
+        return 50000  # acts like "steps per epoch"
 
     def _sample_field(self):
-        return random.randint(0, len(self.fields) - 1)
+        field_idx = random.randint(0, len(self.fields) - 1)
+        print(f"[DEBUG] sample_field -> {field_idx}")
+        return field_idx
 
     def _sample_coords(self, image):
         C, H, W = image.shape
@@ -84,6 +86,7 @@ class CellPaintingDataset(Dataset):
             raise ValueError(f"No valid images for field {field_idx}")
         image = np.stack(imgs, axis=0).astype(np.float32)
         image = self._normalize_channels(image)
+        print(f"[DEBUG] image shape {image.shape}")
 
         self._cache[field_idx] = image
         return image
@@ -106,9 +109,12 @@ class CellPaintingDataset(Dataset):
 
             # Safety check
             if tile is None:
+                print("[DEBUG] TRANSFORM RETURNED NONE")
                 continue
 
             meta = self.fields[field_idx]
+
+            print(f"[DEBUG] returning sample from field {field_idx}")
 
             return {
                 "image": tile,
