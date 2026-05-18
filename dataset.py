@@ -89,36 +89,39 @@ class CellPaintingDataset(Dataset):
         return image
 
     def __getitem__(self, idx):
-        for _ in range(10):  # retry loop (important for filtering)
-
+        for _ in range(10):
             field_idx = self._sample_field()
             image = self._load_field(field_idx)
+            if image is None:
+                continue
 
             r, c = self._sample_coords(image)
             tile = image[:, r:r + self.tile_size, c:c + self.tile_size]
+            if not self._is_informative(tile):
+                continue
 
-            if self._is_informative(tile):
+            tile = torch.from_numpy(tile).float()
+            if self.transform is not None:
+                tile = self.transform(tile)
 
-                tile = torch.from_numpy(tile).float()
+            # Safety check
+            if tile is None:
+                continue
 
-                if self.transform:
-                    tile = self.transform(tile)
+            meta = self.fields[field_idx]
 
-                meta = self.fields[field_idx]
+            return {
+                "image": tile,
+                "compound": meta["compound"],
+                "broad_sample": meta["broad_sample"],
+                "plate": meta["plate"],
+                "well": meta["well"],
+                "site": meta["site"],
+                "row": r,
+                "col": c
+            }
 
-                return {
-                    "image": tile,
-                    "compound": meta["compound"],
-                    "broad_sample": meta["broad_sample"],
-                    "plate": meta["plate"],
-                    "well": meta["well"],
-                    "site": meta["site"],
-                    "row": r,
-                    "col": c
-                }
-
-        # fallback (if all retries fail)
-        return self.__getitem__((idx + 1) % len(self.fields))
+        raise RuntimeError(f"Failed to sample valid tile after retries (idx={idx})")
 
     def _normalize_channels(self, image):
         normed = np.zeros_like(image)
@@ -139,4 +142,4 @@ class CellPaintingDataset(Dataset):
         # texture (avoids flat gray tiles)
         variance = tile.var()
 
-        return (dna_signal > 0.1) and (total_signal > 0.05) and (variance > 0.01)
+        return (dna_signal > 0.05) and (total_signal > 0.05) and (variance > 0.005)
