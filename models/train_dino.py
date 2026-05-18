@@ -41,11 +41,19 @@ def main():
         tile_size=224
     )
 
+    def worker_init_fn(worker_id):
+        seed = torch.initial_seed() % 2 ** 32
+        random.seed(seed)
+        np.random.seed(seed)
+
     loader = DataLoader(
         dataset,
         batch_size=8,
         shuffle=True,
-        num_workers=2
+        num_workers=2,
+        pin_memory=True,
+        persistent_workers=True,
+        worker_init_fn=worker_init_fn
     )
 
     # Augmentation
