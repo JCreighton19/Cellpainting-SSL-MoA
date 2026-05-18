@@ -38,7 +38,6 @@ class CellPaintingDataset(Dataset):
 
     def _sample_field(self):
         field_idx = random.randint(0, len(self.fields) - 1)
-        print(f"[DEBUG] sample_field -> {field_idx}")
         return field_idx
 
     def _sample_coords(self, image):
@@ -86,7 +85,6 @@ class CellPaintingDataset(Dataset):
             raise ValueError(f"No valid images for field {field_idx}")
         image = np.stack(imgs, axis=0).astype(np.float32)
         image = self._normalize_channels(image)
-        print(f"[DEBUG] image shape {image.shape}")
 
         self._cache[field_idx] = image
         return image
@@ -113,8 +111,6 @@ class CellPaintingDataset(Dataset):
                 continue
 
             meta = self.fields[field_idx]
-
-            print(f"[DEBUG] returning sample from field {field_idx}")
 
             return {
                 "image": tile,
