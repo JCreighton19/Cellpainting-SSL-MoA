@@ -31,8 +31,9 @@ def main():
     print("Using device:", device)
 
     # Dataset
-    metadata_path = "../data/processed/master_metadata.parquet"
-    data_root = "../data"
+    BASE = os.path.dirname(os.path.abspath(__file__))
+    metadata_path = os.path.join(BASE, "../data/processed/master_metadata.parquet")
+    data_root = os.path.join(BASE, "../data")
     dataset = CellPaintingDataset(
         metadata_path=metadata_path,
         data_root=data_root,
