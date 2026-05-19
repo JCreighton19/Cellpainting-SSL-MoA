@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #SBATCH --job-name=dino-cp
-#SBATCH --output=logs/dino_%j.out
-#SBATCH --error=logs/dino_%j.err
-#SBATCH --time=06:00:00
+#SBATCH --output=/home/creighton.jo/Cellpainting-SSL-MoA/logs/dino_%j.out
+#SBATCH --error=/home/creighton.jo/Cellpainting-SSL-MoA/logs/dino_%j.err
+#SBATCH --time=04:00:00
 #SBATCH --mem=24G
 #SBATCH --cpus-per-task=2
 #SBATCH --partition=gpu
