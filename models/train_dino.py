@@ -49,9 +49,9 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=4,
         shuffle=True,
-        num_workers=2,
+        num_workers=1,
         pin_memory=True,
         persistent_workers=True,
         worker_init_fn=worker_init_fn
@@ -157,8 +157,8 @@ def main():
 
             loss = (dino_loss(s1, t2) + dino_loss(s2, t1)) / 2
 
-            if step % 20 == 0:
-                print(
+            if step % 100 == 0:
+                print(f"{step}/{len(loader)} steps "
                     f"loss={loss.item():.4f} "
                     f"std={embed_std:.4f} "
                     f"norm={embed_norm:.4f} "
