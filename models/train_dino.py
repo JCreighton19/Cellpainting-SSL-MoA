@@ -188,6 +188,7 @@ def main():
             "student_enc": student_enc.state_dict(),
             "student_head": student_head.state_dict(),
             "teacher_enc": teacher_enc.state_dict(),
+            "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "loss": avg_loss
         }, f"checkpoints/dino_epoch_{epoch + 1}.pt")
