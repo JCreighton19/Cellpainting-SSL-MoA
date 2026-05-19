@@ -6,6 +6,7 @@ import os
 import sys
 import random
 import numpy as np
+import time
 
 from dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -123,6 +124,9 @@ def main():
     losses = []
 
     for epoch in range(n_epochs):
+
+        epoch_start = time.perf_counter()
+
         student_enc.train()
         student_head.train()
         total_loss = 0
@@ -174,6 +178,9 @@ def main():
 
             total_loss += loss.item()
 
+        epoch_end = time.perf_counter()
+        epoch_time = epoch_end - epoch_start
+
         avg_loss = total_loss / len(loader)
         losses.append(avg_loss)
 
@@ -185,7 +192,7 @@ def main():
             "loss": avg_loss
         }, f"checkpoints/dino_epoch_{epoch + 1}.pt")
 
-        print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f}")
+        print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f} | Total Time: {epoch_time/60:.2f} min\n")
 
 if __name__ == "__main__":
     main()
