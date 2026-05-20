@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cp-download
 #SBATCH --partition=sharing
-#SBATCH --time=04:00:00
+#SBATCH --time=01:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --output=logs/download_%j.out
