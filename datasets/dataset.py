@@ -140,10 +140,7 @@ class CellPaintingDataset(Dataset):
         return normed
 
     def _is_informative(self, tile):
-        # DNA presence
-        dna_signal = np.percentile(tile[4], 99)
+        dna_signal = np.percentile(tile[4], 95) # dna signal
+        variance = tile.var() # texture, removes flat gray tiles
 
-        # texture (avoids flat gray tiles)
-        variance = tile.var()
-
-        return (dna_signal > 0.05) and (variance > np.percentile(tile.var(), 30))
+        return dna_signal > 0.02 and variance > 0.005
