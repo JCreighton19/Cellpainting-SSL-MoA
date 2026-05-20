@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import random
+import os
 
 class CellPaintingDataset(Dataset):
     def __init__(
@@ -15,7 +16,8 @@ class CellPaintingDataset(Dataset):
             channels=None,
             tile_size=224
         ):
-        self.project_root = Path(data_root).resolve()
+        cp_root = os.environ.get("CP_DATA_ROOT", data_root)
+        self.project_root = Path(cp_root).resolve()
         self.metadata = pd.read_parquet(metadata_path)
         self.transform = transform
         self.channels = channels if channels is not None else [1,2,3,4,5]

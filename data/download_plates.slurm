@@ -4,8 +4,8 @@
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
-#SBATCH --output=logs/download_%j.out
-#SBATCH --error=logs/download_%j.err
+#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/download_%j.out
+#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/download_%j.err
 
 set -euo pipefail
 
@@ -27,10 +27,10 @@ aws --version || true
 
 # Config
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
-OUT="$HOME/Cellpainting-SSL-MoA/data/raw"
+OUT="/scratch/creighton.jo/cellpainting/data/raw"
 
 mkdir -p "$OUT"
-mkdir -p logs
+mkdir -p /scratch/creighton.jo/cellpainting/logs
 
 PLATES=(
 BR00116991
@@ -53,7 +53,6 @@ fail_plate() {
 log "Starting Cell Painting download pipeline..."
 
 for plate in "${PLATES[@]}"; do
-
     echo ""
     echo "========================================"
     log "Processing plate: $plate"
@@ -66,7 +65,7 @@ for plate in "${PLATES[@]}"; do
         "${BASE}/images/2020_11_04_CPJUMP1/images/" \
         --no-sign-request \
         --only-show-errors \
-        2>>logs/download_${SLURM_JOB_ID}.err \
+        2>>/scratch/creighton.jo/cellpainting/logs/download_${SLURM_JOB_ID}.err \
         | awk -v p="$plate" '$2 ~ p {print $2}' | head -n 1 || true)
 
     if [[ -z "${PLATE_PATH}" ]]; then

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=dino-cp
-#SBATCH --output=/home/creighton.jo/Cellpainting-SSL-MoA/logs/dino_%j.out
-#SBATCH --error=/home/creighton.jo/Cellpainting-SSL-MoA/logs/dino_%j.err
+#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
+#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
 #SBATCH --time=04:00:00
 #SBATCH --mem=24G
 #SBATCH --cpus-per-task=2
@@ -9,19 +9,27 @@
 
 set -e
 
-mkdir -p logs
+# Paths
+REPO=/home/creighton.jo/Cellpainting-SSL-MoA
+DATA=/scratch/creighton.jo/cellpainting/data/raw
+OUT=/scratch/creighton.jo/cellpainting
 
-cd ~/Cellpainting-SSL-MoA
+mkdir -p /scratch/creighton.jo/cellpainting/logs
 
-# ---- FIX: make repo root visible to Python imports ----
-export PYTHONPATH=$PWD
+cd $REPO
 
-# ---- conda setup ----
+# Python path
+export PYTHONPATH=$REPO
+
+# Tell dataset where data lives
+export CP_DATA_ROOT=$DATA
+export CP_OUTPUT_ROOT=$OUT
+
+# Conda setup
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
 
-# ---- use explicit python to avoid system leakage ----
-PYTHON=/home/creighton.jo/.conda/envs/cellpainting/bin/python
+PYTHON=$(which python)
 
 echo "Python used:"
 $PYTHON -c "import sys; print(sys.executable)"
@@ -30,5 +38,9 @@ $PYTHON --version
 echo "Torch check:"
 $PYTHON -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
 
+echo "Data root:"
+echo $CP_DATA_ROOT
+
 echo "Starting training..."
+
 $PYTHON models/train_dino.py
