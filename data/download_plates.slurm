@@ -1,26 +1,36 @@
 #!/bin/bash
 #SBATCH --job-name=cp-download
 #SBATCH --partition=sharing
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --output=logs/download_%j.out
 #SBATCH --error=logs/download_%j.err
 
+set -euo pipefail
+
+# Env setup and debugging info
+echo "========================================"
+echo "START TIME: $(date)"
+echo "JOB ID: $SLURM_JOB_ID"
+echo "NODE: $(hostname)"
+echo "USER: $(whoami)"
+echo "PWD: $(pwd)"
+echo "========================================"
+
 source ~/.bashrc
 conda activate cellpainting
 
-set -euo pipefail
+echo "Conda env: $CONDA_DEFAULT_ENV"
+echo "AWS location: $(which aws || echo 'NOT FOUND')"
+aws --version || true
 
-echo "Running on: $(hostname)"
-echo "Start time: $(date)"
-
-echo "Starting full Cell Painting plate download..."
-
+# Config
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
-
 OUT="$HOME/Cellpainting-SSL-MoA/data/raw"
+
 mkdir -p "$OUT"
+mkdir -p logs
 
 PLATES=(
 BR00116991
@@ -30,44 +40,79 @@ BR00116994
 BR00116995
 )
 
+# Helpers
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+fail_plate() {
+    log "FAILED plate $1 (continuing)"
+}
+
+# Main loop
+log "Starting Cell Painting download pipeline..."
+
 for plate in "${PLATES[@]}"; do
-    echo "======================================"
-    echo "Downloading plate: $plate"
 
-    # Resolve full S3 directory name
+    echo ""
+    echo "========================================"
+    log "Processing plate: $plate"
+    echo "========================================"
+
+    ### Resolve plate path safely
+    log "Resolving S3 plate path..."
+
     PLATE_PATH=$(aws s3 ls \
-    "${BASE}/images/2020_11_04_CPJUMP1/images/" \
-    --no-sign-request | grep "${plate}" | awk '{print $2}')
+        "${BASE}/images/2020_11_04_CPJUMP1/images/" \
+        --no-sign-request \
+        --only-show-errors \
+        2>>logs/download_${SLURM_JOB_ID}.err \
+        | awk -v p="$plate" '$2 ~ p {print $2}' | head -n 1 || true)
 
-    # 1. IMAGES
-    echo "Images..."
-    aws s3 sync \
+    if [[ -z "${PLATE_PATH}" ]]; then
+        log "WARNING: Could not resolve plate path for $plate"
+        fail_plate "$plate"
+        continue
+    fi
+
+    log "Resolved plate path: $PLATE_PATH"
+
+    # Images
+    log "Syncing images..."
+
+    if aws s3 sync \
         "${BASE}/images/2020_11_04_CPJUMP1/images/${PLATE_PATH}Images/" \
         "${OUT}/images/${plate}/" \
-        --no-sign-request
+        --no-sign-request; then
+        log "Images OK for $plate"
+    else
+        log "ERROR: Image sync failed for $plate"
+        fail_plate "$plate"
+        continue
+    fi
 
-    # 2. COMPOUND METADATA
-    echo "Compound metadata..."
+    # Metadata (safe, shared)
+    log "Syncing metadata (external + load data + platemaps)..."
+
     aws s3 sync \
-      "${BASE}/workspace/metadata/external_metadata/" \
-      "${OUT}/external_metadata/" \
-      --no-sign-request
+        "${BASE}/workspace/metadata/external_metadata/" \
+        "${OUT}/external_metadata/" \
+        --no-sign-request || log "WARN: external_metadata sync issue"
 
-    # 3. LOAD DATA CSV (correct location)
-    echo "Load data..."
     aws s3 sync \
         "${BASE}/workspace/load_data_csv/" \
         "${OUT}/load_data_csv/" \
-        --no-sign-request
+        --no-sign-request || log "WARN: load_data_csv sync issue"
 
-    # 4. HARMONIZED METADATA (optional but useful)
-    echo "Platemaps..."
     aws s3 sync \
-    "${BASE}/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap/" \
-    "${OUT}/platemaps/" \
-    --no-sign-request
+        "${BASE}/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap/" \
+        "${OUT}/platemaps/" \
+        --no-sign-request || log "WARN: platemaps sync issue"
 
-    echo "Finished $plate"
+    log "Finished plate: $plate"
+
 done
 
-echo "ALL PLATES COMPLETE"
+echo ""
+log "ALL PLATES COMPLETE"
+log "END TIME: $(date)"
