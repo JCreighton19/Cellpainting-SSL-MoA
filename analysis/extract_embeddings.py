@@ -15,6 +15,7 @@ def main():
     print("Using device:", device)
 
     # Load model
+    print("Loading model...")
     model = CellPaintingViT(in_channels=5).to(device)
     checkpoint_path = os.path.expanduser(
         "~/Cellpainting-SSL-MoA/checkpoints/dino_epoch_10.pt"
@@ -34,6 +35,7 @@ def main():
     )
 
     data_root = os.path.join(BASE, "../data")
+    print("Loading dataset...")
     dataset = CellPaintingDataset(
         metadata_path=metadata_path,
         data_root=data_root,
@@ -69,13 +71,14 @@ def main():
             B = x.shape[0]
             for i in range(B):
                 metadata.append({
-                    "compound": batch["compound"][i],
-                    "broad_sample": batch["broad_sample"][i],
-                    "plate": batch["plate"][i],
-                    "well": batch["well"][i],
-                    "site": batch["site"][i],
-                    "row": batch["row"][i],
-                    "col": batch["col"][i],
+                    "compound": str(batch["compound"][i]),
+                    "broad_sample": str(batch["broad_sample"][i]),
+                    "plate": str(batch["plate"][i]),
+                    "well": str(batch["well"][i]),
+                    "site": int(batch["site"][i].item()) if torch.is_tensor(batch["site"][i]) else int(
+                        batch["site"][i]),
+                    "row": int(batch["row"][i].item()) if torch.is_tensor(batch["row"][i]) else int(batch["row"][i]),
+                    "col": int(batch["col"][i].item()) if torch.is_tensor(batch["col"][i]) else int(batch["col"][i]),
                 })
 
     # Save outputs
