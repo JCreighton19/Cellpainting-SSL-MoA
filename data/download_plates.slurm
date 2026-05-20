@@ -7,6 +7,9 @@
 #SBATCH --output=logs/download_%j.out
 #SBATCH --error=logs/download_%j.err
 
+source ~/.bashrc
+conda activate cellpainting
+
 set -euo pipefail
 
 echo "Running on: $(hostname)"
