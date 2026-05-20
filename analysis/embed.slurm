@@ -2,7 +2,7 @@
 #SBATCH --job-name=embed
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/embed_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/embed_%j.err
-#SBATCH --time=04:00:00
+#SBATCH --time=01:00:00
 #SBATCH --mem=48G
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=gpu
