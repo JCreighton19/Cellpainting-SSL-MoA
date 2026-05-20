@@ -68,8 +68,11 @@ def main():
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[1])
 
+        # small intensity jitter
+        x = x * (0.95 + 0.1 * torch.rand(1))
+
         # small Gaussian noise
-        x = x + 0.005 * torch.randn_like(x)
+        x = x + 0.01 * torch.randn_like(x)
 
         return x
 
