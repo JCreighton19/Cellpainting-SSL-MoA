@@ -61,17 +61,10 @@ def main():
     # Augmentation
     def augment(x):
         # x: (C, H, W)
-        # random crop
-        if torch.rand(1).item() < 0.5:
-            i = torch.randint(0, 16, (1,)).item()
-            j = torch.randint(0, 16, (1,)).item()
-            x = x[:, i:i + 224, j:j + 224]
 
-        # flips
-        if torch.rand(1).item() < 0.5:
-            x = torch.flip(x, dims=[2])
-        if torch.rand(1).item() < 0.5:
-            x = torch.flip(x, dims=[1])
+        # flip
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
 
         # noise
         x = x + 0.01 * torch.randn_like(x)
