@@ -128,20 +128,22 @@ class CellPaintingDataset(Dataset):
     def _normalize_channels(self, image):
         normed = np.zeros_like(image)
         for c in range(image.shape[0]):
-            channel = np.log1p(image[c])
-            p1 = np.percentile(channel, 1)
-            p99 = np.percentile(channel, 99)
-            normed[c] = (channel - p1) / (p99 - p1 + 1e-6)
+            x = np.log1p(image[c])
+            p1 = np.percentile(x, 1)
+            p99 = np.percentile(x, 99)
+            x = (x - p1) / (p99 - p1 + 1e-6)
+
+            # Remove global intensity bias
+            x = (x - x.mean()) / (x.std() + 1e-6)
+            normed[c] = x
+
         return normed
 
     def _is_informative(self, tile):
         # DNA presence
         dna_signal = np.percentile(tile[4], 99)
 
-        # overall structure
-        total_signal = tile.mean()
-
         # texture (avoids flat gray tiles)
         variance = tile.var()
 
-        return (dna_signal > 0.05) and (total_signal > 0.05) and (variance > 0.005)
+        return (dna_signal > 0.05) and (variance > np.percentile(tile.var(), 30))

@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import torch.nn.functional as F
 import os
 import sys
 import random
 import numpy as np
 import time
 
-from dataset import CellPaintingDataset
+from datasets.dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
 from models.dino import CellPaintingViT
 
@@ -59,13 +60,20 @@ def main():
 
     # Augmentation
     augment = transforms.Compose([
-        # Start with simple augmentations
-        #transforms.RandomResizedCrop(224, scale=(0.4, 1.0)),
+        # Cropping
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        # Flips
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
-        transforms.Lambda(lambda x: x + 0.01 * torch.randn_like(x))
-        #transforms.RandomRotation(180),
-        #transforms.GaussianBlur(kernel_size=9, sigma=(0.1, 2.0)),
+        # Noise
+        transforms.Lambda(lambda x: x + 0.01 * torch.randn_like(x)),
+        # Intensity jitter
+        transforms.Lambda(lambda x: x * (0.9 + 0.2 * torch.rand(1, 5, 1, 1))),
+        # Channel dropout
+        transforms.Lambda(lambda x: torch.stack([
+            c if random.random() > 0.1 else torch.zeros_like(c)
+            for c in x
+        ])),
     ])
 
     def apply_augment(batch):
@@ -150,6 +158,7 @@ def main():
             with torch.no_grad():
                 embed_std = torch.cat([s1, s2]).std(dim=0).mean().item()
                 embed_norm = torch.cat([s1, s2]).norm(dim=1).mean().item()
+                cos_sim = F.cosine_similarity(s1, s2, dim=1).mean().item()
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(x1))
@@ -162,6 +171,7 @@ def main():
                     f"loss={loss.item():.4f} "
                     f"std={embed_std:.4f} "
                     f"norm={embed_norm:.4f} "
+                    f"cos_sim={cos_sim:.4f}"
                 )
 
             optimizer.zero_grad()

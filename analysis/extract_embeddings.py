@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
 
-from dataset import CellPaintingDataset
+from datasets.dataset import CellPaintingDataset
 from models.dino import CellPaintingViT
 
 
