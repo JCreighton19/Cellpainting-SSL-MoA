@@ -133,8 +133,6 @@ class CellPaintingDataset(Dataset):
             p99 = np.percentile(x, 99)
             x = (x - p1) / (p99 - p1 + 1e-6)
 
-            # Remove global intensity bias
-            x = (x - x.mean()) / (x.std() + 1e-6)
             normed[c] = x
 
         return normed

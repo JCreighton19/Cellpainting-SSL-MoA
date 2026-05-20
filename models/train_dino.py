@@ -43,6 +43,12 @@ def main():
         tile_size=224
     )
 
+    print("\n=== Dataset Summary ===")
+    print("Compounds:", dataset.metadata["pert_iname"].nunique())
+    print("Plates:", dataset.metadata["plate"].nunique())
+    print("Genes:", dataset.metadata["gene"].nunique())
+    print("Wells:", dataset.metadata["well"].nunique())
+
     def worker_init_fn(worker_id):
         seed = torch.initial_seed() % 2 ** 32
         random.seed(seed)
