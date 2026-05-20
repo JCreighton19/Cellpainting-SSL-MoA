@@ -34,33 +34,38 @@ for plate in "${PLATES[@]}"; do
     echo "======================================"
     echo "Downloading plate: $plate"
 
+    # Resolve full S3 directory name
+    PLATE_PATH=$(aws s3 ls \
+    "${BASE}/images/2020_11_04_CPJUMP1/images/" \
+    --no-sign-request | grep "${plate}" | awk '{print $2}')
+
     # 1. IMAGES
     echo "Images..."
     aws s3 sync \
-        "${BASE}/images/2020_11_04_CPJUMP1/images/${plate}__*/Images/" \
+        "${BASE}/images/2020_11_04_CPJUMP1/images/${PLATE_PATH}Images/" \
         "${OUT}/images/${plate}/" \
         --no-sign-request
 
     # 2. COMPOUND METADATA
     echo "Compound metadata..."
     aws s3 sync \
-        "${BASE}/compound_metadata/${plate}/" \
-        "${OUT}/compound_metadata/${plate}/" \
-        --no-sign-request
+      "${BASE}/workspace/metadata/external_metadata/" \
+      "${OUT}/external_metadata/" \
+      --no-sign-request
 
-    # 3. LOAD DATA CSV
+    # 3. LOAD DATA CSV (correct location)
     echo "Load data..."
     aws s3 sync \
-        "${BASE}/load_data_csv/${plate}/" \
-        "${OUT}/load_data_csv/${plate}/" \
+        "${BASE}/workspace/load_data_csv/" \
+        "${OUT}/load_data_csv/" \
         --no-sign-request
 
-    # 4. PLATEMAP
-    echo "Platemap..."
+    # 4. HARMONIZED METADATA (optional but useful)
+    echo "Platemaps..."
     aws s3 sync \
-        "${BASE}/platemaps/${plate}/" \
-        "${OUT}/platemaps/${plate}/" \
-        --no-sign-request
+    "${BASE}/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap/" \
+    "${OUT}/platemaps/" \
+    --no-sign-request
 
     echo "Finished $plate"
 done
