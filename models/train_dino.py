@@ -62,20 +62,14 @@ def main():
     def augment(x):
         # x: (C, H, W)
 
-        # flip
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
+        # spatial flips
+        if torch.rand(1).item() < 0.5:
+            x = torch.flip(x, dims=[2])
+        if torch.rand(1).item() < 0.5:
+            x = torch.flip(x, dims=[1])
 
-        # noise
-        x = x + 0.01 * torch.randn_like(x)
-
-        # intensity jitter
-        x = x * (0.9 + 0.2 * torch.rand(1))
-
-        # channel dropout
-        for c in range(x.shape[0]):
-            if torch.rand(1).item() < 0.05:
-                x[c] = 0
+        # small Gaussian noise
+        x = x + 0.005 * torch.randn_like(x)
 
         return x
 
