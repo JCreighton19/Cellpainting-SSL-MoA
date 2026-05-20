@@ -7,8 +7,6 @@
 #SBATCH --output=logs/download_%j.out
 #SBATCH --error=logs/download_%j.err
 
-module load aws
-
 set -euo pipefail
 
 echo "Running on: $(hostname)"

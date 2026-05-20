@@ -31,6 +31,7 @@ dependencies:
   - pip
   - jupyterlab
   - ipykernel
+  - awscli
 
   # Pip-only packages
   - pip:
