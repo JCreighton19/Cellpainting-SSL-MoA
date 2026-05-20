@@ -59,22 +59,32 @@ def main():
     )
 
     # Augmentation
-    augment = transforms.Compose([
-        # Cropping
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-        # Flips
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        # Noise
-        transforms.Lambda(lambda x: x + 0.01 * torch.randn_like(x)),
-        # Intensity jitter
-        transforms.Lambda(lambda x: x * (0.9 + 0.2 * torch.rand(1, 5, 1, 1))),
-        # Channel dropout
-        transforms.Lambda(lambda x: torch.stack([
-            c if random.random() > 0.1 else torch.zeros_like(c)
-            for c in x
-        ])),
-    ])
+    def augment(x):
+        # x: (C, H, W)
+        # random crop
+        if torch.rand(1).item() < 0.5:
+            i = torch.randint(0, 16, (1,)).item()
+            j = torch.randint(0, 16, (1,)).item()
+            x = x[:, i:i + 224, j:j + 224]
+
+        # flips
+        if torch.rand(1).item() < 0.5:
+            x = torch.flip(x, dims=[2])
+        if torch.rand(1).item() < 0.5:
+            x = torch.flip(x, dims=[1])
+
+        # noise
+        x = x + 0.01 * torch.randn_like(x)
+
+        # intensity jitter
+        x = x * (0.9 + 0.2 * torch.rand(1))
+
+        # channel dropout
+        for c in range(x.shape[0]):
+            if torch.rand(1).item() < 0.05:
+                x[c] = 0
+
+        return x
 
     def apply_augment(batch):
         return torch.stack([augment(img) for img in batch])
