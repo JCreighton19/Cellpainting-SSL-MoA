@@ -44,9 +44,8 @@ def main():
         dataset,
         batch_size=8,
         shuffle=False,
-        num_workers=1,
-        pin_memory=True,
-        persistent_workers=True
+        num_workers=0,
+        pin_memory=True
     )
     print("Dataset size:", len(dataset))
     print("Batches:", len(loader))
@@ -54,12 +53,13 @@ def main():
     # Extract embeddings
     embeddings = []
     metadata = []
-    max_batches = 500 # limit
+    #max_batches = 500 # limit
 
     with torch.no_grad():
+        print("Starting extraction loop...")
         for step, batch in enumerate(loader):
-            if step >= max_batches:
-                break
+            # if step >= max_batches:
+            #     break
             if step % 50 == 0:
                 print(f"Step {step}/{len(loader)}")
             x = batch["image"].to(device)
