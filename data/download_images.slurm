@@ -20,7 +20,7 @@ aws --version
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 
-AWS="--no-sign-request --only-show-errors"
+AWS="--no-sign-request"
 
 PLATES=(
 BR00116991
