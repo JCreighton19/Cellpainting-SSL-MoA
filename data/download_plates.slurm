@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=cp-download
-#SBATCH --partition=gpu
+#SBATCH --partition=sharing
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
