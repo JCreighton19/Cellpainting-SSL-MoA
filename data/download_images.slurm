@@ -10,6 +10,13 @@
 
 set -euo pipefail
 
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+conda activate cellpainting
+
+echo "Python: $(which python)"
+echo "AWS: $(which aws)"
+aws --version
+
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 
@@ -31,15 +38,17 @@ echo "Plate: $plate"
 echo "Start: $(date)"
 echo "========================================"
 
-PLATE_PATH=$(aws s3 ls "${BASE}/images/2020_11_04_CPJUMP1/images/" \
-  $AWS | awk -v p="$plate" '$2 ~ p {print $2}' | head -n 1 || true)
+PLATE_PATH=$(aws s3 ls \
+  "${BASE}/images/2020_11_04_CPJUMP1/images/" \
+  $AWS \
+  | awk -v p="$plate" '$2 ~ p {print $2}' | head -n 1)
 
 if [[ -z "$PLATE_PATH" ]]; then
     echo "ERROR: could not resolve path for $plate"
     exit 1
 fi
 
-echo "Resolved path: $PLATE_PATH"
+echo "Resolved: $PLATE_PATH"
 
 aws s3 sync \
   "${BASE}/images/2020_11_04_CPJUMP1/images/${PLATE_PATH}Images/" \
