@@ -16,11 +16,11 @@ PLATES = sorted([
     if p.is_dir()
 ])
 CHANNEL_MAP = {
-    "ch1": "url_origmito",
-    "ch2": "url_origagp",
-    "ch3": "url_origrna",
-    "ch4": "url_origer",
-    "ch5": "url_origdna",
+    "ch1": "mito_img_path",
+    "ch2": "agp_img_path",
+    "ch3": "rna_img_path",
+    "ch4": "er_img_path",
+    "ch5": "dna_img_path",
 }
 
 # WELL NORMALIZATION
@@ -105,21 +105,21 @@ def build_image_index(image_root: Path, plate: str):
                 "plate": plate,
                 "well": well,
                 "site": site,
-                "url_origdna": None,
-                "url_origagp": None,
-                "url_origmito": None,
-                "url_origer": None,
-                "url_origrna": None,
+                "dna_img_path": None,
+                "agp_img_path": None,
+                "mito_img_path": None,
+                "er_img_path": None,
+                "rna_img_path": None,
             }
 
         records[key][CHANNEL_MAP[ch]] = str(path.resolve())
 
     required_cols = [
-        "url_origdna",
-        "url_origagp",
-        "url_origmito",
-        "url_origer",
-        "url_origrna"
+        "dna_img_path",
+        "agp_img_path",
+        "mito_img_path",
+        "er_img_path",
+        "rna_img_path",
     ]
 
     for col in required_cols:
@@ -128,11 +128,11 @@ def build_image_index(image_root: Path, plate: str):
 
     df = pd.DataFrame(records.values())
     df = df.dropna(subset=[
-        "url_origdna",
-        "url_origagp",
-        "url_origmito",
-        "url_origer",
-        "url_origrna"
+        "dna_img_path",
+        "agp_img_path",
+        "mito_img_path",
+        "er_img_path",
+        "rna_img_path",
     ])
 
     return df
@@ -206,11 +206,11 @@ def validate(df):
             )
 
     missing_cols = [
-        "url_origmito",
-        "url_origagp",
-        "url_origrna",
-        "url_origer",
-        "url_origdna"
+        "mito_img_path",
+        "agp_img_path",
+        "rna_img_path",
+        "er_img_path",
+        "dna_img_path"
     ]
 
     for col in missing_cols:

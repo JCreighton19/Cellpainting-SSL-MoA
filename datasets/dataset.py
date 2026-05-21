@@ -30,11 +30,11 @@ class CellPaintingDataset(Dataset):
         for _ in range(10):
             row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
             paths = [
-                row["url_origdna"],
-                row["url_origagp"],
-                row["url_origmito"],
-                row["url_origer"],
-                row["url_origrna"],
+                row["dna_img_path"],
+                row["agp_img_path"],
+                row["mito_img_path"],
+                row["er_img_path"],
+                row["rna_img_path"],
             ]
 
             image = np.stack(
