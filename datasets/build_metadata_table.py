@@ -93,7 +93,7 @@ def build_image_index(image_root: Path, plate: str):
 
 # MASTER MERGE
 def build_master_metadata(load_df, layout_df, compound_df):
-    merged = load_df.merge(layout_df, on=["plate", "well"], how="left")
+    merged = load_df.merge(layout_df, on="well", how="left")
     print(f"[merge] after platemap: {merged.shape}")
     print("dup (plate,well):", merged.duplicated(["plate", "well"]).sum())
     print("row growth factor:", len(merged) / len(load_df))
