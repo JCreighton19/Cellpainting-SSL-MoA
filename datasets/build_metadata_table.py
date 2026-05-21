@@ -141,6 +141,16 @@ def build_image_index(image_root: Path, plate: str):
 # MASTER MERGE
 def build_master_metadata(load_df, layout_df, compound_df):
     merged = load_df.merge(layout_df, on="well", how="left")
+    # Ensure no accidental image columns exist in metadata stage
+    image_cols = [
+        "url_origdna",
+        "url_origagp",
+        "url_origmito",
+        "url_origer",
+        "url_origrna",
+    ]
+    merged = merged.drop(columns=[c for c in image_cols if c in merged.columns], errors="ignore")
+
     print(f"[merge] after platemap: {merged.shape}")
     print("dup (plate,well):", merged.duplicated(["plate", "well"]).sum())
     print("row growth factor:", len(merged) / len(load_df))
@@ -160,7 +170,16 @@ def build_master_metadata(load_df, layout_df, compound_df):
 def attach_image_paths(df, image_root: Path, plate: str):
     img_df = build_image_index(image_root, plate)
 
-    # Inner join to keep only rows that actually have downloaded images
+    # Remove any existing image columns before merge
+    image_cols = [
+        "url_origdna",
+        "url_origagp",
+        "url_origmito",
+        "url_origer",
+        "url_origrna",
+    ]
+
+    df = df.drop(columns=[c for c in image_cols if c in df.columns], errors="ignore")
     merged = df.merge(img_df, on=["plate", "well", "site"], how="inner")
     print(f"[images] final rows with images: {len(merged)}")
     print(f"[images] wells with images: {merged['well'].nunique()}")
