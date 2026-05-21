@@ -30,11 +30,11 @@ class CellPaintingDataset(Dataset):
         for _ in range(10):
             row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
             paths = [
-                row["dna_img_path"],
-                row["agp_img_path"],
                 row["mito_img_path"],
-                row["er_img_path"],
+                row["agp_img_path"],
                 row["rna_img_path"],
+                row["er_img_path"],
+                row["dna_img_path"],
             ]
 
             image = np.stack(
@@ -80,7 +80,6 @@ class CellPaintingDataset(Dataset):
         return normed
 
     def _is_informative(self, tile):
-        signal = np.percentile(tile[4], 95) # channel 5=DNA
-        variance = tile[4].var()
-
-        return signal > 0.02 and variance > 0.005
+        dna = tile[-1]
+        signal = np.percentile(dna, 95)
+        variance = dna.var()
