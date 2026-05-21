@@ -150,8 +150,6 @@ def main():
 
             x1 = apply_augment(images.clone())
             x2 = apply_augment(images.clone())
-            print(f"x1 shape {x1.shape}")
-            print(f"x2 shape {x2.shape}")
 
             # Confirm shapes are as expected
             assert x1.ndim == 4
