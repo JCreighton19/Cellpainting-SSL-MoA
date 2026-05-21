@@ -85,16 +85,17 @@ def build_image_index(image_root: Path, plate: str):
         records.append((plate, well, site, rel_path))
 
     df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
-    df = df.groupby(["plate", "well", "site"])["image_path"].apply(list).reset_index()
+    df = df.groupby(["plate", "well"])["image_path"].apply(lambda x: sorted(x)).reset_index()
+    df = df.rename(columns={"image_path": "image_paths"})
 
     return df
 
 
 # MASTER MERGE
 def build_master_metadata(load_df, layout_df, compound_df):
-    merged = load_df.merge(layout_df, on="well", how="left")
+    merged = load_df.merge(layout_df, on=["plate", "well"], how="left")
     print(f"[merge] after platemap: {merged.shape}")
-    print("dup (plate,well,site):", merged.duplicated(["plate", "well", "site"]).sum())
+    print("dup (plate,well):", merged.duplicated(["plate", "well"]).sum())
     print("row growth factor:", len(merged) / len(load_df))
 
     missing = merged["broad_sample"].isna().mean() if "broad_sample" in merged else 1.0
@@ -103,7 +104,7 @@ def build_master_metadata(load_df, layout_df, compound_df):
     if compound_df is not None and "broad_sample" in merged.columns:
         merged = merged.merge(compound_df, on="broad_sample", how="left")
     print(f"[merge] after compound: {merged.shape}")
-    print("dup (plate,well,site):", merged.duplicated(["plate", "well", "site"]).sum())
+    print("dup (plate,well):", merged.duplicated(["plate", "well"]).sum())
     print("row growth factor:", len(merged) / len(load_df))
 
     return merged
@@ -113,7 +114,7 @@ def attach_image_paths(df, image_root: Path, plate: str):
     img_df = build_image_index(image_root, plate)
 
     # Inner join to keep only rows that actually have downloaded images
-    merged = df.merge(img_df, on=["plate", "well", "site"], how="inner")
+    merged = df.merge(img_df, on=["plate", "well"], how="inner")
     print(f"[images] final rows with images: {len(merged)}")
     print(f"[images] wells with images: {merged['well'].nunique()}")
 
@@ -184,10 +185,10 @@ def main():
         )
 
         # Confirm no duplicates and validate
-        dup_count = master.duplicated(["plate", "well", "site"]).sum()
+        dup_count = master.duplicated(["plate", "well"]).sum()
         if dup_count > 0:
             raise ValueError(
-                f"Found {dup_count} duplicate (plate, well, site) rows"
+                f"Found {dup_count} duplicate (plate, well) rows"
             )
         validate(master)
         all_master.append(master)
