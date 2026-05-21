@@ -47,9 +47,10 @@ class CellPaintingDataset(Dataset):
             r = random.randint(0, H - self.tile_size)
             c = random.randint(0, W - self.tile_size)
             tile = image[:, r:r + self.tile_size, c:c + self.tile_size]
-            # if not self._is_informative(tile):
-            #     continue
-
+            score = self._informativeness_score(tile)
+            prob = 1 / (1 + np.exp(-(score - 5.0)))  # sigmoid centered at threshold
+            if random.random() > prob:
+                continue
             tile = torch.from_numpy(tile).float()
             if self.transform:
                 tile = self.transform(tile)
@@ -65,7 +66,7 @@ class CellPaintingDataset(Dataset):
                 "col": c
             }
 
-        #raise RuntimeError("Failed to sample informative tile")
+        raise RuntimeError("Failed to sample informative tile")
 
     def _normalize_channels(self, image):
         normed = np.zeros_like(image)
@@ -79,7 +80,9 @@ class CellPaintingDataset(Dataset):
 
         return normed
 
-    # def _is_informative(self, tile):
-    #     dna = tile[-1]
-    #     signal = np.percentile(dna, 95)
-    #     variance = dna.var()
+    def _informativeness_score(self, tile):
+        dna = tile[-1]
+        signal = np.percentile(dna, 95)
+        variance = dna.var()
+
+        return np.log1p(signal) + np.log1p(variance)
