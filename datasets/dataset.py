@@ -47,10 +47,9 @@ class CellPaintingDataset(Dataset):
             r = random.randint(0, H - self.tile_size)
             c = random.randint(0, W - self.tile_size)
             tile = image[:, r:r + self.tile_size, c:c + self.tile_size]
-            score = self._informativeness_score(tile)
-            prob = 1 / (1 + np.exp(-(score - 5.0)))  # sigmoid centered at threshold
-            if random.random() > prob:
+            if not self._is_informative(tile):
                 continue
+
             tile = torch.from_numpy(tile).float()
             if self.transform:
                 tile = self.transform(tile)
@@ -80,9 +79,9 @@ class CellPaintingDataset(Dataset):
 
         return normed
 
-    def _informativeness_score(self, tile):
+    def _is_informative(self, tile):
         dna = tile[-1]
-        signal = np.percentile(dna, 95)
-        variance = dna.var()
+        # fraction of pixels above weak foreground threshold
+        foreground_fraction = (dna > 0.1).mean()
 
-        return np.log1p(signal) + np.log1p(variance)
+        return foreground_fraction > 0.01

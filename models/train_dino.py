@@ -55,7 +55,7 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=4,
+        batch_size=8,
         shuffle=True,
         num_workers=1,
         pin_memory=True,
@@ -67,6 +67,25 @@ def main():
     def augment(x):
         # x: (C, H, W)
 
+        # Create custom random cropping
+        def random_crop(x):
+            C, H, W = x.shape
+
+            crop_size = random.randint(128, 224)
+            r = random.randint(0, H - crop_size)
+            c = random.randint(0, W - crop_size)
+            x = x[:, r:r + crop_size, c:c + crop_size]
+            x = F.interpolate(
+                x.unsqueeze(0),
+                size=(H, W),
+                mode="bilinear",
+                align_corners=False
+            ).squeeze(0)
+
+            return x
+
+        x = random_crop(x)
+
         # spatial flips
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[2])
@@ -74,10 +93,22 @@ def main():
             x = torch.flip(x, dims=[1])
 
         # small intensity jitter
-        x = x * (0.95 + 0.1 * torch.rand(1))
+        x = x * (0.7 + 0.6 * torch.rand(1))
 
         # small Gaussian noise
         x = x + 0.01 * torch.randn_like(x)
+
+        # channel dropout
+        if torch.rand(1).item() < 0.3:
+            ch = torch.randint(0, x.shape[0], (1,)).item()
+            x[ch] = 0
+
+        # slight blur
+        if torch.rand(1).item() < 0.5:
+            x = transforms.functional.gaussian_blur(
+                x,
+                kernel_size=5
+            )
 
         return x
 
