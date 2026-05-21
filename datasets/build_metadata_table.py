@@ -5,12 +5,16 @@ import pandas as pd
 import re
 
 # CONFIG
-PLATE = "BR00116991"
-IMAGE_ROOT = Path(f"data/raw/images/{PLATE}")
-LOAD_DATA_PATH = Path(f"data/raw/load_data_csv/{PLATE}/load_data.csv")
-PLATEMAP_DIR = Path(f"data/raw/platemaps/{PLATE}")
-COMPOUND_METADATA_PATH = Path(f"data/raw/compound_metadata/{PLATE}/compound_metadata.tsv")
-OUTPUT_PATH = Path("data/processed/master_metadata.parquet")
+SCRATCH_ROOT = Path("/scratch/creighton.jo/cellpainting")
+IMAGE_ROOT = SCRATCH_ROOT / "data/raw/images"
+LOAD_DATA_ROOT = SCRATCH_ROOT / "data/raw/load_data_csv"
+COMPOUND_METADATA_PATH = (SCRATCH_ROOT / "data/raw/JUMP-Target-1_compound_metadata.tsv")
+PLATEMAP_PATH = (SCRATCH_ROOT / "data/raw/platemaps/JUMP-Target-1_compound_platemap.txt")
+OUTPUT_PATH = (SCRATCH_ROOT / "data/processed/master_metadata.parquet")
+PLATES = sorted([
+    p.name for p in IMAGE_ROOT.iterdir()
+    if p.is_dir()
+])
 
 # WELL NORMALIZATION
 def rc_to_a01(well: str):
@@ -49,22 +53,12 @@ def load_imaging_index(path: Path) -> pd.DataFrame:
 
 
 # LOAD PLATEMAPS
-def load_plate_layouts(layout_dir: Path) -> pd.DataFrame:
-    dfs = []
-    for fp in layout_dir.glob("*.txt"):
-        df = pd.read_csv(fp, sep="\t")
-        # normalize column
-        df = df.rename(columns={"well_position": "well"})
-        df["well"] = df["well"].str.upper().str.strip()
-        df["plate"] = PLATE
-        dfs.append(df)
-
-    if len(dfs) == 0:
-        raise ValueError(f"No platemap files found in {layout_dir}")
-
-    layout_df = pd.concat(dfs, ignore_index=True)
-    print(f"[platemap] rows={len(layout_df)} wells={layout_df['well'].nunique()}")
-    return layout_df
+def load_plate_layouts(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path, sep="\t")
+    df = df.rename(columns={"well_position": "well"})
+    df["well"] = df["well"].str.upper().str.strip()
+    print(f"[platemap] rows={len(df)} wells={df['well'].nunique()}")
+    return df
 
 
 # COMPOUND METADATA
@@ -75,9 +69,8 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
 
 
 # IMAGE INDEX
-def build_image_index(image_root: Path):
+def build_image_index(image_root: Path, plate: str):
     records = []
-    DATA_ROOT = Path("data").resolve()
 
     for path in image_root.rglob("*.tiff"):
         rc = extract_rc_from_filename(path.name)
@@ -88,8 +81,8 @@ def build_image_index(image_root: Path):
         if not site_match:
             continue
         site = int(site_match.group(1))
-        rel_path = str(path.resolve().relative_to(DATA_ROOT))
-        records.append((PLATE, well, site, rel_path))
+        rel_path = str(path.resolve())
+        records.append((plate, well, site, rel_path))
 
     df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
     df = df.groupby(["plate", "well", "site"])["image_path"].apply(list).reset_index()
@@ -99,7 +92,7 @@ def build_image_index(image_root: Path):
 
 # MASTER MERGE
 def build_master_metadata(load_df, layout_df, compound_df):
-    merged = load_df.merge(layout_df, on=["plate", "well"], how="left")
+    merged = load_df.merge(layout_df, on="well", how="left")
     print(f"[merge] after platemap: {merged.shape}")
     print("dup (plate,well,site):", merged.duplicated(["plate", "well", "site"]).sum())
     print("row growth factor:", len(merged) / len(load_df))
@@ -116,8 +109,8 @@ def build_master_metadata(load_df, layout_df, compound_df):
     return merged
 
 # IMAGE ATTACHMENT
-def attach_image_paths(df, image_root: Path):
-    img_df = build_image_index(image_root)
+def attach_image_paths(df, image_root: Path, plate: str):
+    img_df = build_image_index(image_root, plate)
 
     # Inner join to keep only rows that actually have downloaded images
     merged = df.merge(img_df, on=["plate", "well", "site"], how="inner")
@@ -153,44 +146,64 @@ def validate(df):
 
 # MAIN
 def main():
-
-    print("\nLoading imaging index...")
-    load_df = load_imaging_index(LOAD_DATA_PATH)
-    print("load_df shape:", load_df.shape)
-    print("dup (plate,well,site):", load_df.duplicated(["plate", "well", "site"]).sum())
-
-    print("\nLoading platemaps...")
-    layout_df = load_plate_layouts(PLATEMAP_DIR)
-    print("layout_df shape:", layout_df.shape)
-    print("dup (plate,well):", layout_df.duplicated(["plate", "well"]).sum())
-
+    print("\nLoading platemap...")
+    layout_df = load_plate_layouts(PLATEMAP_PATH)
     print("\nLoading compound metadata...")
     compound_df = load_compound_metadata(COMPOUND_METADATA_PATH)
-    print("compound_df shape:", compound_df.shape)
-    print("dup (broad_sample):", compound_df.duplicated(["broad_sample"]).sum())
+    compound_df = compound_df.drop_duplicates("broad_sample")
+    all_master = []
 
-    print("\nBuilding master table...")
-    master = build_master_metadata(load_df, layout_df, compound_df)
+    for plate in PLATES:
+        print(f"\n==============================")
+        print(f"PROCESSING {plate}")
+        print(f"==============================")
+        load_data_path = (
+            LOAD_DATA_ROOT / plate / "load_data.csv"
+        )
+        image_root = IMAGE_ROOT / plate
 
-    print("\nAttaching images...")
-    master = attach_image_paths(master, IMAGE_ROOT)
+        print("\nLoading imaging index...")
+        load_df = load_imaging_index(load_data_path)
 
-    print("final shape:", master.shape)
-    print("final duplicates:", master.duplicated(["plate", "well", "site"]).sum())
-    print(master.groupby(["plate", "well", "site"]).size().max())
+        # Ensure plate column exists
+        load_df["plate"] = plate
+        print("load_df shape:", load_df.shape)
 
-    validate(master)
+        print("\nBuilding master table...")
+        master = build_master_metadata(
+            load_df,
+            layout_df,
+            compound_df
+        )
 
-    # Fill nas with 'unknown'
-    master["broad_sample"] = master["broad_sample"].fillna("unknown")
-    master["gene"] = master["gene"].fillna("unknown")
-    master["control_type"] = master["control_type"].fillna("unknown")
+        print("\nAttaching images...")
+        master = attach_image_paths(
+            master,
+            image_root,
+            plate
+        )
 
+        # Confirm no duplicates and validate
+        dup_count = master.duplicated(["plate", "well", "site"]).sum()
+        if dup_count > 0:
+            raise ValueError(
+                f"Found {dup_count} duplicate (plate, well, site) rows"
+            )
+        validate(master)
+        all_master.append(master)
+
+    print("\nConcatenating all plates...")
+    master_df = pd.concat(all_master, ignore_index=True)
+    print("final shape:", master_df.shape)
+
+    # Fill missing metadata
+    for col in ["broad_sample", "gene", "control_type"]:
+        if col in master_df.columns:
+            master_df[col] = master_df[col].fillna("unknown")
     print("\nSaving...")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    master.to_parquet(OUTPUT_PATH, index=False)
-
+    master_df.to_parquet(OUTPUT_PATH, index=False)
     print(f"\nSaved → {OUTPUT_PATH}")
 
 
