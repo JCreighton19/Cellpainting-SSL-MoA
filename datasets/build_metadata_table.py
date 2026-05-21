@@ -253,6 +253,7 @@ def main():
     print("\nConcatenating all plates...")
     master_df = pd.concat(all_master, ignore_index=True)
     print("final shape:", master_df.shape)
+    print("final cols:", master_df.columns)
 
     # Fill missing metadata
     for col in ["broad_sample", "gene", "control_type"]:
