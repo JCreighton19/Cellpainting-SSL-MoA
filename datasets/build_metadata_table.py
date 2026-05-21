@@ -174,7 +174,16 @@ def validate(df):
                 "Check well format consistency between load_data and platemap."
             )
 
-    print("missing image_path:", df["image_path"].isna().mean())
+    missing_cols = [
+        "url_origmito",
+        "url_origagp",
+        "url_origrna",
+        "url_origer",
+        "url_origdna"
+    ]
+
+    for col in missing_cols:
+        print(f"missing {col}:", df[col].isna().mean())
 
     print("\npert_type:")
     if "pert_type" in df.columns:
@@ -217,7 +226,7 @@ def main():
         )
 
         # Confirm no duplicates and validate
-        dup_count = master.duplicated(["plate", "well", "site", "image_path"]).sum()
+        dup_count = master.duplicated(["plate", "well", "site"]).sum()
         if dup_count > 0:
             raise ValueError(
                 f"Found {dup_count} duplicate (plate, well, site, image_path) rows"
