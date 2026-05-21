@@ -36,20 +36,12 @@ aws s3 cp \
   "${OUT}/JUMP-Target-1_compound_metadata_targets.tsv" \
   $AWS_OPTS || true
 
-# 2. GLOBAL platemaps
-aws s3 cp \
-  "${BASE}/workspace/metadata/platemaps/JUMP-Target-1_compound_platemap.txt" \
-  "${OUT}/JUMP-Target-1_compound_platemap.txt" \
-  $AWS_OPTS || true
+# 2. GLOBAL compound platemap
+mkdir -p "${OUT}/platemaps/2020_11_04_CPJUMP1"
 
 aws s3 cp \
-  "${BASE}/workspace/metadata/platemaps/JUMP-Target-1_crispr_platemap.txt" \
-  "${OUT}/JUMP-Target-1_crispr_platemap.txt" \
-  $AWS_OPTS || true
-
-aws s3 cp \
-  "${BASE}/workspace/metadata/platemaps/JUMP-Target-1_orf_platemap.txt" \
-  "${OUT}/JUMP-Target-1_orf_platemap.txt" \
+  "s3://cellpainting-gallery/cpg0000-jump-pilot/source_4/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap/JUMP-Target-1_compound_platemap.txt" \
+  "${OUT}/platemaps/2020_11_04_CPJUMP1/JUMP-Target-1_compound_platemap.txt" \
   $AWS_OPTS || true
 
 # 3. PLATE load_data_csv (experiment-scoped)
