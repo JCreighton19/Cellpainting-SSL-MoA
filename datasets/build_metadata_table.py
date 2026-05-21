@@ -168,7 +168,6 @@ def main():
 
         # Ensure plate column exists
         load_df["plate"] = plate
-        load_df = load_df.groupby(["plate", "well"], as_index=False).first()
         print("load_df shape:", load_df.shape)
 
         print("\nBuilding master table...")
