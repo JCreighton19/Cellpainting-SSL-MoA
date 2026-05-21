@@ -264,6 +264,5 @@ def main():
     master_df.to_parquet(OUTPUT_PATH, index=False)
     print(f"\nSaved → {OUTPUT_PATH}")
 
-
 if __name__ == "__main__":
     main()
