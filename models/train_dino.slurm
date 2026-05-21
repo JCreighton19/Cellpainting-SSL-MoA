@@ -4,7 +4,7 @@
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
 #SBATCH --time=04:00:00
 #SBATCH --mem=24G
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=2
 #SBATCH --gres=gpu:1
 
 set -e
