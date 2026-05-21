@@ -15,6 +15,13 @@ PLATES = sorted([
     p.name for p in IMAGE_ROOT.iterdir()
     if p.is_dir()
 ])
+CHANNEL_MAP = {
+    "ch1": "url_origmito",
+    "ch2": "url_origagp",
+    "ch3": "url_origrna",
+    "ch4": "url_origer",
+    "ch5": "url_origdna",
+}
 
 # WELL NORMALIZATION
 def rc_to_a01(well: str):
@@ -70,23 +77,51 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
 
 # IMAGE INDEX
 def build_image_index(image_root: Path, plate: str):
-    records = []
+    records = {}
 
     for path in image_root.rglob("*.tiff"):
-        rc = extract_rc_from_filename(path.name)
+        name = path.name.lower()
+        rc = extract_rc_from_filename(name)
         if rc is None:
             continue
+
         well = rc_to_a01(rc)
-        site_match = re.search(r"f(\d{2})p\d{2}", path.name.lower())
+        site_match = re.search(r"f(\d{2})p\d{2}", name)
         if not site_match:
             continue
-        site = int(site_match.group(1))
-        rel_path = str(path.resolve())
-        records.append((plate, well, site, rel_path))
 
-    df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
-    df["well"] = df["well"].str.upper().str.strip()
-    df = df.dropna(subset=["well", "site", "image_path"])
+        site = int(site_match.group(1))
+        ch_match = re.search(r"ch(\d)", name)
+        if not ch_match:
+            continue
+
+        ch = f"ch{ch_match.group(1)}"
+        if ch not in CHANNEL_MAP:
+            continue
+
+        key = (plate, well, site)
+        if key not in records:
+            records[key] = {
+                "plate": plate,
+                "well": well,
+                "site": site,
+                "url_origdna": None,
+                "url_origagp": None,
+                "url_origmito": None,
+                "url_origer": None,
+                "url_origrna": None,
+            }
+
+        records[key][CHANNEL_MAP[ch]] = str(path.resolve())
+
+    df = pd.DataFrame(records.values())
+    df = df.dropna(subset=[
+        "url_origdna",
+        "url_origagp",
+        "url_origmito",
+        "url_origer",
+        "url_origrna"
+    ])
 
     return df
 

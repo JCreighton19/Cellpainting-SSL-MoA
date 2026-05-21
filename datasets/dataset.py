@@ -23,14 +23,12 @@ class CellPaintingDataset(Dataset):
         self.channels = channels if channels is not None else [1,2,3,4,5]
         self.tile_size = tile_size
 
-        self._cache = {}
-
     def __len__(self):
         return len(self.metadata)
 
     def __getitem__(self, idx):
         for _ in range(10):
-            row = self.metadata.iloc[idx]
+            row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
             paths = [
                 row["url_origdna"],
                 row["url_origagp"],
@@ -39,13 +37,10 @@ class CellPaintingDataset(Dataset):
                 row["url_origrna"],
             ]
 
-            channels = []
-            for p in paths:
-                if p not in self._cache:
-                    self._cache[p] = tiff.imread(str(p)).astype(np.float32)
-                channels.append(self._cache[p])
-
-            image = np.stack(channels, axis=0)
+            image = np.stack(
+                [tiff.imread(str(p)).astype(np.float32) for p in paths],
+                axis=0
+            )
 
             image = self._normalize_channels(image)
             C, H, W = image.shape
