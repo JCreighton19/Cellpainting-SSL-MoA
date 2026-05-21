@@ -30,6 +30,7 @@ class CellPaintingDataset(Dataset):
         for _ in range(10):
             row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
             image = tiff.imread(str(row["image_path"])).astype(np.float32)
+            print("RAW SHAPE:", image.shape)
             if image.ndim == 2:
                 image = image[None, :, :]
 
