@@ -3,7 +3,7 @@
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --mem=16G
+#SBATCH --mem=24G
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1
 
