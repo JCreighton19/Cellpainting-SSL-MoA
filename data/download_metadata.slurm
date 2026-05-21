@@ -7,9 +7,8 @@
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/meta_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/meta_%j.err
 
-set -euo pipefail
+set -eo pipefail
 
-# Activate conda environment
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
 
