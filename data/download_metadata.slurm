@@ -9,18 +9,25 @@
 
 set -eo pipefail
 
+# Environment setup
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+
+# Prevent MKL activation script crash under strict bash
+unset MKL_INTERFACE_LAYER || true
+
 conda activate cellpainting
 
 echo "Python: $(which python)"
 echo "AWS: $(which aws)"
 aws --version
 
+# Paths
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 
 mkdir -p "$OUT"
 
+# AWS options
 AWS_OPTS="--no-sign-request --only-show-errors"
 
 echo "Downloading metadata..."
@@ -28,16 +35,16 @@ echo "Downloading metadata..."
 aws s3 sync \
   "${BASE}/workspace/metadata/external_metadata/" \
   "${OUT}/external_metadata/" \
-  $AWS
+  $AWS_OPTS
 
 aws s3 sync \
   "${BASE}/workspace/load_data_csv/" \
   "${OUT}/load_data_csv/" \
-  $AWS
+  $AWS_OPTS
 
 aws s3 sync \
   "${BASE}/workspace/metadata/platemaps/2020_11_04_CPJUMP1/platemap/" \
   "${OUT}/platemaps/" \
-  $AWS
+  $AWS_OPTS
 
 echo "Metadata complete"
