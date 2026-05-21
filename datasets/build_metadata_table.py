@@ -91,7 +91,7 @@ def build_image_index(image_root: Path, plate: str):
             continue
 
         site = int(site_match.group(1))
-        ch_match = re.search(r"ch(\d)", name)
+        ch_match = re.search(r"ch0?([1-5])", name)
         if not ch_match:
             continue
 
@@ -113,6 +113,18 @@ def build_image_index(image_root: Path, plate: str):
             }
 
         records[key][CHANNEL_MAP[ch]] = str(path.resolve())
+
+    required_cols = [
+        "url_origdna",
+        "url_origagp",
+        "url_origmito",
+        "url_origer",
+        "url_origrna"
+    ]
+
+    for col in required_cols:
+        for v in records.values():
+            v.setdefault(col, None)
 
     df = pd.DataFrame(records.values())
     df = df.dropna(subset=[
@@ -183,7 +195,10 @@ def validate(df):
     ]
 
     for col in missing_cols:
-        print(f"missing {col}:", df[col].isna().mean())
+        if col not in df.columns:
+            print(f"missing {col}: COLUMN NOT PRESENT")
+        else:
+            print(f"missing {col}:", df[col].isna().mean())
 
     print("\npert_type:")
     if "pert_type" in df.columns:
@@ -229,7 +244,7 @@ def main():
         dup_count = master.duplicated(["plate", "well", "site"]).sum()
         if dup_count > 0:
             raise ValueError(
-                f"Found {dup_count} duplicate (plate, well, site, image_path) rows"
+                f"Found {dup_count} duplicate (plate, well, site) rows"
             )
         validate(master)
         print(master.groupby(["plate", "well", "site"]).size().describe())
