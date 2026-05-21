@@ -47,7 +47,7 @@ def load_imaging_index(path: Path) -> pd.DataFrame:
     })
 
     df["well"] = df["well"].str.upper().str.strip()
-
+    df = df.dropna(subset=["plate", "well", "site"])
     print(f"[load_data] rows={len(df)} wells={df['well'].nunique()}")
     return df
 
@@ -85,8 +85,8 @@ def build_image_index(image_root: Path, plate: str):
         records.append((plate, well, site, rel_path))
 
     df = pd.DataFrame(records, columns=["plate", "well", "site", "image_path"])
-    df = df.groupby(["plate", "well"])["image_path"].apply(lambda x: sorted(x)).reset_index()
-    df = df.rename(columns={"image_path": "image_paths"})
+    df["well"] = df["well"].str.upper().str.strip()
+    df = df.dropna(subset=["well", "site", "image_path"])
 
     return df
 
@@ -114,11 +114,11 @@ def attach_image_paths(df, image_root: Path, plate: str):
     img_df = build_image_index(image_root, plate)
 
     # Inner join to keep only rows that actually have downloaded images
-    merged = df.merge(img_df, on=["plate", "well"], how="inner")
+    merged = df.merge(img_df, on=["plate", "well", "site"], how="inner")
     print(f"[images] final rows with images: {len(merged)}")
     print(f"[images] wells with images: {merged['well'].nunique()}")
 
-    return merged.rename(columns={"image_path": "image_paths"})
+    return merged
 
 
 # VALIDATION
@@ -126,7 +126,9 @@ def validate(df):
 
     print("\n========== VALIDATION ==========\n")
     print("rows:", len(df))
+    print("images:", len(df))
     print("wells:", df["well"].nunique())
+    print("sites:", df["site"].nunique())
 
     if "broad_sample" in df.columns:
         miss = df["broad_sample"].isna().mean()
@@ -137,8 +139,7 @@ def validate(df):
                 "Check well format consistency between load_data and platemap."
             )
 
-    if "image_paths" in df.columns:
-        print("missing images:", df["image_paths"].isna().mean())
+    print("missing image_path:", df["image_path"].isna().mean())
 
     print("\npert_type:")
     if "pert_type" in df.columns:
@@ -162,12 +163,8 @@ def main():
             LOAD_DATA_ROOT / plate / "load_data.csv"
         )
         image_root = IMAGE_ROOT / plate
-
         print("\nLoading imaging index...")
         load_df = load_imaging_index(load_data_path)
-
-        # Ensure plate column exists
-        load_df["plate"] = plate
         print("load_df shape:", load_df.shape)
 
         print("\nBuilding master table...")
@@ -185,12 +182,13 @@ def main():
         )
 
         # Confirm no duplicates and validate
-        dup_count = master.duplicated(["plate", "well"]).sum()
+        dup_count = master.duplicated(["plate", "well", "site", "image_path"]).sum()
         if dup_count > 0:
             raise ValueError(
-                f"Found {dup_count} duplicate (plate, well) rows"
+                f"Found {dup_count} duplicate (plate, well, site, image_path) rows"
             )
         validate(master)
+        print(master.groupby(["plate", "well", "site"]).size().describe())
         all_master.append(master)
 
     print("\nConcatenating all plates...")
