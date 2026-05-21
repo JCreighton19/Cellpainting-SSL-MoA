@@ -2,9 +2,11 @@ from collections import defaultdict
 import re
 from pathlib import Path
 
+SCRATCH_ROOT = Path("/scratch/creighton.jo/cellpainting")
+IMAGE_ROOT = SCRATCH_ROOT / "data/raw/images"
 site_counts = defaultdict(set)
 
-for p in Path("/data/raw/images").rglob("*.tiff"):
+for p in Path(IMAGE_ROOT).rglob("*.tiff"):
     m = re.search(r"(r\d{2}c\d{2})", p.name.lower())
     s = re.search(r"f(\d{2})p\d{2}", p.name.lower())
 
