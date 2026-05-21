@@ -9,12 +9,20 @@
 
 set -euo pipefail
 
+# Activate conda environment
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+conda activate cellpainting
+
+echo "Python: $(which python)"
+echo "AWS: $(which aws)"
+aws --version
+
 BASE="s3://cellpainting-gallery/cpg0000-jump-pilot/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 
 mkdir -p "$OUT"
 
-AWS="--no-sign-request --only-show-errors"
+AWS_OPTS="--no-sign-request --only-show-errors"
 
 echo "Downloading metadata..."
 
