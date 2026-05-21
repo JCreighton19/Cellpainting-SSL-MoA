@@ -31,18 +31,16 @@ class CellPaintingViT(nn.Module):
 
         # initialize new projection weights
         with torch.no_grad():
-            # copy pretrained RGB weights for first 3 channels
             if in_channels >= 3:
-                new_proj.weight[:, :3].copy_(old_proj.weight[:, :3])
+                new_proj.weight[:, :3].copy_(old_proj.weight[:, :3].clone())
 
-            # initialize extra channels as mean of RGB
             if in_channels > 3:
                 mean_weight = old_proj.weight[:, :3].mean(dim=1, keepdim=True)
                 for i in range(3, in_channels):
                     new_proj.weight[:, i:i + 1].copy_(mean_weight)
 
             if old_proj.bias is not None:
-                new_proj.bias.data.copy_(old_proj.bias.data)
+                new_proj.bias.copy_(old_proj.bias)
 
         self.vit.patch_embed.proj = new_proj
 

@@ -23,109 +23,40 @@ class CellPaintingDataset(Dataset):
         self.channels = channels if channels is not None else [1,2,3,4,5]
         self.tile_size = tile_size
 
-        self._cache = {}  # used to reduce number of disk reads
-        self.fields = [
-            f for f in self._build_fields()
-            if all(self._file_exists(p) for p in f["files"])
-        ]
-
-        if len(self.fields) == 0:
-            raise ValueError("No valid fields found")
-
-    def _file_exists(self, p):
-        return Path(p).exists()
-
     def __len__(self):
-        return 50000  # acts like "steps per epoch"
-
-    def _sample_field(self):
-        field_idx = random.randint(0, len(self.fields) - 1)
-        return field_idx
-
-    def _sample_coords(self, image):
-        C, H, W = image.shape
-        r = random.randint(0, H - self.tile_size)
-        c = random.randint(0, W - self.tile_size)
-        if H < self.tile_size or W < self.tile_size:
-            raise ValueError(f"Image too small: {H}x{W}")
-        return r, c
-
-    def _build_fields(self):
-        fields = []
-
-        for _, row in self.metadata.iterrows():
-            image_paths = row["image_paths"]
-            selected_paths = [
-                str(self.project_root / image_paths[ch - 1])
-                for ch in self.channels
-            ]
-
-            fields.append({
-                "files": selected_paths,
-                "plate": row["plate"],
-                "well": row["well"],
-                "site": row["site"],
-                "compound": row["pert_iname"],
-                "broad_sample": row["broad_sample"],
-                "gene": row["gene"],
-                "control_type": row["control_type"]
-            })
-
-        print(f"Final valid fields: {len(fields)}")
-
-        return fields
-
-
-    def _load_field(self, field_idx):
-        """Load and normalize a full field of view as (C, H, W)."""
-        if field_idx in self._cache:
-            return self._cache[field_idx]
-
-        file_list = self.fields[field_idx]["files"]
-        imgs = [tiff.imread(f) for f in file_list]
-        if len(imgs) == 0:
-            raise ValueError(f"No valid images for field {field_idx}")
-        image = np.stack(imgs, axis=0).astype(np.float32)
-        image = self._normalize_channels(image)
-
-        self._cache[field_idx] = image
-        return image
+        return len(self.metadata)
 
     def __getitem__(self, idx):
         for _ in range(10):
-            field_idx = self._sample_field()
-            image = self._load_field(field_idx)
-            if image is None:
-                continue
+            row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
+            image = tiff.imread(str(row["image_path"])).astype(np.float32)
+            if image.ndim == 2:
+                image = image[None, :, :]
 
-            r, c = self._sample_coords(image)
+            image = self._normalize_channels(image)
+            C, H, W = image.shape
+            r = random.randint(0, H - self.tile_size)
+            c = random.randint(0, W - self.tile_size)
             tile = image[:, r:r + self.tile_size, c:c + self.tile_size]
             if not self._is_informative(tile):
                 continue
 
             tile = torch.from_numpy(tile).float()
-            if self.transform is not None:
+            if self.transform:
                 tile = self.transform(tile)
-
-            # Safety check
-            if tile is None:
-                print("[DEBUG] TRANSFORM RETURNED NONE")
-                continue
-
-            meta = self.fields[field_idx]
 
             return {
                 "image": tile,
-                "compound": meta["compound"],
-                "broad_sample": meta["broad_sample"],
-                "plate": meta["plate"],
-                "well": meta["well"],
-                "site": meta["site"],
+                "compound": row["pert_iname"],
+                "broad_sample": row["broad_sample"],
+                "plate": row["plate"],
+                "well": row["well"],
+                "site": row["site"],
                 "row": r,
                 "col": c
             }
 
-        raise RuntimeError(f"Failed to sample valid tile after retries (idx={idx})")
+        raise RuntimeError("Failed to sample informative tile")
 
     def _normalize_channels(self, image):
         normed = np.zeros_like(image)
@@ -140,7 +71,7 @@ class CellPaintingDataset(Dataset):
         return normed
 
     def _is_informative(self, tile):
-        dna_signal = np.percentile(tile[4], 95) # dna signal
-        variance = tile.var() # texture, removes flat gray tiles
+        signal = np.percentile(tile[0], 95)  # use DNA channel only
+        variance = tile.var()
 
-        return dna_signal > 0.02 and variance > 0.005
+        return signal > 0.02 and variance > 0.005

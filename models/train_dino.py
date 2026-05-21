@@ -127,11 +127,12 @@ def main():
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
                        student_head, teacher_head, momentum=0.996):
-        for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
-            pt.data.mul_(momentum).add_((1 - momentum) * ps.data)
+        with torch.no_grad():
+            for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
+                pt.mul_(momentum).add_(ps * (1 - momentum))
 
-        for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
-            pt.data.mul_(momentum).add_((1 - momentum) * ps.data)
+            for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
+                pt.mul_(momentum).add_(ps * (1 - momentum))
 
     # Training loop
     n_epochs = 10
@@ -148,8 +149,8 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"]
 
-            x1 = apply_augment(images)
-            x2 = apply_augment(images)
+            x1 = apply_augment(images.clone())
+            x2 = apply_augment(images.clone())
 
             # Confirm shapes are as expected
             assert x1.ndim == 4

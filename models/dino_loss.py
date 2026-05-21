@@ -30,12 +30,12 @@ class DINOLoss(nn.Module):
         # cross entropy loss
         loss = -(teacher_probs * student_log_probs).sum(dim=-1).mean()
 
-        self.update_center(teacher_out)
+        self.update_center(teacher_probs)
 
         return loss
 
     @torch.no_grad()
-    def update_center(self, teacher_output):
-        batch_center = teacher_output.mean(dim=0, keepdim=True)
+    def update_center(self, teacher_probs):
+        batch_center = teacher_probs.mean(dim=0, keepdim=True)
         self.center.mul_(self.center_momentum)
         self.center.add_(batch_center * (1 - self.center_momentum))

@@ -4,7 +4,7 @@
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
 #SBATCH --time=04:00:00
 #SBATCH --mem=24G
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 
 set -e
@@ -24,6 +24,8 @@ export PYTHONPATH=$REPO
 # Tell dataset where data lives
 export CP_DATA_ROOT=$DATA
 export CP_OUTPUT_ROOT=$OUT
+export HF_HOME=/scratch/creighton.jo/hf_cache
+export TORCH_HOME=/scratch/creighton.jo/torch_cache
 
 # Conda setup
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
