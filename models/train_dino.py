@@ -156,7 +156,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.998):
+                       student_head, teacher_head, momentum=0.999):
         with torch.no_grad():
             for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
                 pt.mul_(momentum).add_(ps * (1 - momentum))
@@ -190,16 +190,16 @@ def main():
             x1 = x1.to(device)
             x2 = x2.to(device)
 
-            s1 = F.normalize(student_head(student_enc(x1)), dim=-1)
-            s2 = F.normalize(student_head(student_enc(x2)), dim=-1)
+            s1 = student_head(student_enc(x1))
+            s2 = student_head(student_enc(x2))
             with torch.no_grad():
                 embed_std = torch.cat([s1, s2]).std(dim=0).mean().item()
                 embed_norm = torch.cat([s1, s2]).norm(dim=1).mean().item()
                 cos_sim = F.cosine_similarity(s1, s2, dim=1).mean().item()
 
             with torch.no_grad():
-                t1 = F.normalize(teacher_head(teacher_enc(x1)), dim=-1)
-                t2 = F.normalize(teacher_head(teacher_enc(x2)), dim=-1)
+                t1 = teacher_head(teacher_enc(x1))
+                t2 = teacher_head(teacher_enc(x2))
 
             loss = (dino_loss(s1, t2) + dino_loss(s2, t1)) / 2
 

@@ -5,8 +5,8 @@ from torch import nn
 
 class DINOLoss(nn.Module):
     def __init__(self, proj_dim=256, ncrops=2, warmup_teacher_temp=0.04,
-                 teacher_temp=0.06, warmup_epochs=10, nepochs=100,
-                 center_momentum=0.9):
+                 teacher_temp=0.1, warmup_epochs=10, nepochs=100,
+                 center_momentum=0.95):
         super().__init__()
         self.ncrops = ncrops
         self.center_momentum = center_momentum
@@ -19,7 +19,7 @@ class DINOLoss(nn.Module):
         teacher_out: (B, proj_dim)
         """
         # student log softmax
-        student_temp = 0.1
+        student_temp = 0.2
         student_log_probs = F.log_softmax(student_out / student_temp, dim=-1)
 
         # update center (EMA of teacher outputs)
