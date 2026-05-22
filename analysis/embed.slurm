@@ -8,12 +8,21 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
+set -euo pipefail
+
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
 
-set -euo pipefail
-
 mkdir -p /scratch/creighton.jo/cellpainting/logs
+
+# ---- REQUIRED ARG ----
+if [ $# -lt 1 ]; then
+    echo "Usage:"
+    echo "sbatch analysis/embed.slurm <run_dir>"
+    exit 1
+fi
+
+RUN_DIR=$1
 
 DATA_ROOT=/scratch/creighton.jo/cellpainting/data/raw
 OUT_ROOT=/scratch/creighton.jo/cellpainting
@@ -21,10 +30,10 @@ OUT_ROOT=/scratch/creighton.jo/cellpainting
 cd $SLURM_SUBMIT_DIR
 export PYTHONPATH=$PWD
 
+echo "RUN_DIR=$RUN_DIR"
 echo "DATA_ROOT=$DATA_ROOT"
 echo "OUT_ROOT=$OUT_ROOT"
 echo "Starting embedding job on $(hostname)"
 
 python -u analysis/extract_embeddings.py \
-    --data_root "$DATA_ROOT" \
-    --out_dir "$OUT_ROOT/embeddings"
+    --run_dir "$RUN_DIR"

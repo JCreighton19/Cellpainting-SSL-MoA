@@ -23,6 +23,7 @@ def main():
 
     # Make checkpoints dir, if it does not yet exist
     run_dir = os.path.join(
+        os.environ["CP_OUTPUT_ROOT"],
         "checkpoints",
         datetime.now().strftime("%m%d%y_%H%M")
     )
