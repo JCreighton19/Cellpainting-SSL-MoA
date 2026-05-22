@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torchvision import transforms
 import torch.nn.functional as F
 import os
 import sys
@@ -38,20 +37,12 @@ def main():
     print("Using device:", device)
 
     # Dataset
-    metadata_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/master_metadata.parquet")
-    data_root = os.environ["CP_DATA_ROOT"]
     dataset = CellPaintingDataset(
-        metadata_path=metadata_path,
-        data_root=data_root,
-        channels=[1,2,3,4,5],
-        tile_size=224
+        processed_dir=os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
     )
 
     print("\n=== Dataset Summary ===")
-    print("Compounds:", dataset.metadata["pert_iname"].nunique())
-    print("Plates:", dataset.metadata["plate"].nunique())
-    print("Genes:", dataset.metadata["gene"].nunique())
-    print("Wells:", dataset.metadata["well"].nunique())
+    print(f"Dataset length: {len(dataset)}")
 
     def worker_init_fn(worker_id):
         seed = torch.initial_seed() % 2 ** 32
@@ -62,83 +53,44 @@ def main():
         dataset,
         batch_size=32,
         shuffle=True,
-        num_workers=8,
+        num_workers=4,
         pin_memory=True,
         persistent_workers=True,
-        prefetch_factor=4,
+        prefetch_factor=2,
         worker_init_fn=worker_init_fn
     )
 
-    # Augmentation
-    def augment(x):
-        # spatial flips (OK)
-        if torch.rand(1).item() < 0.5:
-            x = torch.flip(x, dims=[2])
-        if torch.rand(1).item() < 0.5:
-            x = torch.flip(x, dims=[1])
+    import torch.nn.functional as F
 
-        # Mild intensity jitter (not global random scaling)
-        noise = torch.randn_like(x) * 0.02
-        x = x + noise
+    def batch_crop(x, scale_min, scale_max):
+        B, C, H, W = x.shape
+        device = x.device
 
-        # Small gamma-like effect
-        if torch.rand(1).item() < 0.3:
-            scale = torch.empty(1).uniform_(0.7, 1.3).item()
-            x = x * scale
+        scales = torch.empty(B, device=device).uniform_(scale_min, scale_max)
+        crop_sizes = (scales * H).long().clamp(1, H)
 
-        # Replace hard channel dropout with mild channel noise
-        if torch.rand(1).item() < 0.2:
-            ch = torch.randint(0, x.shape[0], (1,)).item()
-            x[ch] = x[ch] + torch.randn_like(x[ch]) * 0.05
+        # random centers
+        cy = torch.randint(0, H, (B,), device=device)
+        cx = torch.randint(0, W, (B,), device=device)
 
-        # Weak blur
-        if torch.rand(1).item() < 0.3:
-            x = transforms.functional.gaussian_blur(
-                x,
-                kernel_size=3
-            )
+        # normalized coords grid
+        theta = torch.zeros(B, 2, 3, device=device)
 
-        return x
+        for i in range(B):
+            size = crop_sizes[i].item()
 
-    def global_crop(x):
-        C, H, W = x.shape
+            y1 = (cy[i] - size / 2) / (H / 2)
+            x1 = (cx[i] - size / 2) / (W / 2)
 
-        scale = random.uniform(0.7, 1.0)
-        crop_size = int(H * scale)
+            theta[i, 0, 0] = size / H
+            theta[i, 1, 1] = size / W
+            theta[i, 0, 2] = x1
+            theta[i, 1, 2] = y1
 
-        r = random.randint(0, H - crop_size)
-        c = random.randint(0, W - crop_size)
+        grid = F.affine_grid(theta, x.size(), align_corners=False)
+        crops = F.grid_sample(x, grid, align_corners=False)
 
-        x = x[:, r:r + crop_size, c:c + crop_size]
-
-        x = F.interpolate(
-            x.unsqueeze(0),
-            size=(H, W),
-            mode="bilinear",
-            align_corners=False
-        ).squeeze(0)
-
-        return augment(x)
-
-    def local_crop(x):
-        C, H, W = x.shape
-
-        scale = random.uniform(0.3, 0.5)
-        crop_size = int(H * scale)
-
-        r = random.randint(0, H - crop_size)
-        c = random.randint(0, W - crop_size)
-
-        x = x[:, r:r + crop_size, c:c + crop_size]
-
-        x = F.interpolate(
-            x.unsqueeze(0),
-            size=(H, W),
-            mode="bilinear",
-            align_corners=False
-        ).squeeze(0)
-
-        return augment(x)
+        return crops
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
@@ -205,13 +157,12 @@ def main():
         total_loss = 0
 
         for step, batch in enumerate(loader):
-            images = batch["image"]
+            images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
-            # GLOBAL / LOCAL VIEWS
-            global_views_1 = torch.stack([global_crop(img) for img in images]).to(device)
-            global_views_2 = torch.stack([global_crop(img) for img in images]).to(device)
-
-            local_views = torch.stack([local_crop(img) for img in images]).to(device)
+            # create multi-crop views ON GPU
+            global_views_1 = batch_crop(images, 0.7, 1.0)
+            global_views_2 = batch_crop(images, 0.7, 1.0)
+            local_views = batch_crop(images, 0.3, 0.5)
 
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
