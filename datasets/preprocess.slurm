@@ -6,9 +6,21 @@
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/prep_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/prep_%j.err
 
-source activate cellpainting
+set -e
+
+mkdir -p /scratch/creighton.jo/cellpainting/logs
+
+# conda (IMPORTANT: same as training script)
+source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
+conda activate cellpainting
 
 export CP_OUTPUT_ROOT=/scratch/creighton.jo/cellpainting
 export CP_DATA_ROOT=/scratch/creighton.jo/cellpainting/data/raw
 
-python -u datasets/build_preprocessed_dataset.py
+echo "Python:"
+which python
+python --version
+
+echo "Starting preprocessing..."
+
+python -u datasets/preprocess_dataset.py
