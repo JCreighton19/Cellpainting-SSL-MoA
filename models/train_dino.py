@@ -8,6 +8,7 @@ import sys
 import random
 import numpy as np
 import time
+from datetime import datetime
 
 from datasets.dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -188,7 +189,8 @@ def main():
 
         epoch_start = time.perf_counter()
 
-        print(f"Epoch {epoch+1}/{n_epochs} | Start time: {epoch_start}")
+        epoch_start_dt = datetime.now()
+        print(f"Epoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
 
         student_enc.train()
         student_head.train()
