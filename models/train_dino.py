@@ -62,9 +62,10 @@ def main():
         dataset,
         batch_size=32,
         shuffle=True,
-        num_workers=4,
+        num_workers=8,
         pin_memory=True,
         persistent_workers=True,
+        prefetch_factor=4,
         worker_init_fn=worker_init_fn
     )
 

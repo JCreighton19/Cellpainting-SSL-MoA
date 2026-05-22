@@ -11,6 +11,7 @@ LOAD_DATA_ROOT = SCRATCH_ROOT / "data/raw/load_data_csv"
 COMPOUND_METADATA_PATH = (SCRATCH_ROOT / "data/raw/JUMP-Target-1_compound_metadata.tsv")
 PLATEMAP_PATH = (SCRATCH_ROOT / "data/raw/platemaps/JUMP-Target-1_compound_platemap.txt")
 OUTPUT_PATH = (SCRATCH_ROOT / "data/processed/master_metadata.parquet")
+MOA_PATH = SCRATCH_ROOT / "data/raw/repo-drug-annotation-20200324.txt"
 PLATES = sorted([
     p.name for p in IMAGE_ROOT.iterdir()
     if p.is_dir()
@@ -74,6 +75,11 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
     print(f"[compound] rows={len(df)}")
     return df
 
+def load_moa(path: Path):
+    df = pd.read_csv(path, sep="\t")
+    df.columns = [c.lower() for c in df.columns]
+    print(f"[moa] rows={len(df)} cols={df.columns.tolist()}")
+    return df
 
 # IMAGE INDEX
 def build_image_index(image_root: Path, plate: str):
@@ -231,6 +237,15 @@ def main():
     print("\nLoading compound metadata...")
     compound_df = load_compound_metadata(COMPOUND_METADATA_PATH)
     compound_df = compound_df.drop_duplicates("broad_sample")
+    moa_df = load_moa(MOA_PATH)
+    compound_df = compound_df.merge(
+        moa_df[["pert_iname", "moa"]],
+        on="pert_iname",
+        how="left"
+    )
+    print(compound_df.columns)
+    print(compound_df["moa"].value_counts().head())
+    print("missing MOA:", compound_df["moa"].isna().mean())
     all_master = []
 
     for plate in PLATES:
