@@ -8,10 +8,10 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
-set -euo pipefail
-
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
+
+set -euo pipefail
 
 mkdir -p /scratch/creighton.jo/cellpainting/logs
 
