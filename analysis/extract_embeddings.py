@@ -18,7 +18,7 @@ def main():
     print("Loading model...")
     model = CellPaintingViT(in_channels=5).to(device)
     checkpoint_path = os.path.expanduser(
-        "~/Cellpainting-SSL-MoA/checkpoints/dino_epoch_10.pt"
+        "~/Cellpainting-SSL-MoA/checkpoints/dino_epoch_7.pt"
     )
     checkpoint = torch.load(
         checkpoint_path,
@@ -87,11 +87,11 @@ def main():
     print("Embeddings shape:", embeddings.shape)
     print("Metadata shape:", metadata.shape)
     np.save(
-        os.path.join(output_dir, "embeddings_epoch10.npy"),
+        os.path.join(output_dir, "embeddings_epoch7.npy"),
         embeddings
     )
     metadata.to_parquet(
-        os.path.join(output_dir, "metadata_epoch10.parquet"),
+        os.path.join(output_dir, "metadata_epoch7.parquet"),
         index=False
     )
     print("Saved outputs.")
