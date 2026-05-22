@@ -67,35 +67,16 @@ def main():
     def augment(x):
         # x: (C, H, W)
 
-        # Create custom random cropping
-        def random_crop(x):
-            C, H, W = x.shape
-
-            crop_size = random.randint(128, 224)
-            r = random.randint(0, H - crop_size)
-            c = random.randint(0, W - crop_size)
-            x = x[:, r:r + crop_size, c:c + crop_size]
-            x = F.interpolate(
-                x.unsqueeze(0),
-                size=(H, W),
-                mode="bilinear",
-                align_corners=False
-            ).squeeze(0)
-
-            return x
-
-        x = random_crop(x)
-
         # spatial flips
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[2])
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[1])
 
-        # small intensity jitter
+        # intensity jitter
         x = x * (0.7 + 0.6 * torch.rand(1))
 
-        # small Gaussian noise
+        # Gaussian noise
         x = x + 0.01 * torch.randn_like(x)
 
         # channel dropout
@@ -112,8 +93,43 @@ def main():
 
         return x
 
-    def apply_augment(batch):
-        return torch.stack([augment(img) for img in batch])
+    def global_crop(x):
+        # stronger crop but still large view
+        C, H, W = x.shape
+        crop_size = random.randint(160, 224)
+
+        r = random.randint(0, H - crop_size)
+        c = random.randint(0, W - crop_size)
+
+        x = x[:, r:r + crop_size, c:c + crop_size]
+
+        x = F.interpolate(
+            x.unsqueeze(0),
+            size=(H, W),
+            mode="bilinear",
+            align_corners=False
+        ).squeeze(0)
+
+        return augment(x)
+
+    def local_crop(x):
+        # small crop = forces partial view learning
+        C, H, W = x.shape
+        crop_size = random.randint(96, 160)
+
+        r = random.randint(0, H - crop_size)
+        c = random.randint(0, W - crop_size)
+
+        x = x[:, r:r + crop_size, c:c + crop_size]
+
+        x = F.interpolate(
+            x.unsqueeze(0),
+            size=(H, W),
+            mode="bilinear",
+            align_corners=False
+        ).squeeze(0)
+
+        return augment(x)
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
@@ -172,6 +188,8 @@ def main():
 
         epoch_start = time.perf_counter()
 
+        print(f"Epoch {epoch+1}/{n_epochs} | Start time: {epoch_start}")
+
         student_enc.train()
         student_head.train()
         total_loss = 0
@@ -179,29 +197,37 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"]
 
-            x1 = apply_augment(images.clone())
-            x2 = apply_augment(images.clone())
+            # GLOBAL / LOCAL VIEWS
+            global_views_1 = torch.stack([global_crop(img) for img in images]).to(device)
+            global_views_2 = torch.stack([global_crop(img) for img in images]).to(device)
 
-            # Confirm shapes are as expected
-            assert x1.ndim == 4
-            assert x1.shape[1] == 5
-            assert x1.shape[-1] == 224
+            local_views = torch.stack([local_crop(img) for img in images]).to(device)
 
-            x1 = x1.to(device)
-            x2 = x2.to(device)
-
-            s1 = student_head(student_enc(x1))
-            s2 = student_head(student_enc(x2))
-            with torch.no_grad():
-                embed_std = torch.cat([s1, s2]).std(dim=0).mean().item()
-                embed_norm = torch.cat([s1, s2]).norm(dim=1).mean().item()
-                cos_sim = F.cosine_similarity(s1, s2, dim=1).mean().item()
+            # ENCODING
+            s1 = student_head(student_enc(global_views_1))
+            s2 = student_head(student_enc(global_views_2))
+            s3 = student_head(student_enc(local_views))
 
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(x1))
-                t2 = teacher_head(teacher_enc(x2))
+                t1 = teacher_head(teacher_enc(global_views_1))
+                t2 = teacher_head(teacher_enc(global_views_2))
 
-            loss = (dino_loss(s1, t2) + dino_loss(s2, t1)) / 2
+            with torch.no_grad():
+                # collapse / diversity check
+                all_s = torch.cat([s1, s2, s3], dim=0)
+                embed_std = all_s.std(dim=0).mean().item()
+                embed_norm = all_s.norm(dim=1).mean().item()
+
+                cos_sim = (
+                      F.cosine_similarity(s1, s2, dim=1).mean().item() +
+                      F.cosine_similarity(s1, s3, dim=1).mean().item()
+                  ) / 2
+
+            loss = (
+               dino_loss(s1, t2) +
+               dino_loss(s2, t1) +
+               dino_loss(s3, t2)
+           ) / 3
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
