@@ -233,7 +233,7 @@ def main():
                dino_loss(s3, t1)
            ) / 5
 
-            if step % 100 == 0:
+            if step % 50 == 0:
                 print(f"{step}/{len(loader)} steps "
                     f"loss={loss.item():.4f} "
                     f"std={embed_std:.4f} "
