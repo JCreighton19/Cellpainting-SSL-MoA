@@ -17,9 +17,7 @@ def main():
     # Load model
     print("Loading model...")
     model = CellPaintingViT(in_channels=5).to(device)
-    checkpoint_path = os.path.expanduser(
-        "~/Cellpainting-SSL-MoA/checkpoints/dino_epoch_7.pt"
-    )
+    checkpoint_path = "/scratch/creighton.jo/cellpainting/checkpoints/dino_epoch_7.pt"
     checkpoint = torch.load(
         checkpoint_path,
         map_location=device
