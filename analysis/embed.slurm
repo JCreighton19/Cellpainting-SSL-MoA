@@ -25,6 +25,6 @@ echo "DATA_ROOT=$DATA_ROOT"
 echo "OUT_ROOT=$OUT_ROOT"
 echo "Starting embedding job on $(hostname)"
 
-python analysis/extract_embeddings.py \
+python -u analysis/extract_embeddings.py \
     --data_root "$DATA_ROOT" \
     --out_dir "$OUT_ROOT/embeddings"
