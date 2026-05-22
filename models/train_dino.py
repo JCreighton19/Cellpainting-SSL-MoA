@@ -58,7 +58,7 @@ def main():
         dataset,
         batch_size=32,
         shuffle=True,
-        num_workers=1,
+        num_workers=4,
         pin_memory=True,
         persistent_workers=True,
         worker_init_fn=worker_init_fn
