@@ -226,10 +226,13 @@ def main():
                   ) / 2
 
             loss = (
+               dino_loss(s1, t1) +
                dino_loss(s1, t2) +
                dino_loss(s2, t1) +
+               dino_loss(s2, t2) +
+               dino_loss(s3, t1) +
                dino_loss(s3, t2)
-           ) / 3
+           ) / 6
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
