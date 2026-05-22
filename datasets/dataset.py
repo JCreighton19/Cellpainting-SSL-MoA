@@ -22,13 +22,15 @@ class CellPaintingDataset(Dataset):
         self.transform = transform
         self.channels = channels if channels is not None else [1,2,3,4,5]
         self.tile_size = tile_size
+        self.cache = {}
 
     def __len__(self):
         return len(self.metadata)
 
     def __getitem__(self, idx):
+
         for _ in range(10):
-            row = self.metadata.iloc[random.randint(0, len(self.metadata) - 1)]
+            row = self.metadata.iloc[idx]
             paths = [
                 row["mito_img_path"],
                 row["agp_img_path"],
@@ -36,9 +38,8 @@ class CellPaintingDataset(Dataset):
                 row["er_img_path"],
                 row["dna_img_path"],
             ]
-
             image = np.stack(
-                [tiff.imread(str(p)).astype(np.float32) for p in paths],
+                [self.load_tiff(p).astype(np.float32) for p in paths],
                 axis=0
             )
 
@@ -66,6 +67,12 @@ class CellPaintingDataset(Dataset):
             }
 
         raise RuntimeError("Failed to sample informative tile")
+
+    def load_tiff(self, path):
+        path = str(path)
+        if path not in self.cache:
+            self.cache[path] = tiff.imread(path)
+        return self.cache[path]
 
     def _normalize_channels(self, image):
         normed = np.zeros_like(image)

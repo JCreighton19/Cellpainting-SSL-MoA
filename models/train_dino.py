@@ -23,7 +23,11 @@ def main():
     sys.stdout.reconfigure(line_buffering=True)
 
     # Make checkpoints dir, if it does not yet exist
-    os.makedirs("checkpoints", exist_ok=True)
+    run_dir = os.path.join(
+        "checkpoints",
+        datetime.now().strftime("%m%d%y_%H%M")
+    )
+    os.makedirs(run_dir, exist_ok=True)
 
     # Device
     device = (
@@ -66,38 +70,40 @@ def main():
 
     # Augmentation
     def augment(x):
-        # x: (C, H, W)
-
-        # spatial flips
+        # spatial flips (OK)
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[2])
         if torch.rand(1).item() < 0.5:
             x = torch.flip(x, dims=[1])
 
-        # intensity jitter
-        x = x * (0.7 + 0.6 * torch.rand(1))
+        # Mild intensity jitter (not global random scaling)
+        noise = torch.randn_like(x) * 0.02
+        x = x + noise
 
-        # Gaussian noise
-        x = x + 0.01 * torch.randn_like(x)
-
-        # channel dropout
+        # Small gamma-like effect
         if torch.rand(1).item() < 0.3:
-            ch = torch.randint(0, x.shape[0], (1,)).item()
-            x[ch] = 0
+            scale = torch.empty(1).uniform_(0.9, 1.1).item()
+            x = x * scale
 
-        # slight blur
-        if torch.rand(1).item() < 0.5:
+        # Replace hard channel dropout with mild channel noise
+        if torch.rand(1).item() < 0.2:
+            ch = torch.randint(0, x.shape[0], (1,)).item()
+            x[ch] = x[ch] + torch.randn_like(x[ch]) * 0.05
+
+        # Weak blur
+        if torch.rand(1).item() < 0.3:
             x = transforms.functional.gaussian_blur(
                 x,
-                kernel_size=5
+                kernel_size=3
             )
 
         return x
 
     def global_crop(x):
-        # stronger crop but still large view
         C, H, W = x.shape
-        crop_size = random.randint(144, 224)
+
+        scale = random.uniform(0.7, 1.0)
+        crop_size = int(H * scale)
 
         r = random.randint(0, H - crop_size)
         c = random.randint(0, W - crop_size)
@@ -114,9 +120,10 @@ def main():
         return augment(x)
 
     def local_crop(x):
-        # small crop = forces partial view learning
         C, H, W = x.shape
-        crop_size = random.randint(64, 128)
+
+        scale = random.uniform(0.4, 0.6)
+        crop_size = int(H * scale)
 
         r = random.randint(0, H - crop_size)
         c = random.randint(0, W - crop_size)
@@ -173,7 +180,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.999):
+                       student_head, teacher_head, momentum=0.995):
         with torch.no_grad():
             for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
                 pt.mul_(momentum).add_(ps * (1 - momentum))
@@ -226,12 +233,11 @@ def main():
                   ) / 2
 
             loss = (
-               dino_loss(s1, t1) +
                dino_loss(s1, t2) +
                dino_loss(s2, t1) +
-               dino_loss(s2, t2) +
-               dino_loss(s3, t1)
-           ) / 5
+               dino_loss(s3, t1) +
+               dino_loss(s3, t2)
+            ) / 4
 
             if step % 50 == 0:
                 print(f"{step}/{len(loader)} steps "
@@ -268,7 +274,7 @@ def main():
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "loss": avg_loss
-        }, f"checkpoints/dino_epoch_{epoch + 1}.pt")
+        }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
         print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f} | Total Time: {epoch_time/60:.2f} min\n")
 
