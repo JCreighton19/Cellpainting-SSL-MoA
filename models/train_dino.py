@@ -82,7 +82,7 @@ def main():
 
         # Small gamma-like effect
         if torch.rand(1).item() < 0.3:
-            scale = torch.empty(1).uniform_(0.9, 1.1).item()
+            scale = torch.empty(1).uniform_(0.7, 1.3).item()
             x = x * scale
 
         # Replace hard channel dropout with mild channel noise
@@ -122,7 +122,7 @@ def main():
     def local_crop(x):
         C, H, W = x.shape
 
-        scale = random.uniform(0.4, 0.6)
+        scale = random.uniform(0.3, 0.5)
         crop_size = int(H * scale)
 
         r = random.randint(0, H - crop_size)
@@ -180,7 +180,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.995):
+                       student_head, teacher_head, momentum=0.99):
         with torch.no_grad():
             for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
                 pt.mul_(momentum).add_(ps * (1 - momentum))
