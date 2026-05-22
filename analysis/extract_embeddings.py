@@ -71,24 +71,23 @@ def main():
     model.eval()
 
     # Dataset
-    BASE = os.path.dirname(os.path.abspath(__file__))
-    metadata_path = os.path.join("/scratch/creighton.jo/cellpainting/data/processed/master_metadata.parquet")
 
-    data_root = os.path.join(BASE, "../data")
     print("Loading dataset...")
     dataset = CellPaintingDataset(
-        metadata_path=metadata_path,
-        data_root=data_root,
-        channels=[1,2,3,4,5],
-        tile_size=224
+        processed_dir=os.path.join(
+            os.environ["CP_OUTPUT_ROOT"],
+            "data/processed/tiles"
+        )
     )
+
     loader = DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=32,
         shuffle=False,
         num_workers=2,
         pin_memory=True
     )
+
     print("Dataset size:", len(dataset))
     print("Batches:", len(loader))
 

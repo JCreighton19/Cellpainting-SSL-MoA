@@ -29,6 +29,7 @@ OUT_ROOT=/scratch/creighton.jo/cellpainting
 
 cd $SLURM_SUBMIT_DIR
 export PYTHONPATH=$PWD
+export CP_OUTPUT_ROOT=/scratch/creighton.jo/cellpainting
 
 echo "RUN_DIR=$RUN_DIR"
 echo "DATA_ROOT=$DATA_ROOT"
