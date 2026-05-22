@@ -1,6 +1,5 @@
 import os
 import torch
-import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
 import re
@@ -71,7 +70,6 @@ def main():
     model.eval()
 
     # Dataset
-
     print("Loading dataset...")
     dataset = CellPaintingDataset(
         processed_dir=os.path.join(
@@ -93,45 +91,26 @@ def main():
 
     # Extract embeddings
     embeddings = []
-    metadata = []
-    #max_batches = 500 # limit
 
     with torch.no_grad():
         print("Starting extraction loop...")
+
         for step, batch in enumerate(loader):
-            # if step >= max_batches:
-            #     break
             if step % 50 == 0:
                 print(f"Step {step}/{len(loader)}")
-            x = batch["image"].to(device)
+
+            x = batch["image"].to(device, non_blocking=True)
             z = model(x)
-            z = torch.nn.functional.normalize(z, dim=1) # normalize
+            z = torch.nn.functional.normalize(z, dim=1)
+
             embeddings.append(z.cpu().numpy())
-            B = x.shape[0]
-            for i in range(B):
-                metadata.append({
-                    "compound": str(batch["compound"][i]),
-                    "broad_sample": str(batch["broad_sample"][i]),
-                    "plate": str(batch["plate"][i]),
-                    "well": str(batch["well"][i]),
-                    "site": int(batch["site"][i].item()) if torch.is_tensor(batch["site"][i]) else int(
-                        batch["site"][i]),
-                    "row": int(batch["row"][i].item()) if torch.is_tensor(batch["row"][i]) else int(batch["row"][i]),
-                    "col": int(batch["col"][i].item()) if torch.is_tensor(batch["col"][i]) else int(batch["col"][i]),
-                })
 
     # Save outputs
     embeddings = np.concatenate(embeddings, axis=0)
-    metadata = pd.DataFrame(metadata)
     print("Embeddings shape:", embeddings.shape)
-    print("Metadata shape:", metadata.shape)
     np.save(
         os.path.join(output_dir, f"embeddings_{run_name}.npy"),
         embeddings
-    )
-    metadata.to_parquet(
-        os.path.join(output_dir, f"metadata_{run_name}.parquet"),
-        index=False
     )
     print("Saved outputs.")
 
