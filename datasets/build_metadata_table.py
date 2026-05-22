@@ -76,7 +76,11 @@ def load_compound_metadata(path: Path) -> pd.DataFrame:
     return df
 
 def load_moa(path: Path):
-    df = pd.read_csv(path, sep="\t")
+    df = pd.read_csv(
+        path,
+        sep="\t",
+        skiprows=9
+    )
     df.columns = [c.lower() for c in df.columns]
     print(f"[moa] rows={len(df)} cols={df.columns.tolist()}")
     return df

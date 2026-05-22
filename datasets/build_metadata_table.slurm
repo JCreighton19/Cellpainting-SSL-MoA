@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=metadata
-#SBATCH --output=logs/metadata_%j.out
-#SBATCH --error=logs/metadata_%j.err
+#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/metadata_%j.out
+#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/metadata_%j.err
 #SBATCH --time=04:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=4
