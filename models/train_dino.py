@@ -56,7 +56,7 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=32,
         shuffle=True,
         num_workers=1,
         pin_memory=True,
@@ -97,7 +97,7 @@ def main():
     def global_crop(x):
         # stronger crop but still large view
         C, H, W = x.shape
-        crop_size = random.randint(160, 224)
+        crop_size = random.randint(144, 224)
 
         r = random.randint(0, H - crop_size)
         c = random.randint(0, W - crop_size)
@@ -116,7 +116,7 @@ def main():
     def local_crop(x):
         # small crop = forces partial view learning
         C, H, W = x.shape
-        crop_size = random.randint(96, 160)
+        crop_size = random.randint(64, 128)
 
         r = random.randint(0, H - crop_size)
         c = random.randint(0, W - crop_size)
@@ -230,9 +230,8 @@ def main():
                dino_loss(s1, t2) +
                dino_loss(s2, t1) +
                dino_loss(s2, t2) +
-               dino_loss(s3, t1) +
-               dino_loss(s3, t2)
-           ) / 6
+               dino_loss(s3, t1)
+           ) / 5
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
