@@ -27,10 +27,7 @@ def main():
 
     # Dataset
     BASE = os.path.dirname(os.path.abspath(__file__))
-    metadata_path = os.path.join(
-        BASE,
-        "../data/processed/master_metadata.parquet"
-    )
+    metadata_path = os.path.join("/scratch/creighton.jo/cellpainting/data/processed/master_metadata.parquet")
 
     data_root = os.path.join(BASE, "../data")
     print("Loading dataset...")
