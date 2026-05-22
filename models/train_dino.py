@@ -38,7 +38,7 @@ def main():
 
     # Dataset
     dataset = CellPaintingDataset(
-        processed_dir=os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
+        processed_dir=os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed_tiles")
     )
 
     print("\n=== Dataset Summary ===")
