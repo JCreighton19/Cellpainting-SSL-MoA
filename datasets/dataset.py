@@ -7,7 +7,7 @@ from pathlib import Path
 
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224):
-        self.files = list(Path(processed_dir).glob("*.pt"))
+        self.files = list(Path(processed_dir).rglob("*.pt"))
         self.tile_size = tile_size
 
     def __len__(self):
