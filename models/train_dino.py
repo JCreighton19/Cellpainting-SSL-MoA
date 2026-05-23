@@ -145,7 +145,7 @@ def main():
                 pt.mul_(momentum).add_(ps * (1 - momentum))
 
     # Training loop
-    n_epochs = 70
+    n_epochs = 10
     losses = []
 
     for epoch in range(n_epochs):
@@ -194,7 +194,7 @@ def main():
                dino_loss(s3, t2)
             ) / 4
 
-            if step % 100 == 0:
+            if step % 50 == 0:
                 print(f"{step}/{len(loader)} steps "
                     f"loss={loss.item():.4f} "
                     f"std={embed_std:.4f} "
