@@ -23,7 +23,7 @@ class CellPaintingDataset(Dataset):
         )
 
     def __len__(self):
-        return 100000
+        return len(self.files)
 
     # Must be staticmethod or self-aware
     @staticmethod

@@ -10,7 +10,6 @@ from collections import defaultdict
 from pathlib import Path
 import random
 
-
 class MoASampler:
     def __init__(self, processed_dir, metadata_path):
         self.moa_to_files = defaultdict(list)
