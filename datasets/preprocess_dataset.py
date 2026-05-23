@@ -19,8 +19,8 @@ def normalize(image):
     return normed
 
 def process_row(row):
-    idx = row.Index
 
+    idx = row["index"]
     paths = [
         row.mito_img_path,
         row.agp_img_path,
@@ -56,7 +56,7 @@ def main():
     )
 
     df = pd.read_parquet(metadata_path)
-    rows = list(df.itertuples(index=True, name="Row"))
+    rows = df.reset_index().to_dict("records")
 
     with ProcessPoolExecutor(max_workers=8) as executor:
         for i, _ in enumerate(executor.map(process_row, rows)):
