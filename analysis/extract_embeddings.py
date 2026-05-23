@@ -113,50 +113,24 @@ def main():
     plates = np.array(plates)
     wells = np.array(wells)
 
-    # Aggregate embeddings by plate+well
-    groups = {}
-
-    for emb, plate, well in zip(embeddings, plates, wells):
-        key = (plate, well)
-
-        if key not in groups:
-            groups[key] = []
-
-        groups[key].append(emb)
-
-    agg_embeddings = []
-    agg_plates = []
-    agg_wells = []
-
-    for (plate, well), embs in groups.items():
-        embs = np.stack(embs)
-
-        agg_embeddings.append(embs.mean(axis=0))
-        agg_plates.append(plate)
-        agg_wells.append(well)
-
-    agg_embeddings = np.stack(agg_embeddings)
-    agg_plates = np.array(agg_plates)
-    agg_wells = np.array(agg_wells)
-
-    print("Aggregated embeddings shape:", agg_embeddings.shape)
-
-    print("Embeddings shape:", embeddings.shape)
+    print("Final tile-level embeddings shape:", embeddings.shape)
+    assert len(embeddings) == len(plates) == len(wells)
 
     np.save(
-        os.path.join(output_dir, f"embeddings_{run_name}.npy"),
-        agg_embeddings
+        os.path.join(output_dir, f"tile_embeddings_{run_name}.npy"),
+        embeddings
     )
 
     np.save(
-        os.path.join(output_dir, f"plates_{run_name}.npy"),
-        agg_plates
+        os.path.join(output_dir, f"tile_plates_{run_name}.npy"),
+        plates
     )
 
     np.save(
-        os.path.join(output_dir, f"wells_{run_name}.npy"),
-        agg_wells
+        os.path.join(output_dir, f"tile_wells_{run_name}.npy"),
+        wells
     )
+
     print("Saved outputs.")
 
 if __name__ == "__main__":
