@@ -6,9 +6,12 @@ from pathlib import Path
 
 
 class CellPaintingDataset(Dataset):
-    def __init__(self, processed_dir, tile_size=224):
+    def __init__(self, processed_dir, tile_size=224,
+                 augment=True, random_crop=True):
         self.files = list(Path(processed_dir).rglob("*.pt"))
         self.tile_size = tile_size
+        self.augment = augment
+        self.random_crop = random_crop
 
     def __len__(self):
         return len(self.files)
@@ -57,8 +60,20 @@ class CellPaintingDataset(Dataset):
         plate = sample["plate"]
         well = sample["well"]
 
-        tile = self.sample_foreground_crop(img, self.tile_size)
-        tile = self._augment(tile)
+        if self.random_crop:
+            tile = self.sample_foreground_crop(img, self.tile_size)
+        else:
+            # deterministic center crop
+            _, H, W = img.shape
+            ts = self.tile_size
+
+            r = (H - ts) // 2
+            c = (W - ts) // 2
+
+            tile = img[:, r:r + ts, c:c + ts]
+
+        if self.augment:
+            tile = self._augment(tile)
 
         return {
             "image": tile,

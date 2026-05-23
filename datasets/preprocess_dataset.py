@@ -16,7 +16,7 @@ def normalize(image):
 
 def main():
     metadata_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/master_metadata.parquet")
-    out_dir = Path("/scratch/creighton.jo/cellpainting/processed_tiles")
+    out_dir = Path("/scratch/creighton.jo/cellpainting/processed/tiles")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_parquet(metadata_path)

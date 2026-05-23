@@ -41,6 +41,8 @@ def main():
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
+        augment = True,
+        random_crop = True
     )
 
     print("\n=== Dataset Summary ===")
@@ -153,7 +155,7 @@ def main():
         epoch_start = time.perf_counter()
 
         epoch_start_dt = datetime.now()
-        print(f"Epoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
+        print(f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
 
         student_enc.train()
         student_head.train()
@@ -232,6 +234,8 @@ def main():
         }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
         print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f} | Total Time: {epoch_time/60:.2f} min\n")
+
+    print(f"Finished training. Checkpoints saved at {run_dir}")
 
 if __name__ == "__main__":
     main()
