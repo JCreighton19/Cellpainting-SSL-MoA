@@ -18,7 +18,7 @@ class CellPaintingDataset(Dataset):
         self.sampler = MoASampler(processed_dir)
 
     def __len__(self):
-        return len(self.files)
+        return 100000
 
     # Must be staticmethod or self-aware
     @staticmethod
