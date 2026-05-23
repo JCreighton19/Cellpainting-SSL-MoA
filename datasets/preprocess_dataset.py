@@ -19,14 +19,14 @@ def normalize(image):
     return normed
 
 def process_row(row):
-
     idx = row["index"]
+
     paths = [
-        row.mito_img_path,
-        row.agp_img_path,
-        row.rna_img_path,
-        row.er_img_path,
-        row.dna_img_path,
+        row["mito_img_path"],
+        row["agp_img_path"],
+        row["rna_img_path"],
+        row["er_img_path"],
+        row["dna_img_path"],
     ]
 
     image = np.stack(
@@ -35,14 +35,14 @@ def process_row(row):
     )
 
     image = normalize(image)
-    moa = row.moa if pd.notna(row.moa) else "unknown"
+    moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
     torch.save({
         "image": torch.from_numpy(image),
-        "plate": row.plate,
-        "well": row.well,
-        "site": row.site,
+        "plate": row["plate"],
+        "well": row["well"],
+        "site": row["site"],
         "moa": moa
     }, save_path)
 
