@@ -14,7 +14,7 @@ class CellPaintingDataset(Dataset):
         self.tile_size = tile_size
         self.augment = augment
         self.random_crop = random_crop
-        self.sampler = MoASampler(processed_dir)
+        self.sampler = MoASampler(self.files)
 
     def __len__(self):
         return 100000
