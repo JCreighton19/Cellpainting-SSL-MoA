@@ -38,13 +38,19 @@ def process_row(row):
     moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
-    torch.save({
+    payload = {
         "image": torch.from_numpy(image),
         "plate": row["plate"],
         "well": row["well"],
         "site": row["site"],
         "moa": moa
-    }, save_path)
+    }
+
+    # verification check
+    if "moa" not in payload:
+        raise ValueError(f"Missing moa in payload for idx={idx}")
+
+    torch.save(payload, save_path)
 
     return idx
 
