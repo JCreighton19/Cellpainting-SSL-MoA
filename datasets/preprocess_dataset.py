@@ -54,5 +54,7 @@ def main():
         if i % 100 == 0:
             print(f"processed {i}/{len(df)}")
 
+    print("Finished processing")
+
 if __name__ == "__main__":
     main()

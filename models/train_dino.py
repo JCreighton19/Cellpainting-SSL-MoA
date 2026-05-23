@@ -38,11 +38,13 @@ def main():
     print("Using device:", device)
 
     # Dataset
+    data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
     dataset = CellPaintingDataset(
-        processed_dir=os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
+        processed_dir=data_dir,
     )
 
     print("\n=== Dataset Summary ===")
+    print(f"Dataset directory: {data_dir}")
     print(f"Dataset length: {len(dataset)}")
 
     def worker_init_fn(worker_id):
