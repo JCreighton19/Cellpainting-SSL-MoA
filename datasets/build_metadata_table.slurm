@@ -13,4 +13,4 @@ conda activate cellpainting
 cd ~/Cellpainting-SSL-MoA
 export PYTHONPATH=$PWD
 
-python datasets/build_metadata_table.py
+python -u datasets/build_metadata_table.py

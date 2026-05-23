@@ -4,7 +4,7 @@ import random
 import torch.nn.functional as F
 from pathlib import Path
 
-from sampler import MoASampler
+from datasets.sampler import MoASampler
 
 
 class CellPaintingDataset(Dataset):
