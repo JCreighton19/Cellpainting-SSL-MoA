@@ -42,7 +42,7 @@ def main():
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
         augment = True,
-        random_crop = True
+        random_crop=False
     )
 
     print("\n=== Dataset Summary ===")
