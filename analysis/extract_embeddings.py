@@ -91,27 +91,34 @@ def main():
 
     # Extract embeddings
     embeddings = []
+    plates = []
+    wells = []
 
     with torch.no_grad():
-        print("Starting extraction loop...")
-
         for step, batch in enumerate(loader):
             if step % 50 == 0:
                 print(f"Step {step}/{len(loader)}")
-
             x = batch["image"].to(device, non_blocking=True)
             z = model(x)
             z = torch.nn.functional.normalize(z, dim=1)
 
             embeddings.append(z.cpu().numpy())
+            plates.extend(batch["plate"])
+            wells.extend(batch["well"])
 
     # Save outputs
     embeddings = np.concatenate(embeddings, axis=0)
+    plates = np.array(plates)
+    wells = np.array(wells)
+
     print("Embeddings shape:", embeddings.shape)
     np.save(
         os.path.join(output_dir, f"embeddings_{run_name}.npy"),
         embeddings
     )
+    np.save(os.path.join(output_dir, f"plates_{run_name}.npy"), plates)
+    np.save(os.path.join(output_dir, f"wells_{run_name}.npy"), wells)
+
     print("Saved outputs.")
 
 if __name__ == "__main__":

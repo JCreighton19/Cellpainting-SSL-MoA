@@ -5,14 +5,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-metadata_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/master_metadata.parquet")
-data_root = os.environ["CP_DATA_ROOT"]
-
-out_dir = Path("/scratch/creighton.jo/cellpainting/processed_tiles")
-out_dir.mkdir(parents=True, exist_ok=True)
-
-df = pd.read_parquet(metadata_path)
-
 def normalize(image):
     normed = np.zeros_like(image, dtype=np.float32)
     for c in range(image.shape[0]):
@@ -22,24 +14,45 @@ def normalize(image):
         normed[c] = (x - p1) / (p99 - p1 + 1e-6)
     return normed
 
-for i, row in df.iterrows():
-    paths = [
-        row["mito_img_path"],
-        row["agp_img_path"],
-        row["rna_img_path"],
-        row["er_img_path"],
-        row["dna_img_path"],
-    ]
+def main():
+    metadata_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/master_metadata.parquet")
+    out_dir = Path("/scratch/creighton.jo/cellpainting/processed_tiles")
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    image = np.stack(
-        [tiff.imread(p).astype(np.float32) for p in paths],
-        axis=0
-    )
+    df = pd.read_parquet(metadata_path)
 
-    image = normalize(image)
+    for row in df.itertuples(index=True):
+        i = row.Index
 
-    save_path = out_dir / f"{i}.pt"
-    torch.save(torch.from_numpy(image), save_path)
+        paths = [
+            row.mito_img_path,
+            row.agp_img_path,
+            row.rna_img_path,
+            row.er_img_path,
+            row.dna_img_path,
+        ]
 
-    if i % 100 == 0:
-        print(f"processed {i}/{len(df)}")
+        image = np.stack(
+            [tiff.imread(p).astype(np.float32) for p in paths],
+            axis=0
+        )
+
+        image = normalize(image)
+
+        plate = row.plate
+        well = row.well
+        site = row.site
+
+        save_path = out_dir / f"{i}.pt"
+        torch.save({
+            "image": torch.from_numpy(image),
+            "plate": plate,
+            "well": well,
+            "site": site
+        }, save_path)
+
+        if i % 100 == 0:
+            print(f"processed {i}/{len(df)}")
+
+if __name__ == "__main__":
+    main()
