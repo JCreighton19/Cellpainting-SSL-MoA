@@ -3,9 +3,9 @@ from torch.utils.data import Dataset
 import random
 import torch.nn.functional as F
 from pathlib import Path
+import os
 
 from datasets.sampler import MoASampler
-
 
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224,
@@ -14,7 +14,13 @@ class CellPaintingDataset(Dataset):
         self.tile_size = tile_size
         self.augment = augment
         self.random_crop = random_crop
-        self.sampler = MoASampler(self.files)
+        self.sampler = MoASampler(
+            processed_dir= processed_dir,
+            metadata_path=os.path.join(
+                os.environ["CP_OUTPUT_ROOT"],
+                "data/processed/master_metadata.parquet"
+            )
+        )
 
     def __len__(self):
         return 100000
