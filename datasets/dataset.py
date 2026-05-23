@@ -4,6 +4,8 @@ import random
 import torch.nn.functional as F
 from pathlib import Path
 
+from sampler import MoASampler
+
 
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224,
@@ -12,6 +14,8 @@ class CellPaintingDataset(Dataset):
         self.tile_size = tile_size
         self.augment = augment
         self.random_crop = random_crop
+
+        self.sampler = MoASampler(processed_dir)
 
     def __len__(self):
         return len(self.files)
@@ -54,7 +58,8 @@ class CellPaintingDataset(Dataset):
         return x
 
     def __getitem__(self, idx):
-        sample = torch.load(self.files[idx])
+        file, moa = self.sampler.sample_moa()
+        sample = torch.load(file)
 
         img = sample["image"]
         plate = sample["plate"]
@@ -63,7 +68,6 @@ class CellPaintingDataset(Dataset):
         if self.random_crop:
             tile = self.sample_foreground_crop(img, self.tile_size)
         else:
-            # deterministic center crop
             _, H, W = img.shape
             ts = self.tile_size
 
@@ -78,5 +82,6 @@ class CellPaintingDataset(Dataset):
         return {
             "image": tile,
             "plate": plate,
-            "well": well
+            "well": well,
+            "moa": moa
         }
