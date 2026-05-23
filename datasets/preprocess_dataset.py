@@ -63,6 +63,8 @@ def main():
             if i % 100 == 0:
                 print(f"processed {i}/{len(rows)}")
 
+    print(f"Finished pre-processing. {len(rows)} rows saved to {OUT_DIR}")
+
 
 if __name__ == "__main__":
     main()

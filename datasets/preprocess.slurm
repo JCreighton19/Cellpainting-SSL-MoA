@@ -21,6 +21,12 @@ echo "Python:"
 which python
 python --version
 
+OUT_DIR=/scratch/creighton.jo/cellpainting/processed/tiles
+
+echo "Clearing old tiles in: $OUT_DIR"
+rm -rf $OUT_DIR
+mkdir -p $OUT_DIR
+
 echo "Starting preprocessing..."
 
 python -u datasets/preprocess_dataset.py
