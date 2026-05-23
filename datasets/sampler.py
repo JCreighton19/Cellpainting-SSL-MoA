@@ -1,11 +1,7 @@
 # sampler.py
-from collections import defaultdict
 import torch
 from pathlib import Path
-import random
-
 from collections import defaultdict
-import pandas as pd
 import random
 
 class MoASampler:
