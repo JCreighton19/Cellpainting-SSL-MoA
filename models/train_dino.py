@@ -191,6 +191,20 @@ def main():
                     v1 = global_views_1[:4, c:c + 1]
                     v2 = global_views_2[:4, c:c + 1]
 
+                    grid = make_grid(
+                        torch.cat([
+                            images[:4],
+                            global_views_1[:4],
+                            global_views_2[:4]
+                        ], dim=0),
+                        nrow=4
+                    )
+
+                    save_image(
+                        grid,
+                        f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
+                    )
+
                     grid_c = make_grid(
                         torch.cat([
                             images[:4, c:c + 1].detach().cpu(),
@@ -202,7 +216,7 @@ def main():
 
                     save_image(
                         grid_c,
-                        f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
+                        f"{debug_dir}/single_channel_grid_c{c}_e{epoch}_s{step}.png"
                     )
 
             # ENCODING
