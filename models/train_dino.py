@@ -8,6 +8,8 @@ import random
 import numpy as np
 import time
 from datetime import datetime
+from torchvision.utils import save_image
+from torchvision.utils import make_grid
 
 from datasets.dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -44,6 +46,8 @@ def main():
         augment = True,
         random_crop=False
     )
+    debug_dir = os.path.join(run_dir, "aug_debug")
+    os.makedirs(debug_dir, exist_ok=True)
 
     print("\n=== Dataset Summary ===")
     print(f"Dataset directory: {data_dir}")
@@ -161,6 +165,10 @@ def main():
         student_head.train()
         total_loss = 0
 
+        cos_sims = []
+        embed_stds = []
+        embed_norms = []
+
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
@@ -168,9 +176,40 @@ def main():
             global_views_1 = batch_crop(images, 0.9, 1.0)
             global_views_2 = batch_crop(images, 0.9, 1.0)
 
+            # Save augmented images for visual inspection/debugging
+            if step % 200 == 0 and epoch == 0:
+                grid = make_grid(
+                    torch.cat([
+                        images[:4].detach().cpu(),
+                        global_views_1[:4].detach().cpu(),
+                        global_views_2[:4].detach().cpu()
+                    ], dim=0),
+                    nrow=4
+                )
+
+                save_image(
+                    grid,
+                    f"{debug_dir}/grid_e{epoch}_s{step}.png"
+                )
+
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
             s2 = student_head(student_enc(global_views_2))
+
+            # Save augmented embeddings for inspection/debugging
+            if step % 200 == 0 and epoch == 0:
+                emb_dir = os.path.join(run_dir, "debug_embeddings")
+                os.makedirs(emb_dir, exist_ok=True)
+
+                np.save(
+                    f"{emb_dir}/s1_e{epoch}_s{step}.npy",
+                    s1.detach().cpu().numpy()
+                )
+
+                np.save(
+                    f"{emb_dir}/s2_e{epoch}_s{step}.npy",
+                    s2.detach().cpu().numpy()
+                )
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(global_views_1))
@@ -185,6 +224,10 @@ def main():
                 cos_sim = F.cosine_similarity(
                     s1, s2, dim=1
                 ).mean().item()
+
+            cos_sims.append(cos_sim)
+            embed_stds.append(embed_std)
+            embed_norms.append(embed_norm)
 
             loss = (
                dino_loss(s1, t2) +
@@ -219,6 +262,12 @@ def main():
         avg_loss = total_loss / len(loader)
         losses.append(avg_loss)
 
+        avg_cos = np.mean(cos_sims)
+        avg_std = np.mean(embed_stds)
+        avg_norm = np.mean(embed_norms)
+        eps = 1e-6
+        collapse_score = avg_std / (1.0 - avg_cos + eps)
+
         torch.save({
             "student_enc": student_enc.state_dict(),
             "student_head": student_head.state_dict(),
@@ -228,7 +277,15 @@ def main():
             "loss": avg_loss
         }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
-        print(f"Epoch {epoch+1}/{n_epochs} | Loss: {total_loss/len(loader):.4f} | Total Time: {epoch_time/60:.2f} min\n")
+        print(
+            f"Epoch {epoch + 1}/{n_epochs} | "
+            f"Loss: {avg_loss:.4f} | "
+            f"cos_sim: {avg_cos:.4f} | "
+            f"std: {avg_std:.4f} | "
+            f"norm: {avg_norm:.4f} | "
+            f"collapse: {collapse_score:.4f} | "
+            f"Time: {epoch_time / 60:.2f} min\n"
+        )
 
     print(f"Finished training. Checkpoints saved at {run_dir}")
 
