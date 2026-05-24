@@ -71,12 +71,12 @@ def main():
 
     import torch.nn.functional as F
 
-    def shared_crop(x, scale_min=0.5, scale_max=0.8):
+    def shared_crop(x, scale_min=0.6, scale_max=1.0, out_size=224):
         B, C, H, W = x.shape
         device = x.device
 
         scale = torch.empty(1, device=device).uniform_(scale_min, scale_max).item()
-        size = int(scale * H)
+        size = min(int(scale * H), H)
 
         cy = torch.randint(0, H, (B,), device=device)
         cx = torch.randint(0, W, (B,), device=device)
@@ -87,9 +87,10 @@ def main():
                 y1 = max(0, min(H - size, cy[i].item() - size // 2))
                 x1 = max(0, min(W - size, cx[i].item() - size // 2))
 
-                out.append(
-                    x[i:i + 1, :, y1:y1 + size, x1:x1 + size]
-                )
+                patch = x[i:i + 1, :, y1:y1 + size, x1:x1 + size]
+                patch = F.interpolate(patch, size=(out_size, out_size),
+                                      mode="bilinear", align_corners=False)
+                out.append(patch)
 
             return torch.cat(out, dim=0)
 
@@ -172,10 +173,8 @@ def main():
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
                 for c in range(images.shape[1]):
-                    v1 = F.interpolate(global_views_1[:4, c:c + 1], size=(224, 224), mode="bilinear",
-                                       align_corners=False)
-                    v2 = F.interpolate(global_views_2[:4, c:c + 1], size=(224, 224), mode="bilinear",
-                                       align_corners=False)
+                    v1 = global_views_1[:4, c:c + 1]
+                    v2 = global_views_2[:4, c:c + 1]
 
                     grid_c = make_grid(
                         torch.cat([
@@ -190,9 +189,6 @@ def main():
                         grid_c,
                         f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
                     )
-
-            global_views_1 = F.interpolate(global_views_1, size=(224, 224), mode="bilinear", align_corners=False)
-            global_views_2 = F.interpolate(global_views_2, size=(224, 224), mode="bilinear", align_corners=False)
 
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
