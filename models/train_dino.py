@@ -178,19 +178,20 @@ def main():
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
-                grid = make_grid(
-                    torch.cat([
-                        images[:4].detach().cpu(),
-                        global_views_1[:4].detach().cpu(),
-                        global_views_2[:4].detach().cpu()
-                    ], dim=0),
-                    nrow=4
-                )
+                for c in range(images.shape[1]):
+                    grid_c = make_grid(
+                        torch.cat([
+                            images[:4, c:c + 1].detach().cpu(),
+                            global_views_1[:4, c:c + 1].detach().cpu(),
+                            global_views_2[:4, c:c + 1].detach().cpu()
+                        ], dim=0),
+                        nrow=4
+                    )
 
-                save_image(
-                    grid,
-                    f"{debug_dir}/grid_e{epoch}_s{step}.png"
-                )
+                    save_image(
+                        grid_c,
+                        f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
+                    )
 
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
