@@ -172,11 +172,16 @@ def main():
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
                 for c in range(images.shape[1]):
+                    v1 = F.interpolate(global_views_1[:4, c:c + 1], size=(224, 224), mode="bilinear",
+                                       align_corners=False)
+                    v2 = F.interpolate(global_views_2[:4, c:c + 1], size=(224, 224), mode="bilinear",
+                                       align_corners=False)
+
                     grid_c = make_grid(
                         torch.cat([
                             images[:4, c:c + 1].detach().cpu(),
-                            global_views_1[:4, c:c + 1].detach().cpu(),
-                            global_views_2[:4, c:c + 1].detach().cpu()
+                            v1.detach().cpu(),
+                            v2.detach().cpu()
                         ], dim=0),
                         nrow=4
                     )
