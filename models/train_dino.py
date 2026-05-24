@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
+import torchvision.transforms.functional as TF
 
 from datasets.dataset import CellPaintingDataset
 from models.dino_loss import DINOLoss
@@ -71,30 +72,44 @@ def main():
 
     import torch.nn.functional as F
 
-    def shared_crop(x, scale_min=0.6, scale_max=1.0, out_size=224):
-        B, C, H, W = x.shape
-        device = x.device
+    def augment_batch(x):
+        B = x.shape[0]
 
-        def make_crop():
-            scale = torch.empty(1, device=device).uniform_(scale_min, scale_max).item()
-            size = min(int(scale * H), H)
+        # per-sample flips
+        flip_h = torch.rand(B, device=x.device) < 0.5
+        flip_w = torch.rand(B, device=x.device) < 0.5
 
-            cy = torch.randint(0, H, (B,), device=device)
-            cx = torch.randint(0, W, (B,), device=device)
+        # horizontal flip
+        x = torch.where(
+            flip_h[:, None, None, None],
+            torch.flip(x, dims=[2]),
+            x
+        )
 
-            out = []
-            for i in range(B):
-                y1 = max(0, min(H - size, cy[i].item() - size // 2))
-                x1 = max(0, min(W - size, cx[i].item() - size // 2))
+        # vertical flip
+        x = torch.where(
+            flip_w[:, None, None, None],
+            torch.flip(x, dims=[3]),
+            x
+        )
 
-                patch = x[i:i + 1, :, y1:y1 + size, x1:x1 + size]
-                patch = F.interpolate(patch, size=(out_size, out_size),
-                                      mode="bilinear", align_corners=False)
-                out.append(patch)
+        # channel jitter
+        channel_scale = torch.empty(B, 5, 1, 1, device=x.device).uniform_(0.8, 1.2)
+        x = x * channel_scale
 
-            return torch.cat(out, dim=0)
+        # global intensity scaling
+        scale = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.8, 1.2)
+        x = x * scale
 
-        return make_crop(), make_crop()
+        # gaussian blur
+        if random.random() < 0.5:
+            x = TF.gaussian_blur(x, kernel_size=9, sigma=1.5)
+
+        # noise (vectorized)
+        noise_mask = (torch.rand(B, 1, 1, 1, device=x.device) < 0.5)
+        x = x + noise_mask * torch.randn_like(x) * 0.03
+
+        return x.clamp(0, 1)
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
@@ -168,7 +183,8 @@ def main():
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
             # create conservative global views
-            global_views_1, global_views_2 = shared_crop(images, 0.75, 0.9)
+            global_views_1 = augment_batch(images)
+            global_views_2 = augment_batch(images)
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:

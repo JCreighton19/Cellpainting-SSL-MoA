@@ -8,14 +8,13 @@ import os
 from datasets.sampler import MoASampler
 
 class CellPaintingDataset(Dataset):
-    def __init__(self, processed_dir, tile_size=224,
-                 augment=True, random_crop=True):
+    def __init__(self, processed_dir, tile_size=224, random_crop=True):
         self.files = list(Path(processed_dir).rglob("*.pt"))
         self.tile_size = tile_size
-        self.augment = augment
         self.random_crop = random_crop
+
         self.sampler = MoASampler(
-            processed_dir= processed_dir,
+            processed_dir=processed_dir,
             metadata_path=os.path.join(
                 os.environ["CP_OUTPUT_ROOT"],
                 "data/processed/master_metadata.parquet"
@@ -25,7 +24,6 @@ class CellPaintingDataset(Dataset):
     def __len__(self):
         return len(self.files)
 
-    # Must be staticmethod or self-aware
     @staticmethod
     def sample_foreground_crop(img, tile_size):
         dna = img[4]
@@ -53,25 +51,6 @@ class CellPaintingDataset(Dataset):
 
         return img[:, r:r + ts, c:c + ts]
 
-    def _augment(self, x):
-        # flips
-        if random.random() < 0.5:
-            x = torch.flip(x, dims=[1])
-        if random.random() < 0.5:
-            x = torch.flip(x, dims=[2])
-
-        # mild intensity scaling
-        if random.random() < 0.8:
-            scale = torch.empty(1).uniform_(0.9, 1.1).item()
-            x = x * scale
-
-        # mild noise
-        if random.random() < 0.5:
-            noise = torch.randn_like(x) * 0.02
-            x = x + noise
-
-        return x.clamp(0, 1)
-
     def __getitem__(self, idx):
         file, moa = self.sampler.sample_moa()
         sample = torch.load(file)
@@ -85,14 +64,9 @@ class CellPaintingDataset(Dataset):
         else:
             _, H, W = img.shape
             ts = self.tile_size
-
             r = (H - ts) // 2
             c = (W - ts) // 2
-
             tile = img[:, r:r + ts, c:c + ts]
-
-        if self.augment:
-            tile = self._augment(tile)
 
         return {
             "image": tile,
