@@ -164,15 +164,13 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
-            # create multi-crop views ON GPU
-            global_views_1 = batch_crop(images, 0.7, 1.0)
-            global_views_2 = batch_crop(images, 0.7, 1.0)
-            local_views = batch_crop(images, 0.3, 0.5)
+            # create conservative global views
+            global_views_1 = batch_crop(images, 0.9, 1.0)
+            global_views_2 = batch_crop(images, 0.9, 1.0)
 
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
             s2 = student_head(student_enc(global_views_2))
-            s3 = student_head(student_enc(local_views))
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(global_views_1))
@@ -180,21 +178,18 @@ def main():
 
             with torch.no_grad():
                 # collapse / diversity check
-                all_s = torch.cat([s1, s2, s3], dim=0)
+                all_s = torch.cat([s1, s2], dim=0)
                 embed_std = all_s.std(dim=0).mean().item()
                 embed_norm = all_s.norm(dim=1).mean().item()
 
-                cos_sim = (
-                      F.cosine_similarity(s1, s2, dim=1).mean().item() +
-                      F.cosine_similarity(s1, s3, dim=1).mean().item()
-                  ) / 2
+                cos_sim = F.cosine_similarity(
+                    s1, s2, dim=1
+                ).mean().item()
 
             loss = (
                dino_loss(s1, t2) +
-               dino_loss(s2, t1) +
-               dino_loss(s3, t1) +
-               dino_loss(s3, t2)
-            ) / 4
+               dino_loss(s2, t1)
+            ) / 2
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "

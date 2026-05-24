@@ -117,17 +117,17 @@ def main():
     assert len(embeddings) == len(plates) == len(wells)
 
     np.save(
-        os.path.join(output_dir, f"tile_embeddings_{run_name}.npy"),
+        os.path.join(output_dir, f"embeddings_{run_name}.npy"),
         embeddings
     )
 
     np.save(
-        os.path.join(output_dir, f"tile_plates_{run_name}.npy"),
+        os.path.join(output_dir, f"plates_{run_name}.npy"),
         plates
     )
 
     np.save(
-        os.path.join(output_dir, f"tile_wells_{run_name}.npy"),
+        os.path.join(output_dir, f"wells_{run_name}.npy"),
         wells
     )
 
