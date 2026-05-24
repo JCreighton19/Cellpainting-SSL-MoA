@@ -191,6 +191,9 @@ def main():
                         f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
                     )
 
+            global_views_1 = F.interpolate(global_views_1, size=(224, 224), mode="bilinear", align_corners=False)
+            global_views_2 = F.interpolate(global_views_2, size=(224, 224), mode="bilinear", align_corners=False)
+
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
             s2 = student_head(student_enc(global_views_2))
