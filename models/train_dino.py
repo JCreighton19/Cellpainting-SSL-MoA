@@ -75,8 +75,8 @@ def main():
         B, C, H, W = x.shape
         device = x.device
 
-        scales = torch.empty(B, device=device).uniform_(scale_min, scale_max)
-        crop_sizes = (scales * H).long().clamp(1, H)
+        scale = torch.empty(1, device=device).uniform_(scale_min, scale_max).item()
+        size = int(scale * H)
 
         cy = torch.randint(0, H, (B,), device=device)
         cx = torch.randint(0, W, (B,), device=device)
@@ -84,22 +84,16 @@ def main():
         def crop():
             out = []
             for i in range(B):
-                size = crop_sizes[i].item()
+                y1 = max(0, min(H - size, cy[i].item() - size // 2))
+                x1 = max(0, min(W - size, cx[i].item() - size // 2))
 
-                y = cy[i].item()
-                x_ = cx[i].item()
-
-                y1 = max(0, min(H - size, y - size // 2))
-                x1 = max(0, min(W - size, x_ - size // 2))
-
-                out.append(x[i:i + 1, :, y1:y1 + size, x1:x1 + size])
+                out.append(
+                    x[i:i + 1, :, y1:y1 + size, x1:x1 + size]
+                )
 
             return torch.cat(out, dim=0)
 
-        v1 = crop()
-        v2 = crop()
-
-        return v1, v2
+        return crop(), crop()
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
