@@ -71,35 +71,35 @@ def main():
 
     import torch.nn.functional as F
 
-    def batch_crop(x, scale_min, scale_max):
+    def shared_crop(x, scale_min=0.5, scale_max=0.8):
         B, C, H, W = x.shape
         device = x.device
 
         scales = torch.empty(B, device=device).uniform_(scale_min, scale_max)
         crop_sizes = (scales * H).long().clamp(1, H)
 
-        # random centers
         cy = torch.randint(0, H, (B,), device=device)
         cx = torch.randint(0, W, (B,), device=device)
 
-        # normalized coords grid
-        theta = torch.zeros(B, 2, 3, device=device)
+        def crop():
+            out = []
+            for i in range(B):
+                size = crop_sizes[i].item()
 
-        for i in range(B):
-            size = crop_sizes[i].item()
+                y = cy[i].item()
+                x_ = cx[i].item()
 
-            y1 = (cy[i] - size / 2) / (H / 2)
-            x1 = (cx[i] - size / 2) / (W / 2)
+                y1 = max(0, min(H - size, y - size // 2))
+                x1 = max(0, min(W - size, x_ - size // 2))
 
-            theta[i, 0, 0] = size / H
-            theta[i, 1, 1] = size / W
-            theta[i, 0, 2] = x1
-            theta[i, 1, 2] = y1
+                out.append(x[i:i + 1, :, y1:y1 + size, x1:x1 + size])
 
-        grid = F.affine_grid(theta, x.size(), align_corners=False)
-        crops = F.grid_sample(x, grid, align_corners=False)
+            return torch.cat(out, dim=0)
 
-        return crops
+        v1 = crop()
+        v2 = crop()
+
+        return v1, v2
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
@@ -173,8 +173,7 @@ def main():
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
             # create conservative global views
-            global_views_1 = batch_crop(images, 0.9, 1.0)
-            global_views_2 = batch_crop(images, 0.9, 1.0)
+            global_views_1, global_views_2 = shared_crop(images, 0.75, 0.9)
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
