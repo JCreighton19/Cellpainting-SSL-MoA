@@ -40,7 +40,7 @@ def main():
     print("Using device:", device)
 
     # Dataset
-    data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/tiles")
+    data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
         random_crop=False

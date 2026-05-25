@@ -6,7 +6,10 @@ import pandas as pd
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
-OUT_DIR = Path("/scratch/creighton.jo/cellpainting/processed/tiles")
+OUT_DIR = Path(os.path.join(
+    os.environ["CP_OUTPUT_ROOT"],
+    "data/tiles_qc"
+))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -125,7 +128,7 @@ def main():
             if i % 100 == 0:
                 print(f"checked {i}/{len(rows)} | saved={saved}")
 
-    print(f"Finished pre-processing. {len(rows)} rows saved to {OUT_DIR}")
+    print(f"Finished pre-processing. {saved} rows saved to {OUT_DIR}")
 
 
 if __name__ == "__main__":
