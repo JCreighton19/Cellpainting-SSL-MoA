@@ -76,7 +76,6 @@ def main():
             os.environ["CP_OUTPUT_ROOT"],
             "data/processed/tiles"
         ),
-        augment=False,
         random_crop=False
     )
 
