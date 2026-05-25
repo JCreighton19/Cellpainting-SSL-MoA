@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
-from scipy.ndimage import laplace
 
 OUT_DIR = Path("/scratch/creighton.jo/cellpainting/processed/tiles")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,11 +17,6 @@ def normalize(image):
         p99 = np.percentile(x, 99)
         normed[c] = (x - p1) / (p99 - p1 + 1e-6)
     return normed
-
-def focus_score(image):
-    return np.mean([
-        np.var(laplace(image[c])) for c in range(image.shape[0])
-    ])
 
 def image_qc(image):
     # image: (C, H, W)
@@ -73,11 +67,6 @@ def process_row(row):
 
     if qc["high_signal_frac"] > 0.05:
         print(f"Skipping saturated image: {idx}")
-        return None
-
-    fs = focus_score(qc_image)
-    if fs < 0.01:
-        print(f"Skipping blurry image: {idx}")
         return None
 
     image = normalize(image)
