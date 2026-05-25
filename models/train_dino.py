@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 import os
 import sys
 import random
@@ -163,6 +162,11 @@ def main():
     n_epochs = 60
     losses = []
 
+    VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
+    def to_vis(x):
+        x = x[:, VIS_CHANS]  # select channels
+        return x.detach().cpu().float().clamp(0, 1)
+
     for epoch in range(n_epochs):
 
         epoch_start = time.perf_counter()
@@ -187,37 +191,16 @@ def main():
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
-                for c in range(images.shape[1]):
-                    v1 = global_views_1[:4, c:c + 1]
-                    v2 = global_views_2[:4, c:c + 1]
+                grid = make_grid(
+                    torch.cat([
+                        to_vis(images[:4]),
+                        to_vis(global_views_1[:4]),
+                        to_vis(global_views_2[:4])
+                    ], dim=0),
+                    nrow=4
+                )
 
-                    grid = make_grid(
-                        torch.cat([
-                            images[:4],
-                            global_views_1[:4],
-                            global_views_2[:4]
-                        ], dim=0),
-                        nrow=4
-                    )
-
-                    save_image(
-                        grid,
-                        f"{debug_dir}/grid_c{c}_e{epoch}_s{step}.png"
-                    )
-
-                    grid_c = make_grid(
-                        torch.cat([
-                            images[:4, c:c + 1].detach().cpu(),
-                            v1.detach().cpu(),
-                            v2.detach().cpu()
-                        ], dim=0),
-                        nrow=4
-                    )
-
-                    save_image(
-                        grid_c,
-                        f"{debug_dir}/single_channel_grid_c{c}_e{epoch}_s{step}.png"
-                    )
+                save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING
             s1 = student_head(student_enc(global_views_1))
