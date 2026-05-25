@@ -9,6 +9,7 @@ from concurrent.futures import ProcessPoolExecutor
 OUT_DIR = Path("/scratch/creighton.jo/cellpainting/processed/tiles")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def normalize(image):
     normed = np.zeros_like(image, dtype=np.float32)
     for c in range(image.shape[0]):
@@ -18,6 +19,7 @@ def normalize(image):
         normed[c] = (x - p1) / (p99 - p1 + 1e-6)
     return normed
 
+
 def image_qc(image):
     # image: (C, H, W)
 
@@ -26,16 +28,28 @@ def image_qc(image):
 
     global_std = float(np.mean(per_channel_std))
     min_channel_std = float(np.min(per_channel_std))
-
     low_signal_frac = float((image < np.percentile(image, 1)).mean())
     high_signal_frac = float((image > np.percentile(image, 99)).mean())
+
+    def structure_score(image):
+        # measures how much structure exists vs flat/noise
+        flat = image.reshape(image.shape[0], -1)
+
+        per_channel_std = np.std(flat, axis=1)
+        per_channel_mean = np.mean(flat, axis=1)
+
+        return np.mean(per_channel_std / (per_channel_mean + 1e-6))
+
+    structure_score = structure_score(image)
 
     return {
         "global_std": global_std,
         "min_channel_std": min_channel_std,
         "low_signal_frac": low_signal_frac,
         "high_signal_frac": high_signal_frac,
+        "structure_score": structure_score
     }
+
 
 def process_row(row):
     idx = row["index"]
@@ -67,6 +81,9 @@ def process_row(row):
 
     if qc["high_signal_frac"] > 0.05:
         print(f"Skipping saturated image: {idx}")
+        return None
+
+    if qc["structure_score"] < 0.05:
         return None
 
     image = normalize(image)
