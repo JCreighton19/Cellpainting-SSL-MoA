@@ -68,7 +68,31 @@ def main():
         worker_init_fn=worker_init_fn
     )
 
-    import torch.nn.functional as F
+    def random_crop_batch(x, scale=(0.6, 1.0)):
+        B, C, H, W = x.shape
+
+        out = []
+        for i in range(B):
+            s = random.uniform(*scale)
+            th = int(H * s)
+            tw = int(W * s)
+
+            if th == H and tw == W:
+                cropped = x[i]
+            else:
+                top = random.randint(0, H - th)
+                left = random.randint(0, W - tw)
+                cropped = x[i:i + 1, :, top:top + th, left:left + tw]
+                cropped = torch.nn.functional.interpolate(
+                    cropped,
+                    size=(H, W),
+                    mode="bilinear",
+                    align_corners=False
+                )[0]
+
+            out.append(cropped)
+        return torch.stack(out)
+
 
     def augment_batch(x):
         B, C, H, W = x.shape
@@ -187,9 +211,11 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
-            # create conservative global views
-            global_views_1 = augment_batch(images)
-            global_views_2 = augment_batch(images)
+            # create global views
+            view1 = random_crop_batch(images, scale=(0.6, 1.0))
+            view2 = random_crop_batch(images, scale=(0.6, 1.0))
+            global_views_1 = augment_batch(view1)
+            global_views_2 = augment_batch(view2)
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
