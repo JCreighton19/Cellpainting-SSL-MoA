@@ -18,6 +18,17 @@ def normalize(image):
         normed[c] = (x - p1) / (p99 - p1 + 1e-6)
     return normed
 
+def image_qc(image):
+    mean = image.mean()
+    std = image.std()
+    near_zero = (image < 0.02).mean()
+
+    return {
+        "mean": float(mean),
+        "std": float(std),
+        "near_zero": float(near_zero)
+    }
+
 def process_row(row):
     idx = row["index"]
 
@@ -34,7 +45,19 @@ def process_row(row):
         axis=0
     )
 
+    # QC filtering
+    qc = image_qc(image)
+
+    if qc["std"] < 0.01: # note: thresholds arbitrarily chosen
+        print(f"Skipping low-std image: {idx}")
+        return None
+
+    if qc["near_zero"] > 0.98:
+        print(f"Skipping near-empty image: {idx}")
+        return None
+
     image = normalize(image)
+
     moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
@@ -64,10 +87,14 @@ def main():
     df = pd.read_parquet(metadata_path)
     rows = df.reset_index().to_dict("records")
 
+    saved = 0
+
     with ProcessPoolExecutor(max_workers=8) as executor:
-        for i, _ in enumerate(executor.map(process_row, rows)):
+        for i, result in enumerate(executor.map(process_row, rows)):
+            if result is not None:
+                saved += 1
             if i % 100 == 0:
-                print(f"processed {i}/{len(rows)}")
+                print(f"checked {i}/{len(rows)} | saved={saved}")
 
     print(f"Finished pre-processing. {len(rows)} rows saved to {OUT_DIR}")
 

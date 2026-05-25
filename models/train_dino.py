@@ -71,37 +71,39 @@ def main():
     import torch.nn.functional as F
 
     def augment_batch(x):
-        B = x.shape[0]
+        B, C, H, W = x.shape
 
         # per-sample flips
         flip_h = torch.rand(B, device=x.device) < 0.5
         flip_w = torch.rand(B, device=x.device) < 0.5
 
-        # horizontal flip
         x = torch.where(
             flip_h[:, None, None, None],
             torch.flip(x, dims=[2]),
             x
         )
 
-        # vertical flip
         x = torch.where(
             flip_w[:, None, None, None],
             torch.flip(x, dims=[3]),
             x
         )
 
+        # global intensity scaling
+        intensity = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.5, 1.5)
+        x = x * intensity
+
+        # channel dropout
+        drop_mask = (torch.rand(B, C, 1, 1, device=x.device) > 0.15)
+        x = x * drop_mask
+
         # channel jitter
         channel_scale = torch.empty(B, 5, 1, 1, device=x.device).uniform_(0.8, 1.2)
         x = x * channel_scale
 
-        # global intensity scaling
-        scale = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.8, 1.2)
-        x = x * scale
-
         # gaussian blur
-        if random.random() < 0.5:
-            x = TF.gaussian_blur(x, kernel_size=9, sigma=1.5)
+        if random.random() < 0.6:
+            x = TF.gaussian_blur(x, kernel_size=9, sigma=(0.5, 2.0))
 
         # noise (vectorized)
         noise_mask = (torch.rand(B, 1, 1, 1, device=x.device) < 0.5)
