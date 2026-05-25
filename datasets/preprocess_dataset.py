@@ -19,14 +19,21 @@ def normalize(image):
     return normed
 
 def image_qc(image):
-    mean = image.mean()
-    std = image.std()
-    near_zero = (image < 0.02).mean()
+    # image: (C, H, W)
+    flat = image.reshape(image.shape[0], -1)
+    per_channel_std = np.std(flat, axis=1)
+
+    # overall signal structure
+    global_std = float(np.mean(per_channel_std))
+
+    # saturation / emptiness indicators
+    low_signal_frac = float((image < np.percentile(image, 1)).mean())
+    high_signal_frac = float((image > np.percentile(image, 99)).mean())
 
     return {
-        "mean": float(mean),
-        "std": float(std),
-        "near_zero": float(near_zero)
+        "global_std": global_std,
+        "low_signal_frac": low_signal_frac,
+        "high_signal_frac": high_signal_frac,
     }
 
 def process_row(row):
@@ -45,19 +52,23 @@ def process_row(row):
         axis=0
     )
 
-    # QC filtering
-    qc = image_qc(image)
+    # QC filtering (note: thresholds somewhat arbitrarily chosen)
+    qc_image = np.log1p(image)
+    qc = image_qc(qc_image)
 
-    if qc["std"] < 0.01: # note: thresholds arbitrarily chosen
-        print(f"Skipping low-std image: {idx}")
+    if qc["global_std"] < 0.02:
+        print(f"Skipping low-variance image: {idx}")
         return None
 
-    if qc["near_zero"] > 0.98:
+    if qc["low_signal_frac"] > 0.995:
         print(f"Skipping near-empty image: {idx}")
         return None
 
-    image = normalize(image)
+    if qc["high_signal_frac"] > 0.2:
+        print(f"Skipping saturated image: {idx}")
+        return None
 
+    image = normalize(image)
     moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
