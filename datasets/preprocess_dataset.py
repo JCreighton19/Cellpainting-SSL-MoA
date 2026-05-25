@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
+from scipy.ndimage import laplace
 
 OUT_DIR = Path("/scratch/creighton.jo/cellpainting/processed/tiles")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,20 +19,26 @@ def normalize(image):
         normed[c] = (x - p1) / (p99 - p1 + 1e-6)
     return normed
 
+def focus_score(image):
+    return np.mean([
+        np.var(laplace(image[c])) for c in range(image.shape[0])
+    ])
+
 def image_qc(image):
     # image: (C, H, W)
+
     flat = image.reshape(image.shape[0], -1)
     per_channel_std = np.std(flat, axis=1)
 
-    # overall signal structure
     global_std = float(np.mean(per_channel_std))
+    min_channel_std = float(np.min(per_channel_std))
 
-    # saturation / emptiness indicators
     low_signal_frac = float((image < np.percentile(image, 1)).mean())
     high_signal_frac = float((image > np.percentile(image, 99)).mean())
 
     return {
         "global_std": global_std,
+        "min_channel_std": min_channel_std,
         "low_signal_frac": low_signal_frac,
         "high_signal_frac": high_signal_frac,
     }
@@ -56,16 +63,21 @@ def process_row(row):
     qc_image = np.log1p(image)
     qc = image_qc(qc_image)
 
-    if qc["global_std"] < 0.02:
-        print(f"Skipping low-variance image: {idx}")
+    if qc["min_channel_std"] < 0.01:
+        print(f"Skipping dead/low-signal channel image: {idx}")
         return None
 
     if qc["low_signal_frac"] > 0.995:
         print(f"Skipping near-empty image: {idx}")
         return None
 
-    if qc["high_signal_frac"] > 0.2:
+    if qc["high_signal_frac"] > 0.05:
         print(f"Skipping saturated image: {idx}")
+        return None
+
+    fs = focus_score(qc_image)
+    if fs < 0.01:
+        print(f"Skipping blurry image: {idx}")
         return None
 
     image = normalize(image)
