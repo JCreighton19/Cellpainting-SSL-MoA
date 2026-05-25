@@ -7,6 +7,7 @@ import random
 import numpy as np
 import time
 from datetime import datetime
+import torch.nn.functional as F
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
 import torchvision.transforms.functional as TF
