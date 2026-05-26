@@ -120,16 +120,27 @@ def main():
     rows = df.reset_index().to_dict("records")
 
     saved = 0
+    kept_indices = []
 
     with ProcessPoolExecutor(max_workers=8) as executor:
         for i, result in enumerate(executor.map(process_row, rows)):
             if result is not None:
                 saved += 1
+                kept_indices.append(result)
+
             if i % 100 == 0:
                 print(f"checked {i}/{len(rows)} | saved={saved}")
 
-    print(f"Finished pre-processing. {saved} rows saved to {OUT_DIR}")
+    filtered_df = df.loc[kept_indices].copy()
+    filtered_metadata_path = os.path.join(
+        os.environ["CP_OUTPUT_ROOT"],
+        "data/processed/master_metadata_qc.parquet"
+    )
 
+    filtered_df.to_parquet(filtered_metadata_path, index=False)
+
+    print(f"Saved QC metadata → {filtered_metadata_path}")
+    print(f"Finished pre-processing. {saved} rows saved to {OUT_DIR}")
 
 if __name__ == "__main__":
     main()
