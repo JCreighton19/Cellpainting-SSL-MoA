@@ -220,13 +220,19 @@ def main():
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
+                n = 10
+                orig = to_vis(images[:n])
+                v1 = to_vis(global_views_1[:n])
+                v2 = to_vis(global_views_2[:n])
+
+                # interleave per sample: [orig, view1, view2]
+                stacked = torch.stack([orig, v1, v2], dim=1)
+                # shape: (n, 3, C, H, W)
+                stacked = stacked.view(n * 3, *orig.shape[1:])
+                # flatten into grid rows
                 grid = make_grid(
-                    torch.cat([
-                        to_vis(images[:4]),
-                        to_vis(global_views_1[:4]),
-                        to_vis(global_views_2[:4])
-                    ], dim=0),
-                    nrow=4
+                    stacked,
+                    nrow=3  # 3 columns = (orig | view1 | view2)
                 )
 
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")

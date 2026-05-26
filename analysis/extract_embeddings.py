@@ -74,7 +74,7 @@ def main():
     dataset = CellPaintingDataset(
         processed_dir=os.path.join(
             os.environ["CP_OUTPUT_ROOT"],
-            "data/processed/tiles"
+            "data/tiles_qc"
         ),
         random_crop=False
     )
