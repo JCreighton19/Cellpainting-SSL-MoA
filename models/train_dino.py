@@ -44,7 +44,7 @@ def main():
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
-        random_crop=False
+        random_crop=True
     )
     debug_dir = os.path.join(run_dir, "aug_debug")
     os.makedirs(debug_dir, exist_ok=True)
