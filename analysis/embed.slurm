@@ -5,7 +5,7 @@
 #SBATCH --time=01:00:00
 #SBATCH --mem=48G
 #SBATCH --cpus-per-task=4
-#SBATCH --partition=gpu
+#SBATCH --partition=gpu-short
 #SBATCH --gres=gpu:1
 
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
