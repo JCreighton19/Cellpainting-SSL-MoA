@@ -2,10 +2,10 @@
 #SBATCH --job-name=embed
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/embed_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/embed_%j.err
-#SBATCH --time=01:00:00
+#SBATCH --time=00:30:00
 #SBATCH --mem=48G
 #SBATCH --cpus-per-task=4
-#SBATCH --partition=gpu-short
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
