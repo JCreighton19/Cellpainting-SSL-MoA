@@ -94,46 +94,85 @@ def main():
             out.append(cropped)
         return torch.stack(out)
 
-
-    def augment_batch(x):
+    def teacher_augment(x):
         B, C, H, W = x.shape
 
-        # per-sample flips
-        flip_h = torch.rand(B, device=x.device) < 0.5
-        flip_w = torch.rand(B, device=x.device) < 0.5
-
+        # flips
+        flip_h = torch.rand(B,device=x.device) < 0.5
+        flip_w = torch.rand(B,device=x.device) < 0.5
         x = torch.where(
             flip_h[:, None, None, None],
             torch.flip(x, dims=[2]),
             x
         )
-
         x = torch.where(
             flip_w[:, None, None, None],
             torch.flip(x, dims=[3]),
             x
         )
 
-        # global intensity scaling
-        intensity = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.5, 1.5)
+        # Small intensity changes only
+        intensity = torch.empty(
+            B, 1, 1, 1,
+            device=x.device
+        ).uniform_(0.9, 1.1)
         x = x * intensity
 
-        # channel dropout
-        drop_mask = (torch.rand(B, C, 1, 1, device=x.device) > 0.15)
-        x = x * drop_mask
+        channel_scale = torch.empty(
+            B, 5, 1, 1,
+            device=x.device
+        ).uniform_(0.95, 1.05)
+        x = x * channel_scale
 
-        # channel jitter
-        channel_scale = torch.empty(B, 5, 1, 1, device=x.device).uniform_(0.8, 1.2)
+        return x.clamp(0, 1)
+
+
+    def student_augment(x):
+        B, C, H, W = x.shape
+
+        # flips
+        flip_h = torch.rand(B, device=x.device) < 0.5
+        flip_w = torch.rand(B, device=x.device) < 0.5
+        x = torch.where(
+            flip_h[:, None, None, None],
+            torch.flip(x, dims=[2]),
+            x
+        )
+        x = torch.where(
+            flip_w[:, None, None, None],
+            torch.flip(x, dims=[3]),
+            x
+        )
+
+        # stronger intensity perturbation
+        intensity = torch.empty(
+            B, 1, 1, 1,
+            device=x.device
+        ).uniform_(0.7, 1.3)
+        x = x * intensity
+
+        channel_scale = torch.empty(
+            B, 5, 1, 1,
+            device=x.device
+        ).uniform_(0.85, 1.15)
         x = x * channel_scale
 
         # gaussian blur
-        if random.random() < 0.6:
-            x = TF.gaussian_blur(x, kernel_size=9, sigma=(0.5, 2.0))
+        if random.random() < 0.5:
+            x = TF.gaussian_blur(x,
+                kernel_size=9,
+                sigma=(0.5, 1.5)
+            )
 
-        # noise (vectorized)
-        noise_mask = (torch.rand(B, 1, 1, 1, device=x.device) < 0.5)
-        x = x + noise_mask * torch.randn_like(x) * 0.03
+        # noise
+        noise_mask = (
+                torch.rand(
+                    B, 1, 1, 1,
+                    device=x.device
+                ) < 0.5
+        )
 
+        x = x + noise_mask * torch.randn_like(x) * 0.02
         return x.clamp(0, 1)
 
     # Models
@@ -177,7 +216,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.99):
+                       student_head, teacher_head, momentum=0.995):
         with torch.no_grad():
             for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
                 pt.mul_(momentum).add_(ps * (1 - momentum))
@@ -213,17 +252,28 @@ def main():
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
             # create global views
-            view1 = random_crop_batch(images, scale=(0.6, 1.0))
-            view2 = random_crop_batch(images, scale=(0.6, 1.0))
-            global_views_1 = augment_batch(view1)
-            global_views_2 = augment_batch(view2)
+            teacher_view1 = teacher_augment(
+                random_crop_batch(images,scale=(0.8, 1.0))
+            )
+
+            teacher_view2 = teacher_augment(
+                random_crop_batch(images,scale=(0.8, 1.0))
+            )
+
+            student_view1 = student_augment(
+                random_crop_batch(images,scale=(0.6, 1.0))
+            )
+
+            student_view2 = student_augment(
+                random_crop_batch(images,scale=(0.6, 1.0))
+            )
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
                 n = 10
                 orig = to_vis(images[:n])
-                v1 = to_vis(global_views_1[:n])
-                v2 = to_vis(global_views_2[:n])
+                v1 = to_vis(student_view1[:n])
+                v2 = to_vis(teacher_view1[:n])
 
                 # interleave per sample: [orig, view1, view2]
                 stacked = torch.stack([orig, v1, v2], dim=1)
@@ -238,8 +288,8 @@ def main():
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING
-            s1 = student_head(student_enc(global_views_1))
-            s2 = student_head(student_enc(global_views_2))
+            s1 = student_head(student_enc(student_view1))
+            s2 = student_head(student_enc(student_view2))
 
             # Save augmented embeddings for inspection/debugging
             if step % 200 == 0 and epoch == 0:
@@ -257,8 +307,8 @@ def main():
                 )
 
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(global_views_1))
-                t2 = teacher_head(teacher_enc(global_views_2))
+                t1 = teacher_head(teacher_enc(teacher_view1))
+                t2 = teacher_head(teacher_enc(teacher_view2))
 
             with torch.no_grad():
                 # collapse / diversity check
@@ -267,7 +317,9 @@ def main():
                 embed_norm = all_s.norm(dim=1).mean().item()
 
                 cos_sim = F.cosine_similarity(
-                    s1, s2, dim=1
+                    s1.detach(),
+                    t1.detach(),
+                    dim=1
                 ).mean().item()
 
             cos_sims.append(cos_sim)
