@@ -59,7 +59,7 @@ def main():
 
     N_CLASSES = 8    # MoA groups per batch
     K_PER_CLASS = 4  # tiles per group; effective batch size = 32
-    SUPCON_WEIGHT = 0.2
+    SUPCON_WEIGHT = 0.5
 
     # Dataset
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
@@ -261,7 +261,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.995):
+                       student_head, teacher_head, momentum=0.99):
         for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
             pt.mul_(momentum).add_(ps * (1 - momentum))
         for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):

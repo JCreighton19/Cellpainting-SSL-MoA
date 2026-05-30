@@ -23,7 +23,7 @@ class CellPaintingDataset(Dataset):
         )
 
     def __len__(self):
-        if self.k_per_class > 1:
+        if self.k_per_class > 1: # return count of k groups
             return len(self.files) // self.k_per_class
         return len(self.files)
 
