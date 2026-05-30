@@ -299,7 +299,7 @@ def main():
 
         for step, batch in enumerate(loader):
             raw = batch["image"].to(device, non_blocking=True)  # (N_CLASSES, K_PER_CLASS, C, H, W)
-            images = raw.view(N_CLASSES * K_PER_CLASS, *raw.shape[2:])  # (32, C, H, W)
+            images = raw.flatten(0, 1)
 
             # create global views
             teacher_view1 = teacher_augment(
