@@ -8,10 +8,11 @@ import os
 from datasets.sampler import MoASampler
 
 class CellPaintingDataset(Dataset):
-    def __init__(self, processed_dir, tile_size=224, random_crop=True):
+    def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1):
         self.files = list(Path(processed_dir).rglob("*.pt"))
         self.tile_size = tile_size
         self.random_crop = random_crop
+        self.k_per_class = k_per_class
 
         self.sampler = MoASampler(
             processed_dir=processed_dir,
@@ -51,10 +52,26 @@ class CellPaintingDataset(Dataset):
 
         return img[:, r:r + ts, c:c + ts]
 
-    def __getitem__(self, idx):
-        file, moa = self.sampler.sample_moa()
-        sample = torch.load(file)
+    def _load_tile(self, file):
+        sample = torch.load(file, weights_only=False)
+        img = sample["image"]
+        if self.random_crop:
+            return self.sample_foreground_crop(img, self.tile_size)
+        _, H, W = img.shape
+        ts = self.tile_size
+        r = (H - ts) // 2
+        c = (W - ts) // 2
+        return img[:, r:r + ts, c:c + ts]
 
+    def __getitem__(self, idx):
+        if self.k_per_class > 1:
+            files, moa = self.sampler.sample_moa_k(self.k_per_class)
+            tiles = torch.stack([self._load_tile(f) for f in files])
+            sample0 = torch.load(files[0], weights_only=False)
+            return {"image": tiles, "plate": sample0["plate"], "well": sample0["well"], "moa": moa}
+
+        file, moa = self.sampler.sample_moa()
+        sample = torch.load(file, weights_only=False)
         img = sample["image"]
         plate = sample["plate"]
         well = sample["well"]

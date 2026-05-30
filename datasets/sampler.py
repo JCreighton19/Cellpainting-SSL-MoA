@@ -34,3 +34,9 @@ class MoASampler:
         moa = random.choice(self.moa_list)
         file = random.choice(self.moa_to_files[moa])
         return file, moa
+
+    def sample_moa_k(self, k):
+        """Sample k files from the same randomly chosen MoA."""
+        moa = random.choice(self.moa_list)
+        files = random.choices(self.moa_to_files[moa], k=k)
+        return files, moa

@@ -17,6 +17,24 @@ from models.dino_loss import DINOLoss
 from models.dino import CellPaintingViT
 
 
+def supcon_loss(features, labels, temperature=0.07):
+    """SupCon loss. features: (N, D) L2-normalized. labels: (N,) integer tensor."""
+    N = features.shape[0]
+    sim = torch.matmul(features, features.T) / temperature
+    eye = torch.eye(N, dtype=torch.bool, device=features.device)
+    pos_mask = (labels.unsqueeze(1) == labels.unsqueeze(0)) & ~eye
+    sim_max, _ = sim.max(dim=1, keepdim=True)
+    sim = sim - sim_max.detach()
+    exp_sim = torch.exp(sim) * ~eye
+    log_prob = sim - torch.log(exp_sim.sum(dim=1, keepdim=True) + 1e-9)
+    n_pos = pos_mask.sum(dim=1).float()
+    has_pos = n_pos > 0
+    if not has_pos.any():
+        return features.sum() * 0.0
+    mean_log_prob = (log_prob * pos_mask).sum(dim=1) / n_pos.clamp(min=1)
+    return -mean_log_prob[has_pos].mean()
+
+
 def main():
     torch.manual_seed(42)
     np.random.seed(42)
@@ -39,11 +57,16 @@ def main():
     )
     print("Using device:", device)
 
+    N_CLASSES = 8    # MoA groups per batch
+    K_PER_CLASS = 4  # tiles per group; effective batch size = 32
+    SUPCON_WEIGHT = 0.2
+
     # Dataset
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
-        random_crop=True
+        random_crop=True,
+        k_per_class=K_PER_CLASS
     )
     debug_dir = os.path.join(run_dir, "aug_debug")
     os.makedirs(debug_dir, exist_ok=True)
@@ -59,7 +82,7 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=N_CLASSES,
         shuffle=False, # defined shuffling in sampler
         num_workers=8,
         pin_memory=True,
@@ -96,6 +119,9 @@ def main():
     def teacher_augment(x):
         B, C, H, W = x.shape
 
+        # random 90° rotation per sample
+        x = torch.stack([torch.rot90(x[i], random.randint(0, 3), dims=[1, 2]) for i in range(B)])
+
         # flips
         flip_h = torch.rand(B,device=x.device) < 0.5
         flip_w = torch.rand(B,device=x.device) < 0.5
@@ -128,6 +154,9 @@ def main():
 
     def student_augment(x):
         B, C, H, W = x.shape
+
+        # random 90° rotation per sample
+        x = torch.stack([torch.rot90(x[i], random.randint(0, 3), dims=[1, 2]) for i in range(B)])
 
         # flips
         flip_h = torch.rand(B, device=x.device) < 0.5
@@ -194,9 +223,23 @@ def main():
         def forward(self, x):
             return self.mlp(x)
 
+    class SupConHead(nn.Module):
+        def __init__(self, dim=384, proj_dim=128):
+            super().__init__()
+            self.mlp = nn.Sequential(
+                nn.Linear(dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, proj_dim)
+            )
+
+        def forward(self, x):
+            return F.normalize(self.mlp(x), dim=1)
+
     student_head = DINOHead().to(device)
     teacher_head = DINOHead().to(device)
     teacher_head.load_state_dict(student_head.state_dict())
+
+    supcon_head = SupConHead().to(device)
 
     teacher_enc.eval()
     teacher_head.eval()
@@ -207,7 +250,9 @@ def main():
     # Loss + optimizer
     dino_loss = DINOLoss().to(device)
     optimizer = torch.optim.AdamW(
-        list(student_enc.parameters()) + list(student_head.parameters()),
+        list(student_enc.parameters()) +
+        list(student_head.parameters()) +
+        list(supcon_head.parameters()),
         lr=5e-5,
         weight_decay=0.04
     )
@@ -248,7 +293,15 @@ def main():
         embed_norms = []
 
         for step, batch in enumerate(loader):
-            images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
+            raw = batch["image"].to(device, non_blocking=True)  # (N_CLASSES, K_PER_CLASS, C, H, W)
+            images = raw.view(N_CLASSES * K_PER_CLASS, *raw.shape[2:])  # (32, C, H, W)
+
+            # Build MoA integer labels: K_PER_CLASS repeats per group
+            moa_strs = batch["moa"]  # list of N_CLASSES strings
+            expanded = [m for m in moa_strs for _ in range(K_PER_CLASS)]
+            unique_moas = list(dict.fromkeys(expanded))
+            moa_to_idx = {m: i for i, m in enumerate(unique_moas)}
+            moa_labels = torch.tensor([moa_to_idx[m] for m in expanded], device=device)
 
             # create global views
             teacher_view1 = teacher_augment(
@@ -286,9 +339,13 @@ def main():
 
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
-            # ENCODING
-            s1 = student_head(student_enc(student_view1))
-            s2 = student_head(student_enc(student_view2))
+            # ENCODING — cache backbone to share across DINO and SupCon heads
+            z1 = student_enc(student_view1)   # (B, 384)
+            z2 = student_enc(student_view2)   # (B, 384)
+            s1 = student_head(z1)
+            s2 = student_head(z2)
+            sc_z1 = supcon_head(z1)           # (B, 128) L2-normalized
+            sc_z2 = supcon_head(z2)           # (B, 128) L2-normalized
 
             # Save augmented embeddings for inspection/debugging
             if step % 200 == 0 and epoch == 0:
@@ -325,14 +382,22 @@ def main():
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
-            loss = (
-               dino_loss(s1, t2, epoch) +
-               dino_loss(s2, t1, epoch)
+            dino_loss_val = (
+                dino_loss(s1, t2, epoch) +
+                dino_loss(s2, t1, epoch)
             ) / 2
+
+            sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
+            sc_labels = moa_labels.repeat(2)                    # (2B,)
+            sc_loss = supcon_loss(sc_features, sc_labels)
+
+            loss = dino_loss_val + SUPCON_WEIGHT * sc_loss
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
                     f"loss={loss.item():.4f} "
+                    f"dino={dino_loss_val.item():.4f} "
+                    f"sc={sc_loss.item():.4f} "
                     f"std={embed_std:.4f} "
                     f"norm={embed_norm:.4f} "
                     f"cos_sim={cos_sim:.4f}"
@@ -342,7 +407,8 @@ def main():
             loss.backward()
             torch.nn.utils.clip_grad_norm_(
                 list(student_enc.parameters()) +
-                list(student_head.parameters()),
+                list(student_head.parameters()) +
+                list(supcon_head.parameters()),
                 3.0
             )
             optimizer.step()
@@ -368,6 +434,7 @@ def main():
             "student_enc": student_enc.state_dict(),
             "student_head": student_head.state_dict(),
             "teacher_enc": teacher_enc.state_dict(),
+            "supcon_head": supcon_head.state_dict(),
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "loss": avg_loss
