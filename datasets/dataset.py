@@ -23,6 +23,8 @@ class CellPaintingDataset(Dataset):
         )
 
     def __len__(self):
+        if self.k_per_class > 1:
+            return len(self.files) // self.k_per_class
         return len(self.files)
 
     @staticmethod

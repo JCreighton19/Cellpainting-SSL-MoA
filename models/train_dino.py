@@ -83,12 +83,13 @@ def main():
     loader = DataLoader(
         dataset,
         batch_size=N_CLASSES,
-        shuffle=False, # defined shuffling in sampler
+        shuffle=False,  # shuffling defined in sampler
         num_workers=8,
         pin_memory=True,
         persistent_workers=True,
         prefetch_factor=4,
-        worker_init_fn=worker_init_fn
+        worker_init_fn=worker_init_fn,
+        drop_last=True,
     )
 
     def random_crop_batch(x, scale=(0.6, 1.0)):
@@ -266,9 +267,6 @@ def main():
         for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
             pt.mul_(momentum).add_(ps * (1 - momentum))
 
-    # Precomputed constants reused every step
-    moa_labels = torch.arange(N_CLASSES, device=device).repeat_interleave(K_PER_CLASS)  # (32,)
-    sc_labels  = moa_labels.repeat(2)                                                     # (64,)
     trainable_params = (
         list(student_enc.parameters()) +
         list(student_head.parameters()) +
@@ -298,8 +296,11 @@ def main():
         embed_norms = []
 
         for step, batch in enumerate(loader):
-            raw = batch["image"].to(device, non_blocking=True)  # (N_CLASSES, K_PER_CLASS, C, H, W)
-            images = raw.flatten(0, 1)
+            raw = batch["image"].to(device, non_blocking=True)  # (G, K, C, H, W)
+            images = raw.flatten(0, 1)                          # (G*K, C, H, W)
+            actual_groups = raw.shape[0]
+            moa_labels = torch.arange(actual_groups, device=device).repeat_interleave(K_PER_CLASS)
+            sc_labels   = moa_labels.repeat(2)
 
             # create global views
             teacher_view1 = teacher_augment(
