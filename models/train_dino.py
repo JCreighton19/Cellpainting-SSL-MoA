@@ -21,7 +21,6 @@ def main():
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
-
     sys.stdout.reconfigure(line_buffering=True)
 
     # Make checkpoints dir, if it does not yet exist
