@@ -326,8 +326,8 @@ def main():
             embed_norms.append(embed_norm)
 
             loss = (
-               dino_loss(s1, t2) +
-               dino_loss(s2, t1)
+               dino_loss(s1, t2, epoch) +
+               dino_loss(s2, t1, epoch)
             ) / 2
 
             if step % 100 == 0:
