@@ -183,7 +183,7 @@ def main():
         p.requires_grad = False
 
     class DINOHead(nn.Module):
-        def __init__(self, dim=384, proj_dim=256):
+        def __init__(self, dim=384, proj_dim=8192):
             super().__init__()
             self.mlp = nn.Sequential(
                 nn.Linear(dim, 512),
