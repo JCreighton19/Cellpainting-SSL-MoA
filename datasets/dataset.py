@@ -52,9 +52,7 @@ class CellPaintingDataset(Dataset):
 
         return img[:, r:r + ts, c:c + ts]
 
-    def _load_tile(self, file):
-        sample = torch.load(file, weights_only=False)
-        img = sample["image"]
+    def _crop_img(self, img):
         if self.random_crop:
             return self.sample_foreground_crop(img, self.tile_size)
         _, H, W = img.shape
@@ -63,31 +61,22 @@ class CellPaintingDataset(Dataset):
         c = (W - ts) // 2
         return img[:, r:r + ts, c:c + ts]
 
+    def _load_tile(self, file):
+        return self._crop_img(torch.load(file, weights_only=False)["image"])
+
     def __getitem__(self, idx):
         if self.k_per_class > 1:
             files, moa = self.sampler.sample_moa_k(self.k_per_class)
-            tiles = torch.stack([self._load_tile(f) for f in files])
             sample0 = torch.load(files[0], weights_only=False)
+            tile0 = self._crop_img(sample0["image"])
+            tiles = torch.stack([tile0] + [self._load_tile(f) for f in files[1:]])
             return {"image": tiles, "plate": sample0["plate"], "well": sample0["well"], "moa": moa}
 
         file, moa = self.sampler.sample_moa()
         sample = torch.load(file, weights_only=False)
-        img = sample["image"]
-        plate = sample["plate"]
-        well = sample["well"]
-
-        if self.random_crop:
-            tile = self.sample_foreground_crop(img, self.tile_size)
-        else:
-            _, H, W = img.shape
-            ts = self.tile_size
-            r = (H - ts) // 2
-            c = (W - ts) // 2
-            tile = img[:, r:r + ts, c:c + ts]
-
         return {
-            "image": tile,
-            "plate": plate,
-            "well": well,
+            "image": self._crop_img(sample["image"]),
+            "plate": sample["plate"],
+            "well": sample["well"],
             "moa": moa
         }

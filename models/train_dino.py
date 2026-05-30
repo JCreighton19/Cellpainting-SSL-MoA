@@ -93,34 +93,27 @@ def main():
 
     def random_crop_batch(x, scale=(0.6, 1.0)):
         B, C, H, W = x.shape
-
-        out = []
-        for i in range(B):
-            s = random.uniform(*scale)
-            th = int(H * s)
-            tw = int(W * s)
-
-            if th == H and tw == W:
-                cropped = x[i]
-            else:
-                top = random.randint(0, H - th)
-                left = random.randint(0, W - tw)
-                cropped = x[i:i + 1, :, top:top + th, left:left + tw]
-                cropped = torch.nn.functional.interpolate(
-                    cropped,
-                    size=(H, W),
-                    mode="bilinear",
-                    align_corners=False
-                )[0]
-
-            out.append(cropped)
-        return torch.stack(out)
+        s = random.uniform(*scale)
+        th, tw = int(H * s), int(W * s)
+        if th == H and tw == W:
+            return x
+        tops  = [random.randint(0, H - th) for _ in range(B)]
+        lefts = [random.randint(0, W - tw) for _ in range(B)]
+        crops = torch.stack([x[i, :, tops[i]:tops[i] + th, lefts[i]:lefts[i] + tw] for i in range(B)])
+        return F.interpolate(crops, size=(H, W), mode="bilinear", align_corners=False)
 
     def teacher_augment(x):
         B, C, H, W = x.shape
 
-        # random 90° rotation per sample
-        x = torch.stack([torch.rot90(x[i], random.randint(0, 3), dims=[1, 2]) for i in range(B)])
+        # random 90° rotation per sample — 3 batch rot90s + index, no Python loop
+        k = torch.randint(0, 4, (B,), device=x.device)
+        all_rots = torch.stack([
+            x,
+            torch.rot90(x, 1, dims=[2, 3]),
+            torch.rot90(x, 2, dims=[2, 3]),
+            torch.rot90(x, 3, dims=[2, 3]),
+        ])  # (4, B, C, H, W)
+        x = all_rots[k, torch.arange(B, device=x.device)]
 
         # flips
         flip_h = torch.rand(B,device=x.device) < 0.5
@@ -155,8 +148,15 @@ def main():
     def student_augment(x):
         B, C, H, W = x.shape
 
-        # random 90° rotation per sample
-        x = torch.stack([torch.rot90(x[i], random.randint(0, 3), dims=[1, 2]) for i in range(B)])
+        # random 90° rotation per sample — 3 batch rot90s + index, no Python loop
+        k = torch.randint(0, 4, (B,), device=x.device)
+        all_rots = torch.stack([
+            x,
+            torch.rot90(x, 1, dims=[2, 3]),
+            torch.rot90(x, 2, dims=[2, 3]),
+            torch.rot90(x, 3, dims=[2, 3]),
+        ])  # (4, B, C, H, W)
+        x = all_rots[k, torch.arange(B, device=x.device)]
 
         # flips
         flip_h = torch.rand(B, device=x.device) < 0.5
@@ -261,12 +261,19 @@ def main():
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
                        student_head, teacher_head, momentum=0.995):
-        with torch.no_grad():
-            for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
-                pt.mul_(momentum).add_(ps * (1 - momentum))
+        for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
+            pt.mul_(momentum).add_(ps * (1 - momentum))
+        for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
+            pt.mul_(momentum).add_(ps * (1 - momentum))
 
-            for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
-                pt.mul_(momentum).add_(ps * (1 - momentum))
+    # Precomputed constants reused every step
+    moa_labels = torch.arange(N_CLASSES, device=device).repeat_interleave(K_PER_CLASS)  # (32,)
+    sc_labels  = moa_labels.repeat(2)                                                     # (64,)
+    trainable_params = (
+        list(student_enc.parameters()) +
+        list(student_head.parameters()) +
+        list(supcon_head.parameters())
+    )
 
     # Training loop
     n_epochs = 60
@@ -295,13 +302,6 @@ def main():
         for step, batch in enumerate(loader):
             raw = batch["image"].to(device, non_blocking=True)  # (N_CLASSES, K_PER_CLASS, C, H, W)
             images = raw.view(N_CLASSES * K_PER_CLASS, *raw.shape[2:])  # (32, C, H, W)
-
-            # Build MoA integer labels: K_PER_CLASS repeats per group
-            moa_strs = batch["moa"]  # list of N_CLASSES strings
-            expanded = [m for m in moa_strs for _ in range(K_PER_CLASS)]
-            unique_moas = list(dict.fromkeys(expanded))
-            moa_to_idx = {m: i for i, m in enumerate(unique_moas)}
-            moa_labels = torch.tensor([moa_to_idx[m] for m in expanded], device=device)
 
             # create global views
             teacher_view1 = teacher_augment(
@@ -365,18 +365,11 @@ def main():
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(teacher_view1))
                 t2 = teacher_head(teacher_enc(teacher_view2))
-
-            with torch.no_grad():
                 # collapse / diversity check
                 all_s = torch.cat([s1, s2], dim=0)
                 embed_std = all_s.std(dim=0).mean().item()
                 embed_norm = all_s.norm(dim=1).mean().item()
-
-                cos_sim = F.cosine_similarity(
-                    s1.detach(),
-                    t1.detach(),
-                    dim=1
-                ).mean().item()
+                cos_sim = F.cosine_similarity(s1.detach(), t1.detach(), dim=1).mean().item()
 
             cos_sims.append(cos_sim)
             embed_stds.append(embed_std)
@@ -388,7 +381,6 @@ def main():
             ) / 2
 
             sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
-            sc_labels = moa_labels.repeat(2)                    # (2B,)
             sc_loss = supcon_loss(sc_features, sc_labels)
 
             loss = dino_loss_val + SUPCON_WEIGHT * sc_loss
@@ -405,12 +397,7 @@ def main():
 
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(
-                list(student_enc.parameters()) +
-                list(student_head.parameters()) +
-                list(supcon_head.parameters()),
-                3.0
-            )
+            torch.nn.utils.clip_grad_norm_(trainable_params, 3.0)
             optimizer.step()
 
             update_teacher(student_enc, teacher_enc,
