@@ -276,7 +276,7 @@ def main():
     )
 
     # Training loop
-    n_epochs = 60
+    n_epochs = 30
     losses = []
 
     VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
@@ -285,9 +285,7 @@ def main():
         return x.detach().cpu().float().clamp(0, 1)
 
     for epoch in range(n_epochs):
-
         epoch_start = time.perf_counter()
-
         epoch_start_dt = datetime.now()
         print(f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
 
