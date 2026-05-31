@@ -40,7 +40,15 @@ def main():
     if not os.path.isdir(run_dir):
         raise ValueError(f"run_dir is not a directory: {run_dir}")
 
-    checkpoint_path = get_latest_checkpoint(run_dir)
+    parser.add_argument(
+        "--checkpoint",
+        default=None
+    )
+
+    if args.checkpoint is None:
+        checkpoint_path = get_latest_checkpoint(run_dir)
+    else:
+        checkpoint_path = args.checkpoint
 
     run_name = os.path.basename(os.path.normpath(run_dir))
     base_output = "/scratch/creighton.jo/cellpainting/embeddings"
