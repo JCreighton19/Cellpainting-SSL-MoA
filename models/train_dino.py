@@ -53,6 +53,17 @@ def supcon_loss(features, labels, temperature=0.07):
     return -mean_log_prob[has_pos].mean()
 
 
+def crop_center_or_random(img, tile_size=224):
+    dna = img[4]
+    H, W = dna.shape
+    ts = tile_size
+
+    y = random.randint(0, H - ts)
+    x = random.randint(0, W - ts)
+
+    return img[:, y:y + ts, x:x + ts]
+
+
 # -----------------------------------------------------------------------
 # Tile loading
 # -----------------------------------------------------------------------
@@ -116,14 +127,12 @@ class WellBatchPrefetcher:
     @staticmethod
     def _load_well(args):
         cpd_idx, file_paths = args
-        tiles = list(
-            ThreadPoolExecutor(
-                max_workers=len(file_paths)
-            ).map(
-                load_tile,
-                file_paths
-            )
-        )
+        samples = [torch.load(fp, weights_only=False, mmap=True)["image"]
+                   for fp in file_paths]
+        tiles = []
+        for img in samples:
+            tiles.append(crop_center_or_random(img))
+
         return cpd_idx, torch.stack(tiles)
 
     def _produce(self):
@@ -219,7 +228,6 @@ def main():
             return F.normalize(self.mlp(x), dim=1)
 
     supcon_head = SupConHead().to(device)
-
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(supcon_head.parameters()),
         lr=5e-5,
@@ -261,7 +269,11 @@ def main():
                 loaded = prefetcher.get()
 
                 # Stack all wells into one tensor: (2*N*T, 5, H, W)
-                all_tiles = torch.cat([tiles for _, tiles in loaded])
+                tiles_list = []
+                for _, tiles in loaded:
+                    tiles_list.append(tiles)
+                all_tiles = torch.cat(tiles_list, dim=0)
+
                 if device == "cuda":
                     all_tiles = all_tiles.pin_memory().to(device, non_blocking=True)
                 else:
