@@ -167,7 +167,7 @@ def main():
             wells
         )
 
-        print(f"Saved epoch {epoch}")
+        print(f"Saved epoch {epoch} at {os.path.join(output_dir, "embeddings_epoch_epoch")}.npy\n")
 
 if __name__ == "__main__":
     main()
