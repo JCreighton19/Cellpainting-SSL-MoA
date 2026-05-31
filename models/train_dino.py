@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 import os
 import sys
 import random
@@ -8,25 +7,23 @@ import numpy as np
 import time
 from datetime import datetime
 import torch.nn.functional as F
-from torchvision.utils import save_image
-from torchvision.utils import make_grid
-import torchvision.transforms.functional as TF
 
-from datasets.dataset import CellPaintingDataset
-from models.dino_loss import DINOLoss
+from datasets.sampler import MoASampler
 from models.dino import CellPaintingViT
 
 
+# -----------------------------------------------------------------------
+# Losses
+# -----------------------------------------------------------------------
+
 def vicreg_loss(z1, z2, lambda_var=25.0, mu_cov=1.0):
-    """Variance + covariance regularization applied to backbone outputs.
+    """Variance + covariance regularization on two views of backbone outputs.
     Prevents dimensional collapse and decorrelates features.
-    lambda_var=25, mu_cov=1 follow the original VICReg paper."""
+    Applied to tile embeddings: z1 = well-1 tiles, z2 = well-2 tiles."""
     N, D = z1.shape
-    # variance: push per-dimension std toward 1
     std1 = torch.sqrt(z1.var(dim=0) + 1e-4)
     std2 = torch.sqrt(z2.var(dim=0) + 1e-4)
     var_loss = F.relu(1.0 - std1).mean() + F.relu(1.0 - std2).mean()
-    # covariance: penalize off-diagonal correlations
     z1n = z1 - z1.mean(dim=0)
     z2n = z2 - z2.mean(dim=0)
     cov1 = (z1n.T @ z1n) / (N - 1)
@@ -55,13 +52,55 @@ def supcon_loss(features, labels, temperature=0.07):
     return -mean_log_prob[has_pos].mean()
 
 
+# -----------------------------------------------------------------------
+# Tile loading
+# -----------------------------------------------------------------------
+
+def load_tile(file_path, tile_size=224, augment=True):
+    """Load a preprocessed .pt tile, apply foreground crop + optional augment."""
+    sample = torch.load(file_path, weights_only=False)
+    img = sample["image"]  # (5, H, W), already normalized float32
+
+    # Foreground-biased crop via DNA channel (index 4)
+    dna = img[4]
+    H, W = dna.shape
+    ts = tile_size
+    small = F.avg_pool2d(dna.unsqueeze(0).unsqueeze(0), kernel_size=8).squeeze()
+    small = (small - small.min()) / (small.max() + 1e-6)
+    flat = small.flatten()
+    idx = torch.multinomial(flat + 1e-6, 1).item()
+    y = int((idx // small.shape[1]) * 8)
+    x = int((idx % small.shape[1]) * 8)
+    r = max(0, min(H - ts, y + random.randint(-ts // 2, ts // 2)))
+    c = max(0, min(W - ts, x + random.randint(-ts // 2, ts // 2)))
+    tile = img[:, r:r + ts, c:c + ts]
+
+    if augment:
+        # Rotation (90° increments)
+        k = random.randint(0, 3)
+        if k > 0:
+            tile = torch.rot90(tile, k, dims=[1, 2])
+        # Flips
+        if random.random() < 0.5:
+            tile = tile.flip(1)
+        if random.random() < 0.5:
+            tile = tile.flip(2)
+        # Mild intensity jitter — preserves inter-channel ratios
+        tile = (tile * random.uniform(0.9, 1.1)).clamp(0, 1)
+
+    return tile
+
+
+# -----------------------------------------------------------------------
+# Training
+# -----------------------------------------------------------------------
+
 def main():
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
     sys.stdout.reconfigure(line_buffering=True)
 
-    # Make checkpoints dir, if it does not yet exist
     run_dir = os.path.join(
         os.environ["CP_OUTPUT_ROOT"],
         "checkpoints",
@@ -69,182 +108,54 @@ def main():
     )
     os.makedirs(run_dir, exist_ok=True)
 
-    # Device
     device = (
-        "mps" if torch.backends.mps.is_available()
-        else "cuda" if torch.cuda.is_available()
-        else "cpu"
+        "mps"  if torch.backends.mps.is_available() else
+        "cuda" if torch.cuda.is_available()          else
+        "cpu"
     )
     print("Using device:", device)
 
-    N_CLASSES = 8    # compound groups per batch
-    K_PER_CLASS = 4  # tiles per group; effective batch size = 32
-    SUPCON_WEIGHT = 1.0
-    VICREG_WEIGHT = 0.1  # raised from 0.05 — collapse is total; needs stronger push
-    n_epochs = 10
+    # ------------------------------------------------------------------
+    # Hyperparameters
+    # ------------------------------------------------------------------
+    N_COMPOUNDS     = 8    # compounds per step
+    TILES_PER_WELL  = 8    # tiles sampled per well (with replacement if needed)
+    SUPCON_WEIGHT   = 1.0
+    VICREG_WEIGHT   = 0.1
+    STEPS_PER_EPOCH = 450
+    n_epochs        = 30
 
-    # Dataset
+    # ------------------------------------------------------------------
+    # Sampler
+    # ------------------------------------------------------------------
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
-    dataset = CellPaintingDataset(
+    sampler = MoASampler(
         processed_dir=data_dir,
-        random_crop=True,
-        k_per_class=K_PER_CLASS
-    )
-    debug_dir = os.path.join(run_dir, "aug_debug")
-    os.makedirs(debug_dir, exist_ok=True)
-
-    print("\n=== Dataset Summary ===")
-    print(f"Dataset directory: {data_dir}")
-    print(f"Dataset length: {len(dataset)}")
-
-    def worker_init_fn(worker_id):
-        seed = torch.initial_seed() % 2 ** 32
-        random.seed(seed)
-        np.random.seed(seed)
-
-    loader = DataLoader(
-        dataset,
-        batch_size=N_CLASSES,
-        shuffle=False,  # shuffling defined in sampler
-        num_workers=8,
-        pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=4,
-        worker_init_fn=worker_init_fn,
-        drop_last=True,
+        metadata_path=os.path.join(
+            os.environ["CP_OUTPUT_ROOT"],
+            "data/processed/master_metadata.parquet"
+        )
     )
 
-    def random_crop_batch(x, scale=(0.6, 1.0)):
-        B, C, H, W = x.shape
-        s = random.uniform(*scale)
-        th, tw = int(H * s), int(W * s)
-        if th == H and tw == W:
-            return x
-        tops  = [random.randint(0, H - th) for _ in range(B)]
-        lefts = [random.randint(0, W - tw) for _ in range(B)]
-        crops = torch.stack([x[i, :, tops[i]:tops[i] + th, lefts[i]:lefts[i] + tw] for i in range(B)])
-        return F.interpolate(crops, size=(H, W), mode="bilinear", align_corners=False)
-
-    def teacher_augment(x):
-        B, C, H, W = x.shape
-
-        # random 90° rotation per sample — 3 batch rot90s + index, no Python loop
-        k = torch.randint(0, 4, (B,), device=x.device)
-        all_rots = torch.stack([
-            x,
-            torch.rot90(x, 1, dims=[2, 3]),
-            torch.rot90(x, 2, dims=[2, 3]),
-            torch.rot90(x, 3, dims=[2, 3]),
-        ])  # (4, B, C, H, W)
-        x = all_rots[k, torch.arange(B, device=x.device)]
-
-        # flips
-        flip_h = torch.rand(B,device=x.device) < 0.5
-        flip_w = torch.rand(B,device=x.device) < 0.5
-        x = torch.where(
-            flip_h[:, None, None, None],
-            torch.flip(x, dims=[2]),
-            x
-        )
-        x = torch.where(
-            flip_w[:, None, None, None],
-            torch.flip(x, dims=[3]),
-            x
+    if len(sampler.replicate_compounds) < N_COMPOUNDS:
+        raise ValueError(
+            f"Only {len(sampler.replicate_compounds)} replicate compounds found; "
+            f"need at least {N_COMPOUNDS}."
         )
 
-        # Small intensity changes only
-        intensity = torch.empty(
-            B, 1, 1, 1,
-            device=x.device
-        ).uniform_(0.9, 1.1)
-        x = x * intensity
+    print(f"\n=== Training Setup ===")
+    print(f"Replicate compounds : {len(sampler.replicate_compounds)}")
+    print(f"N_COMPOUNDS/step    : {N_COMPOUNDS}")
+    print(f"TILES_PER_WELL      : {TILES_PER_WELL}")
+    print(f"Tiles/step          : {N_COMPOUNDS * 2 * TILES_PER_WELL}  "
+          f"({N_COMPOUNDS} compounds × 2 wells × {TILES_PER_WELL} tiles)")
+    print(f"Well embs/step      : {N_COMPOUNDS * 2}  (SupCon batch size)")
+    print(f"Steps/epoch         : {STEPS_PER_EPOCH}")
 
-        channel_scale = torch.empty(
-            B, 5, 1, 1,
-            device=x.device
-        ).uniform_(0.95, 1.05)
-        x = x * channel_scale
-
-        return x.clamp(0, 1)
-
-
-    def student_augment(x):
-        B, C, H, W = x.shape
-
-        # random 90° rotation per sample — 3 batch rot90s + index, no Python loop
-        k = torch.randint(0, 4, (B,), device=x.device)
-        all_rots = torch.stack([
-            x,
-            torch.rot90(x, 1, dims=[2, 3]),
-            torch.rot90(x, 2, dims=[2, 3]),
-            torch.rot90(x, 3, dims=[2, 3]),
-        ])  # (4, B, C, H, W)
-        x = all_rots[k, torch.arange(B, device=x.device)]
-
-        # flips
-        flip_h = torch.rand(B, device=x.device) < 0.5
-        flip_w = torch.rand(B, device=x.device) < 0.5
-        x = torch.where(
-            flip_h[:, None, None, None],
-            torch.flip(x, dims=[2]),
-            x
-        )
-        x = torch.where(
-            flip_w[:, None, None, None],
-            torch.flip(x, dims=[3]),
-            x
-        )
-
-        # stronger intensity perturbation
-        intensity = torch.empty(
-            B, 1, 1, 1,
-            device=x.device
-        ).uniform_(0.7, 1.3)
-        x = x * intensity
-
-        channel_scale = torch.empty(
-            B, 5, 1, 1,
-            device=x.device
-        ).uniform_(0.85, 1.15)
-        x = x * channel_scale
-
-        # gaussian blur
-        if random.random() < 0.5:
-            x = TF.gaussian_blur(x,
-                kernel_size=9,
-                sigma=(0.5, 1.5)
-            )
-
-        # noise
-        noise_mask = (
-                torch.rand(
-                    B, 1, 1, 1,
-                    device=x.device
-                ) < 0.5
-        )
-
-        x = x + noise_mask * torch.randn_like(x) * 0.02
-        return x.clamp(0, 1)
-
-    # Models
+    # ------------------------------------------------------------------
+    # Model
+    # ------------------------------------------------------------------
     student_enc = CellPaintingViT(in_channels=5).to(device)
-    teacher_enc = CellPaintingViT(in_channels=5).to(device)
-    teacher_enc.load_state_dict(student_enc.state_dict())
-
-    for p in teacher_enc.parameters():
-        p.requires_grad = False
-
-    class DINOHead(nn.Module):
-        def __init__(self, dim=384, proj_dim=8192):
-            super().__init__()
-            self.mlp = nn.Sequential(
-                nn.Linear(dim, 512),
-                nn.GELU(),
-                nn.Linear(512, proj_dim)
-            )
-
-        def forward(self, x):
-            return self.mlp(x)
 
     class SupConHead(nn.Module):
         def __init__(self, dim=384, proj_dim=128):
@@ -258,208 +169,100 @@ def main():
         def forward(self, x):
             return F.normalize(self.mlp(x), dim=1)
 
-    student_head = DINOHead().to(device)
-    teacher_head = DINOHead().to(device)
-    teacher_head.load_state_dict(student_head.state_dict())
-
     supcon_head = SupConHead().to(device)
 
-    teacher_enc.eval()
-    teacher_head.eval()
-
-    for p in teacher_head.parameters():
-        p.requires_grad = False
-
-    # Loss + optimizer
-    dino_loss = DINOLoss().to(device)
     optimizer = torch.optim.AdamW(
-        list(student_enc.parameters()) +
-        list(student_head.parameters()) +
-        list(supcon_head.parameters()),
+        list(student_enc.parameters()) + list(supcon_head.parameters()),
         lr=5e-5,
         weight_decay=0.04
     )
 
-    # Teacher update
-    @torch.no_grad()
-    def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.99):
-        for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
-            pt.mul_(momentum).add_(ps * (1 - momentum))
-        for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
-            pt.mul_(momentum).add_(ps * (1 - momentum))
+    trainable_params = list(student_enc.parameters()) + list(supcon_head.parameters())
 
-    trainable_params = (
-        list(student_enc.parameters()) +
-        list(student_head.parameters()) +
-        list(supcon_head.parameters())
-    )
-
+    # ------------------------------------------------------------------
     # Training loop
+    # ------------------------------------------------------------------
     losses = []
-
-    VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
-    def to_vis(x):
-        x = x[:, VIS_CHANS]  # select channels
-        return x.detach().cpu().float().clamp(0, 1)
 
     for epoch in range(n_epochs):
         epoch_start = time.perf_counter()
-        epoch_start_dt = datetime.now()
-        print(f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
+        print(f"\nEpoch {epoch + 1}/{n_epochs} | Start: {datetime.now().strftime('%I:%M %p')}")
 
         student_enc.train()
-        student_head.train()
-        total_loss = 0
+        supcon_head.train()
+        total_loss = 0.0
 
-        cos_sims = []
-        embed_stds = []
-        embed_norms = []
+        for step in range(STEPS_PER_EPOCH):
+            # batch: [(cpd_idx, [files]), ...] — 2 * N_COMPOUNDS entries,
+            # interleaved well1/well2 per compound.
+            batch = sampler.sample_cross_plate_batch(N_COMPOUNDS, TILES_PER_WELL)
 
-        for step, batch in enumerate(loader):
-            raw = batch["image"].to(device, non_blocking=True)  # (G, K, C, H, W)
-            images = raw.flatten(0, 1)                          # (G*K, C, H, W)
-            actual_groups = raw.shape[0]
-            moa_labels = torch.arange(actual_groups, device=device).repeat_interleave(K_PER_CLASS)
-            sc_labels = moa_labels.repeat(2)
+            # Forward: load tiles, encode, collect per-well embedding lists
+            well_tile_embs = []   # list of (T, 384) tensors — one entry per well
+            compound_labels = []
 
-            # create global views
-            teacher_view1 = teacher_augment(
-                random_crop_batch(images,scale=(0.8, 1.0))
-            )
+            for cpd_idx, file_paths in batch:
+                tiles = torch.stack(
+                    [load_tile(fp) for fp in file_paths]
+                ).to(device)                          # (T, 5, 224, 224)
+                tile_embs = student_enc(tiles)         # (T, 384)
+                well_tile_embs.append(tile_embs)
+                compound_labels.append(cpd_idx)
 
-            teacher_view2 = teacher_augment(
-                random_crop_batch(images,scale=(0.8, 1.0))
-            )
+            # VICReg on tile embeddings:
+            # well_tile_embs[0::2] = well-1 tiles for each compound
+            # well_tile_embs[1::2] = well-2 tiles for each compound
+            # These are two "views" of the same set of compounds.
+            view1 = torch.cat(well_tile_embs[0::2], dim=0)   # (N*T, 384)
+            view2 = torch.cat(well_tile_embs[1::2], dim=0)   # (N*T, 384)
+            vic_loss = vicreg_loss(view1, view2)
 
-            student_view1 = student_augment(
-                random_crop_batch(images,scale=(0.6, 1.0))
-            )
+            # Well embeddings: mean-pool tiles within each well
+            well_embs = torch.stack(
+                [e.mean(dim=0) for e in well_tile_embs]
+            )                                                  # (2*N, 384)
 
-            student_view2 = student_augment(
-                random_crop_batch(images,scale=(0.6, 1.0))
-            )
+            # SupCon on well embeddings with compound labels
+            labels   = torch.tensor(compound_labels, device=device)
+            sc_z     = supcon_head(well_embs)
+            sc_loss  = supcon_loss(sc_z, labels)
 
-            # Save augmented images for visual inspection/debugging
-            if step % 200 == 0 and epoch == 0:
-                n = 10
-                orig = to_vis(images[:n])
-                v1 = to_vis(student_view1[:n])
-                v2 = to_vis(teacher_view1[:n])
+            loss = SUPCON_WEIGHT * sc_loss + VICREG_WEIGHT * vic_loss
 
-                # interleave per sample: [orig, view1, view2]
-                stacked = torch.stack([orig, v1, v2], dim=1)
-                # shape: (n, 3, C, H, W)
-                stacked = stacked.view(n * 3, *orig.shape[1:])
-                # flatten into grid rows
-                grid = make_grid(
-                    stacked,
-                    nrow=3  # 3 columns = (orig | view1 | view2)
-                )
-
-                save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
-
-            # ENCODING — cache backbone to share across DINO and SupCon heads
-            z1 = student_enc(student_view1)   # (B, 384)
-            z2 = student_enc(student_view2)   # (B, 384)
-            s1 = student_head(z1)
-            s2 = student_head(z2)
-            sc_z1 = supcon_head(z1)           # (B, 128) L2-normalized
-            sc_z2 = supcon_head(z2)           # (B, 128) L2-normalized
-
-            # Save augmented embeddings for inspection/debugging
-            if step % 200 == 0 and epoch == 0:
-                emb_dir = os.path.join(run_dir, "debug_embeddings")
-                os.makedirs(emb_dir, exist_ok=True)
-
-                np.save(
-                    f"{emb_dir}/s1_e{epoch}_s{step}.npy",
-                    s1.detach().cpu().numpy()
-                )
-
-                np.save(
-                    f"{emb_dir}/s2_e{epoch}_s{step}.npy",
-                    s2.detach().cpu().numpy()
-                )
-
-            with torch.no_grad():
-                t1 = teacher_head(teacher_enc(teacher_view1))
-                t2 = teacher_head(teacher_enc(teacher_view2))
-                # collapse / diversity check
-                all_s = torch.cat([s1, s2], dim=0)
-                embed_std = all_s.std(dim=0).mean().item()
-                embed_norm = all_s.norm(dim=1).mean().item()
-                cos_sim = F.cosine_similarity(s1.detach(), t1.detach(), dim=1).mean().item()
-
-            cos_sims.append(cos_sim)
-            embed_stds.append(embed_std)
-            embed_norms.append(embed_norm)
-
-            dino_loss_val = (
-                dino_loss(s1, t2, epoch) +
-                dino_loss(s2, t1, epoch)
-            ) / 2
-
-            sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
-            sc_loss  = supcon_loss(sc_features, sc_labels)
-            vic_loss = vicreg_loss(z1, z2)
-
-            loss = dino_loss_val + SUPCON_WEIGHT * sc_loss + VICREG_WEIGHT * vic_loss
-
-            if step % 100 == 0:
-                print(f"{step}/{len(loader)} steps "
-                    f"loss={loss.item():.4f} "
-                    f"dino={dino_loss_val.item():.4f} "
-                    f"sc={sc_loss.item():.4f} "
-                    f"vic={vic_loss.item():.4f} "
-                    f"std={embed_std:.4f} "
-                    f"norm={embed_norm:.4f} "
-                    f"cos_sim={cos_sim:.4f}"
-                )
+            if step % 50 == 0:
+                print(f"  {step:>4}/{STEPS_PER_EPOCH}  "
+                      f"sc={sc_loss.item():.4f}  "
+                      f"vic={vic_loss.item():.4f}  "
+                      f"loss={loss.item():.4f}")
 
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(trainable_params, 3.0)
             optimizer.step()
 
-            update_teacher(student_enc, teacher_enc,
-                           student_head, teacher_head)
-
             total_loss += loss.item()
 
         epoch_end = time.perf_counter()
-        epoch_time = epoch_end - epoch_start
-
-        avg_loss = total_loss / len(loader)
+        avg_loss  = total_loss / STEPS_PER_EPOCH
         losses.append(avg_loss)
 
-        avg_cos = np.mean(cos_sims)
-        avg_std = np.mean(embed_stds)
-        avg_norm = np.mean(embed_norms)
-        eps = 1e-6
-        collapse_score = avg_std / (1.0 - avg_cos + eps)
-
+        # student_enc saved as "student_enc" for compatibility with extract_embeddings.py
         torch.save({
             "student_enc": student_enc.state_dict(),
-            "student_head": student_head.state_dict(),
-            "teacher_enc": teacher_enc.state_dict(),
             "supcon_head": supcon_head.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "epoch": epoch,
-            "loss": avg_loss
+            "optimizer":   optimizer.state_dict(),
+            "epoch":       epoch,
+            "loss":        avg_loss,
         }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
         print(
             f"Epoch {epoch + 1}/{n_epochs} | "
             f"Loss: {avg_loss:.4f} | "
-            f"cos_sim: {avg_cos:.4f} | "
-            f"std: {avg_std:.4f} | "
-            f"norm: {avg_norm:.4f} | "
-            f"collapse: {collapse_score:.4f} | "
-            f"Time: {epoch_time / 60:.2f} min\n"
+            f"Time: {(epoch_end - epoch_start) / 60:.2f} min"
         )
 
-    print(f"Finished training. Checkpoints saved at {run_dir}")
+    print(f"\nFinished. Checkpoints at {run_dir}")
+
 
 if __name__ == "__main__":
     main()
