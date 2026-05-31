@@ -177,8 +177,10 @@ def main():
         weight_decay=0.04
     )
 
-    trainable_params = list(student_enc.parameters()) + list(supcon_head.parameters())
-
+    trainable_params = tuple(
+        list(student_enc.parameters()) +
+        list(supcon_head.parameters())
+    )
     # ------------------------------------------------------------------
     # Training loop
     # ------------------------------------------------------------------
@@ -197,17 +199,41 @@ def main():
             # interleaved well1/well2 per compound.
             batch = sampler.sample_cross_plate_batch(N_COMPOUNDS, TILES_PER_WELL)
 
-            # Forward: load tiles, encode, collect per-well embedding lists
-            well_tile_embs = []   # list of (T, 384) tensors — one entry per well
+            # Forward: load all tiles, encode, collect per-well embedding lists
+            all_tiles = [] # list of (T, 384) tensors — one entry per well
+            well_sizes = []
             compound_labels = []
 
             for cpd_idx, file_paths in batch:
                 tiles = torch.stack(
                     [load_tile(fp) for fp in file_paths]
-                ).to(device)                          # (T, 5, 224, 224)
-                tile_embs = student_enc(tiles)         # (T, 384)
-                well_tile_embs.append(tile_embs)
+                )
+                all_tiles.append(tiles)
+                well_sizes.append(len(file_paths))
                 compound_labels.append(cpd_idx)
+
+            # shape: (total_tiles,5,224,224)
+            all_tiles = torch.cat(all_tiles, dim=0)
+            if device == "cuda":
+                all_tiles = all_tiles.pin_memory().to(
+                    device,non_blocking=True
+                )
+            else:
+                all_tiles = all_tiles.to(device)
+
+            # Single encoder forward
+            all_embs = student_enc(all_tiles)
+
+            # Split embeddings back into wells
+            well_tile_embs = []
+            start = 0
+
+            for size in well_sizes:
+                end = start + size
+                well_tile_embs.append(
+                    all_embs[start:end]
+                )
+                start = end
 
             # VICReg on tile embeddings:
             # well_tile_embs[0::2] = well-1 tiles for each compound
