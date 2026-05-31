@@ -240,7 +240,7 @@ def main():
     teacher_head = DINOHead().to(device)
     teacher_head.load_state_dict(student_head.state_dict())
 
-    #supcon_head = SupConHead().to(device)
+    supcon_head = SupConHead().to(device)
 
     teacher_enc.eval()
     teacher_head.eval()
@@ -252,8 +252,8 @@ def main():
     dino_loss = DINOLoss().to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) +
-        list(student_head.parameters()), #+
-        #list(supcon_head.parameters()),
+        list(student_head.parameters()) +
+        list(supcon_head.parameters()),
         lr=5e-5,
         weight_decay=0.04
     )
@@ -269,8 +269,8 @@ def main():
 
     trainable_params = (
         list(student_enc.parameters()) +
-        list(student_head.parameters())# +
-        #list(supcon_head.parameters())
+        list(student_head.parameters()) +
+        list(supcon_head.parameters())
     )
 
     # Training loop
@@ -339,19 +339,12 @@ def main():
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING — cache backbone to share across DINO and SupCon heads
-            z1 = student_enc(student_view1)
-            z2 = student_enc(student_view2)
-            z1 = F.normalize(z1, dim=1)
-            z2 = F.normalize(z2, dim=1)
-
-            # DINO still uses head
+            z1 = student_enc(student_view1)   # (B, 384)
+            z2 = student_enc(student_view2)   # (B, 384)
             s1 = student_head(z1)
             s2 = student_head(z2)
-
-            # SupCon uses backbone directly
-            sc_features = torch.cat([z1, z2], dim=0)
-            sc_labels = moa_labels.repeat(2)
-            sc_loss = supcon_loss(sc_features, sc_labels)
+            sc_z1 = supcon_head(z1)           # (B, 128) L2-normalized
+            sc_z2 = supcon_head(z2)           # (B, 128) L2-normalized
 
             # Save augmented embeddings for inspection/debugging
             if step % 200 == 0 and epoch == 0:
@@ -386,8 +379,8 @@ def main():
                 dino_loss(s2, t1, epoch)
             ) / 2
 
-            #sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
-            #sc_loss = supcon_loss(sc_features, sc_labels)
+            sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
+            sc_loss = supcon_loss(sc_features, sc_labels)
 
             loss = dino_loss_val + SUPCON_WEIGHT * sc_loss
 
@@ -427,7 +420,7 @@ def main():
             "student_enc": student_enc.state_dict(),
             "student_head": student_head.state_dict(),
             "teacher_enc": teacher_enc.state_dict(),
-            #"supcon_head": supcon_head.state_dict(),
+            "supcon_head": supcon_head.state_dict(),
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "loss": avg_loss
