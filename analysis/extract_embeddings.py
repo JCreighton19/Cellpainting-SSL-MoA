@@ -166,8 +166,8 @@ def main():
             os.path.join(output_dir, f"wells_epoch_{epoch}.npy"),
             wells
         )
-
-        print(f"Saved epoch {epoch} at {os.path.join(output_dir, f"embeddings_epoch_{epoch}")}.npy\n")
+        embedding_file_name = f"embeddings_epoch_{epoch}"
+        print(f"Saved epoch {epoch} at {os.path.join(output_dir, embedding_file_name)}.npy\n")
 
 if __name__ == "__main__":
     main()
