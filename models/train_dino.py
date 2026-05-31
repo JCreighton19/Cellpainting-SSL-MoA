@@ -17,6 +17,26 @@ from models.dino_loss import DINOLoss
 from models.dino import CellPaintingViT
 
 
+def vicreg_loss(z1, z2, lambda_var=25.0, mu_cov=1.0):
+    """Variance + covariance regularization applied to backbone outputs.
+    Prevents dimensional collapse and decorrelates features.
+    lambda_var=25, mu_cov=1 follow the original VICReg paper."""
+    N, D = z1.shape
+    # variance: push per-dimension std toward 1
+    std1 = torch.sqrt(z1.var(dim=0) + 1e-4)
+    std2 = torch.sqrt(z2.var(dim=0) + 1e-4)
+    var_loss = F.relu(1.0 - std1).mean() + F.relu(1.0 - std2).mean()
+    # covariance: penalize off-diagonal correlations
+    z1n = z1 - z1.mean(dim=0)
+    z2n = z2 - z2.mean(dim=0)
+    cov1 = (z1n.T @ z1n) / (N - 1)
+    cov2 = (z2n.T @ z2n) / (N - 1)
+    off1 = cov1.pow(2).sum() - cov1.diagonal().pow(2).sum()
+    off2 = cov2.pow(2).sum() - cov2.diagonal().pow(2).sum()
+    cov_loss = off1 / D + off2 / D
+    return lambda_var * var_loss + mu_cov * cov_loss
+
+
 def supcon_loss(features, labels, temperature=0.07):
     """SupCon loss. features: (N, D) L2-normalized. labels: (N,) integer tensor."""
     N = features.shape[0]
@@ -57,9 +77,10 @@ def main():
     )
     print("Using device:", device)
 
-    N_CLASSES = 8    # MoA groups per batch
+    N_CLASSES = 8    # compound groups per batch
     K_PER_CLASS = 4  # tiles per group; effective batch size = 32
     SUPCON_WEIGHT = 1.0
+    VICREG_WEIGHT = 0.1  # raised from 0.05 — collapse is total; needs stronger push
     n_epochs = 10
 
     # Dataset
@@ -380,15 +401,17 @@ def main():
             ) / 2
 
             sc_features = torch.cat([sc_z1, sc_z2], dim=0)    # (2B, 128)
-            sc_loss = supcon_loss(sc_features, sc_labels)
+            sc_loss  = supcon_loss(sc_features, sc_labels)
+            vic_loss = vicreg_loss(z1, z2)
 
-            loss = dino_loss_val + SUPCON_WEIGHT * sc_loss
+            loss = dino_loss_val + SUPCON_WEIGHT * sc_loss + VICREG_WEIGHT * vic_loss
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
                     f"loss={loss.item():.4f} "
                     f"dino={dino_loss_val.item():.4f} "
                     f"sc={sc_loss.item():.4f} "
+                    f"vic={vic_loss.item():.4f} "
                     f"std={embed_std:.4f} "
                     f"norm={embed_norm:.4f} "
                     f"cos_sim={cos_sim:.4f}"

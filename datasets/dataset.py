@@ -68,7 +68,7 @@ class CellPaintingDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.k_per_class > 1:
-            files, moa = self.sampler.sample_moa_k(self.k_per_class)
+            files, moa = self.sampler.sample_compound_k(self.k_per_class)
             sample0 = torch.load(files[0], weights_only=False)
             tile0 = self._crop_img(sample0["image"])
             tiles = torch.stack([tile0] + [self._load_tile(f) for f in files[1:]])
