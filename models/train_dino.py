@@ -60,6 +60,7 @@ def main():
     N_CLASSES = 8    # MoA groups per batch
     K_PER_CLASS = 4  # tiles per group; effective batch size = 32
     SUPCON_WEIGHT = 1.0
+    n_epochs = 10
 
     # Dataset
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
@@ -274,7 +275,6 @@ def main():
     )
 
     # Training loop
-    n_epochs = 30
     losses = []
 
     VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
@@ -300,7 +300,7 @@ def main():
             images = raw.flatten(0, 1)                          # (G*K, C, H, W)
             actual_groups = raw.shape[0]
             moa_labels = torch.arange(actual_groups, device=device).repeat_interleave(K_PER_CLASS)
-            sc_labels   = moa_labels.repeat(2)
+            sc_labels = moa_labels.repeat(2)
 
             # create global views
             teacher_view1 = teacher_augment(
