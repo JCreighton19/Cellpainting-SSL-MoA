@@ -46,7 +46,7 @@ class CellPaintingViT(nn.Module):
 
     def forward(self, x):
         x = self.vit.forward_features(x)
-        return x[:,1:].mean(1) # take mean of all patch tokens
+        return x[:,0] # return CLS token only
 
 
 if __name__ == "__main__":
