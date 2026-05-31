@@ -116,7 +116,15 @@ class WellBatchPrefetcher:
     @staticmethod
     def _load_well(args):
         cpd_idx, file_paths = args
-        return cpd_idx, torch.stack([load_tile(fp) for fp in file_paths])
+        tiles = list(
+            ThreadPoolExecutor(
+                max_workers=len(file_paths)
+            ).map(
+                load_tile,
+                file_paths
+            )
+        )
+        return cpd_idx, torch.stack(tiles)
 
     def _produce(self):
         while self._running:
