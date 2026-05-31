@@ -5,6 +5,9 @@ import sys
 import random
 import numpy as np
 import time
+import queue
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import torch.nn.functional as F
 
@@ -17,9 +20,7 @@ from models.dino import CellPaintingViT
 # -----------------------------------------------------------------------
 
 def vicreg_loss(z1, z2, lambda_var=25.0, mu_cov=1.0):
-    """Variance + covariance regularization on two views of backbone outputs.
-    Prevents dimensional collapse and decorrelates features.
-    Applied to tile embeddings: z1 = well-1 tiles, z2 = well-2 tiles."""
+    """Variance + covariance regularization on two views of backbone outputs."""
     N, D = z1.shape
     std1 = torch.sqrt(z1.var(dim=0) + 1e-4)
     std2 = torch.sqrt(z2.var(dim=0) + 1e-4)
@@ -76,19 +77,59 @@ def load_tile(file_path, tile_size=224, augment=True):
     tile = img[:, r:r + ts, c:c + ts]
 
     if augment:
-        # Rotation (90° increments)
         k = random.randint(0, 3)
         if k > 0:
             tile = torch.rot90(tile, k, dims=[1, 2])
-        # Flips
         if random.random() < 0.5:
             tile = tile.flip(1)
         if random.random() < 0.5:
             tile = tile.flip(2)
-        # Mild intensity jitter — preserves inter-channel ratios
         tile = (tile * random.uniform(0.9, 1.1)).clamp(0, 1)
 
     return tile
+
+
+# -----------------------------------------------------------------------
+# Prefetcher — overlaps disk I/O with GPU computation
+# -----------------------------------------------------------------------
+
+class WellBatchPrefetcher:
+    """
+    Loads well batches in background using a thread pool, so disk I/O
+    overlaps with GPU computation.  Replaces the DataLoader's async workers.
+
+    A single daemon thread drives the I/O pool, continuously filling a
+    small queue.  The training loop calls .get() to consume pre-loaded
+    batches without blocking on disk.
+    """
+
+    def __init__(self, sampler, n_compounds, n_tiles_per_well,
+                 n_workers=8, prefetch=2):
+        self._sampler  = sampler
+        self._n_cpd    = n_compounds
+        self._n_tiles  = n_tiles_per_well
+        self._q        = queue.Queue(maxsize=prefetch)
+        self._pool     = ThreadPoolExecutor(max_workers=n_workers)
+        self._running  = True
+        threading.Thread(target=self._produce, daemon=True).start()
+
+    @staticmethod
+    def _load_well(args):
+        cpd_idx, file_paths = args
+        return cpd_idx, torch.stack([load_tile(fp) for fp in file_paths])
+
+    def _produce(self):
+        while self._running:
+            spec   = self._sampler.sample_cross_plate_batch(self._n_cpd, self._n_tiles)
+            loaded = list(self._pool.map(self._load_well, spec))
+            self._q.put(loaded)
+
+    def get(self):
+        return self._q.get()
+
+    def stop(self):
+        self._running = False
+        self._pool.shutdown(wait=False)
 
 
 # -----------------------------------------------------------------------
@@ -178,114 +219,101 @@ def main():
     )
 
     trainable_params = tuple(
-        list(student_enc.parameters()) +
-        list(supcon_head.parameters())
+        list(student_enc.parameters()) + list(supcon_head.parameters())
     )
+
+    # ------------------------------------------------------------------
+    # Precompute fixed per-step values
+    # ------------------------------------------------------------------
+    # Labels are always [0,0,1,1,...,N-1,N-1]: each compound contributes
+    # 2 wells (well-1 and well-2) in consecutive pairs.
+    compound_labels = torch.arange(N_COMPOUNDS, device=device).repeat_interleave(2)
+
+    # Start prefetcher — begins loading batches immediately in background
+    prefetcher = WellBatchPrefetcher(
+        sampler, N_COMPOUNDS, TILES_PER_WELL, n_workers=8, prefetch=2
+    )
+
     # ------------------------------------------------------------------
     # Training loop
     # ------------------------------------------------------------------
     losses = []
 
-    for epoch in range(n_epochs):
-        epoch_start = time.perf_counter()
-        print(f"\nEpoch {epoch + 1}/{n_epochs} | Start: {datetime.now().strftime('%I:%M %p')}")
+    try:
+        for epoch in range(n_epochs):
+            epoch_start = time.perf_counter()
+            print(f"\nEpoch {epoch + 1}/{n_epochs} | Start: {datetime.now().strftime('%I:%M %p')}")
 
-        student_enc.train()
-        supcon_head.train()
-        total_loss = 0.0
+            student_enc.train()
+            supcon_head.train()
+            total_loss = 0.0
 
-        for step in range(STEPS_PER_EPOCH):
-            # batch: [(cpd_idx, [files]), ...] — 2 * N_COMPOUNDS entries,
-            # interleaved well1/well2 per compound.
-            batch = sampler.sample_cross_plate_batch(N_COMPOUNDS, TILES_PER_WELL)
+            for step in range(STEPS_PER_EPOCH):
+                # Pre-loaded by background thread — typically returns immediately
+                loaded = prefetcher.get()
 
-            # Forward: load all tiles, encode, collect per-well embedding lists
-            all_tiles = [] # list of (T, 384) tensors — one entry per well
-            well_sizes = []
-            compound_labels = []
+                # Stack all wells into one tensor: (2*N*T, 5, H, W)
+                all_tiles = torch.cat([tiles for _, tiles in loaded])
+                if device == "cuda":
+                    all_tiles = all_tiles.pin_memory().to(device, non_blocking=True)
+                else:
+                    all_tiles = all_tiles.to(device)
 
-            for cpd_idx, file_paths in batch:
-                tiles = torch.stack(
-                    [load_tile(fp) for fp in file_paths]
-                )
-                all_tiles.append(tiles)
-                well_sizes.append(len(file_paths))
-                compound_labels.append(cpd_idx)
+                # Single encoder forward pass for all tiles
+                all_embs = student_enc(all_tiles)       # (2*N*T, D)
+                D = all_embs.shape[-1]
 
-            # shape: (total_tiles,5,224,224)
-            all_tiles = torch.cat(all_tiles, dim=0)
-            if device == "cuda":
-                all_tiles = all_tiles.pin_memory().to(
-                    device,non_blocking=True
-                )
-            else:
-                all_tiles = all_tiles.to(device)
+                # Reshape: (2*N, T, D) — one row per well
+                embs_3d = all_embs.view(2 * N_COMPOUNDS, TILES_PER_WELL, D)
 
-            # Single encoder forward
-            all_embs = student_enc(all_tiles)
+                # VICReg: well-1 tiles vs well-2 tiles (two views of same compounds)
+                view1 = embs_3d[0::2].reshape(-1, D)   # (N*T, D)
+                view2 = embs_3d[1::2].reshape(-1, D)   # (N*T, D)
+                vic_loss = vicreg_loss(view1, view2)
 
-            # Split embeddings back into wells
-            well_tile_embs = []
-            start = 0
+                # Mean-pool tiles within each well -> well embeddings (2*N, D)
+                well_embs = embs_3d.mean(dim=1)
 
-            for size in well_sizes:
-                end = start + size
-                well_tile_embs.append(
-                    all_embs[start:end]
-                )
-                start = end
+                # SupCon on well embeddings
+                sc_z    = supcon_head(well_embs)
+                sc_loss = supcon_loss(sc_z, compound_labels)
 
-            # VICReg on tile embeddings:
-            # well_tile_embs[0::2] = well-1 tiles for each compound
-            # well_tile_embs[1::2] = well-2 tiles for each compound
-            # These are two "views" of the same set of compounds.
-            view1 = torch.cat(well_tile_embs[0::2], dim=0)   # (N*T, 384)
-            view2 = torch.cat(well_tile_embs[1::2], dim=0)   # (N*T, 384)
-            vic_loss = vicreg_loss(view1, view2)
+                loss = SUPCON_WEIGHT * sc_loss + VICREG_WEIGHT * vic_loss
 
-            # Well embeddings: mean-pool tiles within each well
-            well_embs = torch.stack(
-                [e.mean(dim=0) for e in well_tile_embs]
-            )                                                  # (2*N, 384)
+                if step % 50 == 0:
+                    print(f"  {step:>4}/{STEPS_PER_EPOCH}  "
+                          f"sc={sc_loss.item():.4f}  "
+                          f"vic={vic_loss.item():.4f}  "
+                          f"loss={loss.item():.4f}")
 
-            # SupCon on well embeddings with compound labels
-            labels   = torch.tensor(compound_labels, device=device)
-            sc_z     = supcon_head(well_embs)
-            sc_loss  = supcon_loss(sc_z, labels)
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(trainable_params, 3.0)
+                optimizer.step()
 
-            loss = SUPCON_WEIGHT * sc_loss + VICREG_WEIGHT * vic_loss
+                total_loss += loss.item()
 
-            if step % 50 == 0:
-                print(f"  {step:>4}/{STEPS_PER_EPOCH}  "
-                      f"sc={sc_loss.item():.4f}  "
-                      f"vic={vic_loss.item():.4f}  "
-                      f"loss={loss.item():.4f}")
+            epoch_end = time.perf_counter()
+            avg_loss  = total_loss / STEPS_PER_EPOCH
+            losses.append(avg_loss)
 
-            optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainable_params, 3.0)
-            optimizer.step()
+            # "student_enc" key preserves compatibility with extract_embeddings.py
+            torch.save({
+                "student_enc": student_enc.state_dict(),
+                "supcon_head": supcon_head.state_dict(),
+                "optimizer":   optimizer.state_dict(),
+                "epoch":       epoch,
+                "loss":        avg_loss,
+            }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
-            total_loss += loss.item()
+            print(
+                f"Epoch {epoch + 1}/{n_epochs} | "
+                f"Loss: {avg_loss:.4f} | "
+                f"Time: {(epoch_end - epoch_start) / 60:.2f} min"
+            )
 
-        epoch_end = time.perf_counter()
-        avg_loss  = total_loss / STEPS_PER_EPOCH
-        losses.append(avg_loss)
-
-        # student_enc saved as "student_enc" for compatibility with extract_embeddings.py
-        torch.save({
-            "student_enc": student_enc.state_dict(),
-            "supcon_head": supcon_head.state_dict(),
-            "optimizer":   optimizer.state_dict(),
-            "epoch":       epoch,
-            "loss":        avg_loss,
-        }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
-
-        print(
-            f"Epoch {epoch + 1}/{n_epochs} | "
-            f"Loss: {avg_loss:.4f} | "
-            f"Time: {(epoch_end - epoch_start) / 60:.2f} min"
-        )
+    finally:
+        prefetcher.stop()
 
     print(f"\nFinished. Checkpoints at {run_dir}")
 
