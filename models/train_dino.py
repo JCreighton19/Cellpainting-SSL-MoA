@@ -178,7 +178,7 @@ def main():
     SUPCON_WEIGHT   = 1.0
     VICREG_WEIGHT   = 0.1
     STEPS_PER_EPOCH = 450
-    n_epochs        = 30
+    n_epochs        = 20
 
     # ------------------------------------------------------------------
     # Sampler
@@ -188,7 +188,7 @@ def main():
         processed_dir=data_dir,
         metadata_path=os.path.join(
             os.environ["CP_OUTPUT_ROOT"],
-            "data/processed/master_metadata.parquet"
+            "data/processed/master_metadata_qc.parquet"
         )
     )
 
@@ -199,6 +199,7 @@ def main():
         )
 
     print(f"\n=== Training Setup ===")
+    print(f"Tile dir: {data_dir}")
     print(f"Replicate compounds : {len(sampler.replicate_compounds)}")
     print(f"N_COMPOUNDS/step    : {N_COMPOUNDS}")
     print(f"TILES_PER_WELL      : {TILES_PER_WELL}")
