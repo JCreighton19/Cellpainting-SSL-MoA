@@ -12,16 +12,14 @@ OUT_DIR = Path(os.path.join(
 ))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-def normalize(image, eps=1e-6):
+def normalize(image, channel_stats, eps=1e-6):
     image = np.log1p(image)
-    normed = np.zeros_like(image, dtype=np.float32)
+    normed = np.empty_like(image, dtype=np.float32)
     for c in range(image.shape[0]):
-        x = image[c]
-        # robust but NOT per-image destructive scaling
-        mean = np.mean(x)
-        std = np.std(x)
-        # NOTE: still removes absolute intensity structure
-        normed[c] = (x - mean) / (std + eps)
+        mean = channel_stats[c]["mean"]
+        std  = channel_stats[c]["std"]
+
+        normed[c] = (image[c] - mean)/(std + eps)
 
     return normed
 
@@ -56,7 +54,8 @@ def image_qc(image):
     }
 
 
-def process_row(row):
+def process_row(args):
+    row, channel_stats = args
     idx = row["index"]
 
     paths = [
@@ -90,7 +89,7 @@ def process_row(row):
     if qc["structure_score"] < 0.05:
         return None
 
-    image = normalize(image)
+    image = normalize(image, channel_stats)
     moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
@@ -111,20 +110,75 @@ def process_row(row):
     return idx
 
 
+def compute_channel_stats(rows):
+    channel_sums = np.zeros(5, dtype=np.float64)
+    channel_sq   = np.zeros(5, dtype=np.float64)
+    n_pixels     = np.zeros(5, dtype=np.float64)
+    print("Computing dataset normalization stats...")
+
+    for i, row in enumerate(rows):
+        paths = [
+            row["mito_img_path"],
+            row["agp_img_path"],
+            row["rna_img_path"],
+            row["er_img_path"],
+            row["dna_img_path"],
+        ]
+
+        image = np.stack(
+            [tiff.imread(p).astype(np.float32) for p in paths],
+            axis=0
+        )
+
+        image = np.log1p(image)
+
+        for c in range(5):
+            x = image[c]
+            channel_sums[c] += x.sum()
+            channel_sq[c] += np.square(x).sum()
+            n_pixels[c] += x.size
+
+        if i % 1000 == 0:
+            print(f"{i}/{len(rows)}")
+
+    means = channel_sums / n_pixels
+    vars_ = channel_sq / n_pixels - means**2
+    stds = np.sqrt(vars_)
+    stats = []
+
+    for c in range(5):
+        stats.append({"mean": means[c],"std": stds[c]})
+
+    print("Means:", means)
+    print("Stds:", stds)
+
+    return stats
+
+
 def main():
+    """
+    Do dataset-wide normalization
+    """
+
     metadata_path = os.path.join(
         os.environ["CP_OUTPUT_ROOT"],
         "data/processed/master_metadata.parquet"
     )
 
-    df = pd.read_parquet(metadata_path)
+    df = pd.read_parquet(metadata_path).reset_index(drop=True)
     rows = df.reset_index().to_dict("records")
+    channel_stats = compute_channel_stats(rows)
 
     saved = 0
     kept_indices = []
 
     with ProcessPoolExecutor(max_workers=8) as executor:
-        for i, result in enumerate(executor.map(process_row, rows)):
+        worker_inputs = [
+            (row, channel_stats)
+            for row in rows
+        ]
+
+        for i, result in enumerate(executor.map(process_row, worker_inputs)):
             if result is not None:
                 saved += 1
                 kept_indices.append(result)
