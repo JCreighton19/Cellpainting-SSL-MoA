@@ -12,14 +12,17 @@ OUT_DIR = Path(os.path.join(
 ))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def normalize(image):
+def normalize(image, eps=1e-6):
+    image = np.log1p(image)
     normed = np.zeros_like(image, dtype=np.float32)
     for c in range(image.shape[0]):
-        x = np.log1p(image[c])
-        p1 = np.percentile(x, 1)
-        p99 = np.percentile(x, 99)
-        normed[c] = (x - p1) / (p99 - p1 + 1e-6)
+        x = image[c]
+        # robust but NOT per-image destructive scaling
+        mean = np.mean(x)
+        std = np.std(x)
+        # NOTE: still removes absolute intensity structure
+        normed[c] = (x - mean) / (std + eps)
+
     return normed
 
 
@@ -38,10 +41,9 @@ def image_qc(image):
         # measures how much structure exists vs flat/noise
         flat = image.reshape(image.shape[0], -1)
 
-        per_channel_std = np.std(flat, axis=1)
-        per_channel_mean = np.mean(flat, axis=1)
-
-        return np.mean(per_channel_std / (per_channel_mean + 1e-6))
+        # raw variance = actual structure signal
+        per_channel_var = np.var(flat, axis=1)
+        return float(np.mean(per_channel_var))
 
     structure_score = structure_score(image)
 
@@ -71,8 +73,7 @@ def process_row(row):
     )
 
     # QC filtering (note: thresholds somewhat arbitrarily chosen)
-    qc_image = np.log1p(image)
-    qc = image_qc(qc_image)
+    qc = image_qc(image)
 
     if qc["min_channel_std"] < 0.01:
         print(f"Skipping dead/low-signal channel image: {idx}")
