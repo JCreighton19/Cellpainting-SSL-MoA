@@ -7,7 +7,8 @@ import numpy as np
 import time
 import queue
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+import torch.multiprocessing as mp
 from datetime import datetime
 import torch.nn.functional as F
 
@@ -18,6 +19,7 @@ from models.dino import CellPaintingViT
 # -----------------------------------------------------------------------
 # Losses
 # -----------------------------------------------------------------------
+
 
 def vicreg_loss(z1, z2, lambda_var=25.0, mu_cov=1.0):
     """Variance + covariance regularization on two views of backbone outputs."""
@@ -62,6 +64,13 @@ def crop_center_or_random(img, tile_size=224):
     x = random.randint(0, W - ts)
 
     return img[:, y:y + ts, x:x + ts]
+
+
+def load_well_worker(args):
+    cpd_idx, file_paths = args
+    samples = [torch.load(fp, weights_only=True)["image"] for fp in file_paths]
+    tiles = [crop_center_or_random(img) for img in samples]
+    return cpd_idx, torch.stack(tiles)
 
 
 # -----------------------------------------------------------------------
@@ -120,25 +129,15 @@ class WellBatchPrefetcher:
         self._n_cpd    = n_compounds
         self._n_tiles  = n_tiles_per_well
         self._q        = queue.Queue(maxsize=prefetch)
-        self._pool     = ThreadPoolExecutor(max_workers=n_workers)
+        self._pool = ProcessPoolExecutor(max_workers=n_workers)
         self._running  = True
         threading.Thread(target=self._produce, daemon=True).start()
 
-    @staticmethod
-    def _load_well(args):
-        cpd_idx, file_paths = args
-        samples = [torch.load(fp, weights_only=False, mmap=True)["image"]
-                   for fp in file_paths]
-        tiles = []
-        for img in samples:
-            tiles.append(crop_center_or_random(img))
-
-        return cpd_idx, torch.stack(tiles)
 
     def _produce(self):
         while self._running:
             spec   = self._sampler.sample_cross_plate_batch(self._n_cpd, self._n_tiles)
-            loaded = list(self._pool.map(self._load_well, spec))
+            loaded = list(self._pool.map(load_well_worker, spec))
             self._q.put(loaded)
 
     def get(self):
@@ -154,6 +153,8 @@ class WellBatchPrefetcher:
 # -----------------------------------------------------------------------
 
 def main():
+    mp.set_start_method("spawn", force=True)
+
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
@@ -247,7 +248,7 @@ def main():
 
     # Start prefetcher — begins loading batches immediately in background
     prefetcher = WellBatchPrefetcher(
-        sampler, N_COMPOUNDS, TILES_PER_WELL, n_workers=8, prefetch=2
+        sampler, N_COMPOUNDS, TILES_PER_WELL, n_workers=8, prefetch=4
     )
 
     # ------------------------------------------------------------------
