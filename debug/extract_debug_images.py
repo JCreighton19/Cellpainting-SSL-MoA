@@ -8,7 +8,7 @@ metadata = pd.read_parquet(
     "/scratch/creighton.jo/cellpainting/data/processed/master_metadata_qc.parquet"
 )
 
-OUTDIR = "/scratch/creighton.jo/cellpainting/debug_image_sample"
+OUTDIR = "/scratch/creighton.jo/cellpainting/debug/image_sample"
 os.makedirs(OUTDIR, exist_ok=True)
 
 CHANNELS = [
