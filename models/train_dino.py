@@ -7,8 +7,7 @@ import numpy as np
 import time
 import queue
 import threading
-from concurrent.futures import ProcessPoolExecutor
-import torch.multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import torch.nn.functional as F
 
@@ -19,7 +18,6 @@ from models.dino import CellPaintingViT
 # -----------------------------------------------------------------------
 # Losses
 # -----------------------------------------------------------------------
-
 
 def vicreg_loss(z1, z2, lambda_var=25.0, mu_cov=1.0):
     """Variance + covariance regularization on two views of backbone outputs."""
@@ -68,7 +66,7 @@ def crop_center_or_random(img, tile_size=224):
 
 def load_well_worker(args):
     cpd_idx, file_paths = args
-    samples = [torch.load(fp, weights_only=True)["image"] for fp in file_paths]
+    samples = [torch.load(fp, weights_only=False)["image"] for fp in file_paths]
     tiles = [crop_center_or_random(img) for img in samples]
     return cpd_idx, torch.stack(tiles)
 
@@ -129,7 +127,7 @@ class WellBatchPrefetcher:
         self._n_cpd    = n_compounds
         self._n_tiles  = n_tiles_per_well
         self._q        = queue.Queue(maxsize=prefetch)
-        self._pool = ProcessPoolExecutor(max_workers=n_workers)
+        self._pool = ThreadPoolExecutor(max_workers=n_workers)
         self._running  = True
         threading.Thread(target=self._produce, daemon=True).start()
 
@@ -153,8 +151,6 @@ class WellBatchPrefetcher:
 # -----------------------------------------------------------------------
 
 def main():
-    mp.set_start_method("spawn", force=True)
-
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
@@ -307,7 +303,7 @@ def main():
                           f"vic={vic_loss.item():.4f}  "
                           f"loss={loss.item():.4f}")
 
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(trainable_params, 3.0)
                 optimizer.step()
