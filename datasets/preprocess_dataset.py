@@ -28,21 +28,14 @@ def image_qc(image):
 
     flat = image.reshape(image.shape[0], -1)
     per_channel_std = np.std(flat, axis=1)
+    per_channel_var = np.var(flat, axis=1)
+    p1, p99 = np.percentile(flat, [1, 99])
 
     global_std = float(np.mean(per_channel_std))
     min_channel_std = float(np.min(per_channel_std))
-    low_signal_frac = float((image < np.percentile(image, 1)).mean())
-    high_signal_frac = float((image > np.percentile(image, 99)).mean())
-
-    def structure_score(image):
-        # measures how much structure exists vs flat/noise
-        flat = image.reshape(image.shape[0], -1)
-
-        # raw variance = actual structure signal
-        per_channel_var = np.var(flat, axis=1)
-        return float(np.mean(per_channel_var))
-
-    structure_score = structure_score(image)
+    low_signal_frac = float((image < p1).mean())
+    high_signal_frac = float((image > p99).mean())
+    structure_score = float(np.mean(per_channel_var))
 
     return {
         "global_std": global_std,
@@ -55,15 +48,9 @@ def image_qc(image):
 
 def process_row(args):
     row, channel_stats = args
-    idx = f"{row['plate']}_{row['well']}_{row['site']}"
-
-    paths = [
-        row["mito_img_path"],
-        row["agp_img_path"],
-        row["rna_img_path"],
-        row["er_img_path"],
-        row["dna_img_path"],
-    ]
+    plate, well, site, mito, agp, rna, er, dna, moa = row
+    idx = f"{plate}_{well}_{site}"
+    paths = [mito, agp, rna, er, dna]
 
     image = np.stack(
         [tiff.imread(p).astype(np.float32) for p in paths],
@@ -89,14 +76,13 @@ def process_row(args):
         return None
 
     image = normalize(image, channel_stats)
-    moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
     payload = { # save key metadata for self-contained debugging
         "image": torch.from_numpy(image),
-        "plate": row["plate"],
-        "well": row["well"],
-        "site": row["site"],
+        "plate": plate,
+        "well": well,
+        "site": site,
         "moa": moa
     }
 
@@ -174,7 +160,20 @@ def main():
 
     with ProcessPoolExecutor(max_workers=8) as executor:
         worker_inputs = [
-            (row, channel_stats)
+            (
+                (
+                    row["plate"],
+                    row["well"],
+                    row["site"],
+                    row["mito_img_path"],
+                    row["agp_img_path"],
+                    row["rna_img_path"],
+                    row["er_img_path"],
+                    row["dna_img_path"],
+                    row.get("moa", "unknown"),
+                ),
+                channel_stats
+            )
             for row in rows
         ]
 
