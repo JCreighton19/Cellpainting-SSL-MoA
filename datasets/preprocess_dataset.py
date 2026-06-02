@@ -4,7 +4,7 @@ import tifffile as tiff
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 OUT_DIR = Path(os.path.join(
     os.environ["CP_OUTPUT_ROOT"],
@@ -21,7 +21,6 @@ def normalize(image, channel_stats, eps=1e-6):
         normed[c] = (image[c] - mean)/(std + eps)
 
     return normed
-
 
 def image_qc(image):
     # image: (C, H, W)
@@ -123,7 +122,7 @@ def compute_channel_stats(rows):
             channel_sq[c] += np.square(x).sum()
             n_pixels[c] += x.size
 
-        if i % 1000 == 0:
+        if i % 100 == 0:
             print(f"{i}/{len(rows)}")
 
     means = channel_sums / n_pixels
@@ -151,14 +150,20 @@ def main():
     )
 
     df = pd.read_parquet(metadata_path)
-    df = df.reset_index().rename(columns={"index": "row_id"})
+    df["row_id"] = (
+            df["plate"].astype(str) + "_" +
+            df["well"].astype(str) + "_" +
+            df["site"].astype(str)
+    )
+    assert df["row_id"].is_unique, "row_id is not unique — indexing bug risk"
+
     rows = df.to_dict("records")
     channel_stats = compute_channel_stats(rows)
 
     saved = 0
     kept_indices = []
 
-    with ProcessPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=16) as executor:
         worker_inputs = [
             (
                 (
@@ -185,10 +190,18 @@ def main():
             if i % 100 == 0:
                 print(f"checked {i}/{len(rows)} | saved={saved}")
 
+    print("df rows:", len(df))
+    print("kept_indices:", len(kept_indices))
+    print("unique df row_id example:", df["row_id"].head())
+    print("kept_indices example:", kept_indices[:5])
+    print("matches:", df["row_id"].isin(kept_indices).sum())
+
     filtered_df = df[df["row_id"].isin(kept_indices)].copy()
-    filtered_df["pt_path"] = filtered_df.apply(
-        lambda r: str(OUT_DIR / f"{r['plate']}_{r['well']}_{r['site']}.pt"),
-        axis=1
+    filtered_df["pt_path"] = (
+            OUT_DIR.as_posix() + "/" +
+            filtered_df["plate"].astype(str) + "_" +
+            filtered_df["well"].astype(str) + "_" +
+            filtered_df["site"].astype(str) + ".pt"
     )
     filtered_df = filtered_df.drop(columns=[
         "mito_img_path",
