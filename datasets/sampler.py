@@ -29,7 +29,7 @@ class MoASampler:
             plate = str(row.get("plate") or "")
             well  = str(row.get("well") or "")
 
-            file_path = processed_dir / f"{row['index']}.pt"
+            file_path = Path(row["pt_path"])
             if not file_path.exists():
                 continue
 

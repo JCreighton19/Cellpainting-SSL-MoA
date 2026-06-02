@@ -18,7 +18,6 @@ def normalize(image, channel_stats, eps=1e-6):
     for c in range(image.shape[0]):
         mean = channel_stats[c]["mean"]
         std  = channel_stats[c]["std"]
-
         normed[c] = (image[c] - mean)/(std + eps)
 
     return normed
@@ -56,7 +55,7 @@ def image_qc(image):
 
 def process_row(args):
     row, channel_stats = args
-    idx = row["index"]
+    idx = f"{row['plate']}_{row['well']}_{row['site']}"
 
     paths = [
         row["mito_img_path"],
@@ -93,7 +92,7 @@ def process_row(args):
     moa = row.get("moa", "unknown")
     save_path = OUT_DIR / f"{idx}.pt"
 
-    payload = {
+    payload = { # save key metadata for self-contained debugging
         "image": torch.from_numpy(image),
         "plate": row["plate"],
         "well": row["well"],
@@ -165,8 +164,9 @@ def main():
         "data/processed/master_metadata.parquet"
     )
 
-    df = pd.read_parquet(metadata_path).reset_index(drop=True)
-    rows = df.reset_index().to_dict("records")
+    df = pd.read_parquet(metadata_path)
+    df = df.reset_index().rename(columns={"index": "row_id"})
+    rows = df.to_dict("records")
     channel_stats = compute_channel_stats(rows)
 
     saved = 0
@@ -186,7 +186,19 @@ def main():
             if i % 100 == 0:
                 print(f"checked {i}/{len(rows)} | saved={saved}")
 
-    filtered_df = df.loc[kept_indices].copy()
+    filtered_df = df[df["row_id"].isin(kept_indices)].copy()
+    filtered_df["pt_path"] = filtered_df.apply(
+        lambda r: str(OUT_DIR / f"{r['plate']}_{r['well']}_{r['site']}.pt"),
+        axis=1
+    )
+    filtered_df = filtered_df.drop(columns=[
+        "mito_img_path",
+        "agp_img_path",
+        "rna_img_path",
+        "er_img_path",
+        "dna_img_path",
+    ], errors="ignore")
+
     filtered_metadata_path = os.path.join(
         os.environ["CP_OUTPUT_ROOT"],
         "data/processed/master_metadata_qc.parquet"

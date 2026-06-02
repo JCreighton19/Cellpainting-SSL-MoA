@@ -4,22 +4,24 @@ import random
 import torch.nn.functional as F
 from pathlib import Path
 import os
+import pandas as pd
 
 from datasets.sampler import MoASampler
 
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1):
-        self.files = list(Path(processed_dir).rglob("*.pt"))
+        metadata_path = os.path.join(
+            os.environ["CP_OUTPUT_ROOT"],
+            "data/processed/master_metadata_qc.parquet"
+        )
+        self.metadata = pd.read_parquet(metadata_path)
+        self.files = self.metadata["pt_path"].tolist()
         self.tile_size = tile_size
         self.random_crop = random_crop
         self.k_per_class = k_per_class
-
         self.sampler = MoASampler(
             processed_dir=processed_dir,
-            metadata_path=os.path.join(
-                os.environ["CP_OUTPUT_ROOT"],
-                "data/processed/master_metadata.parquet"
-            )
+            metadata_path=metadata_path
         )
 
     def __len__(self):
