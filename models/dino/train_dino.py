@@ -69,31 +69,6 @@ def main():
         worker_init_fn=worker_init_fn
     )
 
-    def random_crop_batch(x, scale=(0.6, 1.0)):
-        B, C, H, W = x.shape
-
-        out = []
-        for i in range(B):
-            s = random.uniform(*scale)
-            th = int(H * s)
-            tw = int(W * s)
-
-            if th == H and tw == W:
-                cropped = x[i]
-            else:
-                top = random.randint(0, H - th)
-                left = random.randint(0, W - tw)
-                cropped = x[i:i + 1, :, top:top + th, left:left + tw]
-                cropped = torch.nn.functional.interpolate(
-                    cropped,
-                    size=(H, W),
-                    mode="bilinear",
-                    align_corners=False
-                )[0]
-
-            out.append(cropped)
-        return torch.stack(out)
-
     def teacher_augment(x):
         B, C, H, W = x.shape
 
@@ -252,84 +227,58 @@ def main():
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
             # create global views
-            teacher_view1 = teacher_augment(
-                random_crop_batch(images,scale=(0.8, 1.0))
-            )
+            # 2 GLOBAL VIEWS (teacher)
+            g1 = teacher_augment(images)
+            g2 = teacher_augment(images)
 
-            teacher_view2 = teacher_augment(
-                random_crop_batch(images,scale=(0.8, 1.0))
-            )
-
-            student_view1 = student_augment(
-                random_crop_batch(images,scale=(0.6, 1.0))
-            )
-
-            student_view2 = student_augment(
-                random_crop_batch(images,scale=(0.6, 1.0))
-            )
+            # 6 LOCAL VIEWS (student)
+            locals_ = [
+                student_augment(images)
+                for _ in range(6)
+            ]
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
                 n = 10
                 orig = to_vis(images[:n])
-                v1 = to_vis(student_view1[:n])
-                v2 = to_vis(teacher_view1[:n])
-
-                # interleave per sample: [orig, view1, view2]
-                stacked = torch.stack([orig, v1, v2], dim=1)
-                # shape: (n, 3, C, H, W)
+                g1_v = to_vis(g1[:n])
+                g2_v = to_vis(g2[:n])
+                stacked = torch.stack([orig, g1_v, g2_v], dim=1)
                 stacked = stacked.view(n * 3, *orig.shape[1:])
-                # flatten into grid rows
-                grid = make_grid(
-                    stacked,
-                    nrow=3  # 3 columns = (orig | view1 | view2)
-                )
-
+                grid = make_grid(stacked, nrow=3)
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING
-            s1 = student_head(student_enc(student_view1))
-            s2 = student_head(student_enc(student_view2))
+            with torch.no_grad():
+                t1 = teacher_head(teacher_enc(g1))
+                t2 = teacher_head(teacher_enc(g2))
 
-            # Save augmented embeddings for inspection/debugging
-            if step % 200 == 0 and epoch == 0:
-                emb_dir = os.path.join(run_dir, "debug_embeddings")
-                os.makedirs(emb_dir, exist_ok=True)
-
-                np.save(
-                    f"{emb_dir}/s1_e{epoch}_s{step}.npy",
-                    s1.detach().cpu().numpy()
-                )
-
-                np.save(
-                    f"{emb_dir}/s2_e{epoch}_s{step}.npy",
-                    s2.detach().cpu().numpy()
-                )
+            s_global = student_head(student_enc(g1))
+            s_global_2 = student_head(student_enc(g2))
+            s_local = [student_head(student_enc(v)) for v in locals_]
 
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(teacher_view1))
-                t2 = teacher_head(teacher_enc(teacher_view2))
-
-            with torch.no_grad():
-                # collapse / diversity check
-                all_s = torch.cat([s1, s2], dim=0)
+                all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
                 embed_std = all_s.std(dim=0).mean().item()
                 embed_norm = all_s.norm(dim=1).mean().item()
 
-                cos_sim = F.cosine_similarity(
-                    s1.detach(),
-                    t1.detach(),
-                    dim=1
-                ).mean().item()
+                cos_sim = 0.5 * (
+                    F.cosine_similarity(s_global.detach(), t2, dim=1).mean() +
+                    F.cosine_similarity(s_global_2.detach(), t1, dim=1).mean()
+                ).item()
 
             cos_sims.append(cos_sim)
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
             loss = (
-               dino_loss(s1, t2) +
-               dino_loss(s2, t1)
-            ) / 2
+               dino_loss(s_global, t2) +
+               dino_loss(s_global_2, t1) +
+               sum(
+                   dino_loss(sl, t1) + dino_loss(sl, t2)
+                   for sl in s_local
+               )
+            ) / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
