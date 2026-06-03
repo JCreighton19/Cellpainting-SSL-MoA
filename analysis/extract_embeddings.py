@@ -6,7 +6,7 @@ import re
 import argparse
 
 from datasets.dataset import CellPaintingDataset
-from models.dino import CellPaintingViT
+from models.dino.dino import CellPaintingViT
 
 
 def get_checkpoints(run_dir):
