@@ -46,4 +46,4 @@ echo $CP_DATA_ROOT
 
 echo "Starting training..."
 
-$PYTHON models/train_scvg.py
+$PYTHON models/scvg/train_scvg.py

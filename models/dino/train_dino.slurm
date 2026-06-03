@@ -46,4 +46,4 @@ echo $CP_DATA_ROOT
 
 echo "Starting training..."
 
-$PYTHON models/train_dino.py
+$PYTHON models/dino/train_dino.py
