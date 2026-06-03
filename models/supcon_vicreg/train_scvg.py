@@ -12,8 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import torch.nn.functional as F
 
-from datasets.sampler import MoASampler
-from models.dino import CellPaintingViT
+from datasets.scvg.dataset import MoASampler
+from models.supcon_vicreg.scvg import CellPaintingViT
 
 
 # -----------------------------------------------------------------------
@@ -346,7 +346,7 @@ def main():
                 "loss":        avg_loss,
                 "encoder_drift": float(encoder_drift),
                 "head_drift": float(head_drift),
-            }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
+            }, os.path.join(run_dir, f"scvg_epoch_{epoch + 1}.pt"))
 
             print(
                 f"Epoch {epoch + 1}/{n_epochs} | "

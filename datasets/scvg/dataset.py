@@ -6,7 +6,7 @@ from pathlib import Path
 import os
 import pandas as pd
 
-from datasets.sampler import MoASampler
+from datasets.scvg.sampler import MoASampler
 
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1):

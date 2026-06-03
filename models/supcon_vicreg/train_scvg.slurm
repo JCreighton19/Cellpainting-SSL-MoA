@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH --job-name=dino-cp
-#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
-#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
+#SBATCH --job-name=scvg-cp
+#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/scvg_%j.out
+#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/scvg_%j.err
 #SBATCH --time=05:00:00
 #SBATCH --mem=24G
 #SBATCH --cpus-per-task=2
@@ -46,4 +46,4 @@ echo $CP_DATA_ROOT
 
 echo "Starting training..."
 
-$PYTHON models/train_dino.py
+$PYTHON models/train_scvg.py

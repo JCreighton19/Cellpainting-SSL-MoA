@@ -1,16 +1,16 @@
-# models/dino.py
+# models/supcon_vicreg/scvg.py
 import torch
 import torch.nn as nn
 import timm
 
 class CellPaintingViT(nn.Module):
     """
-    DINOv2 ViT-S with modified patch embedding to accept 5-channel input.
+    DINOv2-style ViT-S with modified patch embedding to accept 5-channel input.
     """
     def __init__(self, in_channels=5, img_size=224, pretrained=True):
         super().__init__()
 
-        # load pretrained DINOv2 ViT-S
+        # load pretrained DINOv2-style ViT-S
         self.vit = timm.create_model(
             'vit_small_patch14_dinov2',
             pretrained=pretrained,

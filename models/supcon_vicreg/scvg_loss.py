@@ -2,8 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-
-class DINOLoss(nn.Module):
+class SCVGLoss(nn.Module):
     def __init__(self, proj_dim=8192, ncrops=2, warmup_teacher_temp=0.04,
                  teacher_temp=0.1, warmup_epochs=10,
                  center_momentum=0.95):
