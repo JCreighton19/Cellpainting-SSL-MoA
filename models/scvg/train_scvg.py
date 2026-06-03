@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import torch.nn.functional as F
 
-from datasets.scvg.dataset import MoASampler
+from datasets.sampler import MoASampler
 from models.scvg.scvg import CellPaintingViT
 
 

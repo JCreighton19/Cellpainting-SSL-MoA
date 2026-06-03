@@ -12,7 +12,7 @@ from torchvision.utils import save_image
 from torchvision.utils import make_grid
 import torchvision.transforms.functional as TF
 
-from datasets.dino.dataset import CellPaintingDataset
+from datasets.dataset import CellPaintingDataset
 from models.dino.dino_loss import DINOLoss
 from models.dino.dino import CellPaintingViT
 
