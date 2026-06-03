@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import os
 import sys
+import copy
 import random
 import numpy as np
 import time
@@ -51,6 +52,20 @@ def supcon_loss(features, labels, temperature=0.07):
         return features.sum() * 0.0
     mean_log_prob = (log_prob * pos_mask).sum(dim=1) / n_pos.clamp(min=1)
     return -mean_log_prob[has_pos].mean()
+
+
+def compute_weight_drift(model, init_state):
+    drift = 0.0
+    total = 0.0
+
+    for name, param in model.state_dict().items():
+        init_param = init_state[name]
+        diff = (param - init_param).float()
+
+        drift += diff.norm().item() ** 2
+        total += init_param.float().norm().item() ** 2
+
+    return (drift ** 0.5) / (total ** 0.5 + 1e-8)
 
 
 def crop_center_or_random(img, tile_size=224):
@@ -228,9 +243,14 @@ def main():
     supcon_head = SupConHead().to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(supcon_head.parameters()),
-        lr=5e-5,
+        lr=5e-4,
         weight_decay=0.04
     )
+
+    init_state = {
+        "encoder": copy.deepcopy(student_enc.state_dict()),
+        "head": copy.deepcopy(supcon_head.state_dict())
+    }
 
     trainable_params = tuple(
         list(student_enc.parameters()) + list(supcon_head.parameters())
@@ -314,6 +334,8 @@ def main():
             epoch_end = time.perf_counter()
             avg_loss  = total_loss / STEPS_PER_EPOCH
             losses.append(avg_loss)
+            encoder_drift = compute_weight_drift(student_enc, init_state["encoder"])
+            head_drift = compute_weight_drift(supcon_head, init_state["head"])
 
             # "student_enc" key preserves compatibility with extract_embeddings.py
             torch.save({
@@ -322,11 +344,15 @@ def main():
                 "optimizer":   optimizer.state_dict(),
                 "epoch":       epoch,
                 "loss":        avg_loss,
+                "encoder_drift": float(encoder_drift),
+                "head_drift": float(head_drift),
             }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
 
             print(
                 f"Epoch {epoch + 1}/{n_epochs} | "
                 f"Loss: {avg_loss:.4f} | "
+                f"Encoder drift: {encoder_drift:.4f} | "
+                f"Head drift: {head_drift:.4f} | "
                 f"Time: {(epoch_end - epoch_start) / 60:.2f} min"
             )
 
