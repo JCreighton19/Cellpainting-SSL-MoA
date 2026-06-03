@@ -13,7 +13,7 @@ from datetime import datetime
 import torch.nn.functional as F
 
 from datasets.scvg.dataset import MoASampler
-from models.supcon_vicreg.scvg import CellPaintingViT
+from models.scvg.scvg import CellPaintingViT
 
 
 # -----------------------------------------------------------------------
