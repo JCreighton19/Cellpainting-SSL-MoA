@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 from datasets.sampler import MoASampler
 from models.scvg.scvg import CellPaintingViT
+from models.config import CONFIG
 
 
 # -----------------------------------------------------------------------
@@ -193,7 +194,7 @@ def main():
     SUPCON_WEIGHT   = 1.0
     VICREG_WEIGHT   = 0.1
     STEPS_PER_EPOCH = 450
-    n_epochs        = 20
+    n_epochs        = CONFIG["n_epochs"]
 
     # ------------------------------------------------------------------
     # Sampler
@@ -243,8 +244,8 @@ def main():
     supcon_head = SupConHead().to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(supcon_head.parameters()),
-        lr=5e-4,
-        weight_decay=0.04
+        lr=CONFIG["lr"],
+        weight_decay=CONFIG["weight_decay"]
     )
 
     init_state = {
@@ -265,7 +266,7 @@ def main():
 
     # Start prefetcher — begins loading batches immediately in background
     prefetcher = WellBatchPrefetcher(
-        sampler, N_COMPOUNDS, TILES_PER_WELL, n_workers=8, prefetch=4
+        sampler, N_COMPOUNDS, TILES_PER_WELL, n_workers=CONFIG["num_workers"], prefetch=4
     )
 
     # ------------------------------------------------------------------

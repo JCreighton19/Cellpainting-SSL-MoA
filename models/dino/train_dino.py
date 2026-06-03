@@ -15,6 +15,7 @@ import torchvision.transforms.functional as TF
 from datasets.dataset import CellPaintingDataset
 from models.dino.dino_loss import DINOLoss
 from models.dino.dino import CellPaintingViT
+from models.config import CONFIG
 
 
 def main():
@@ -59,9 +60,9 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=CONFIG["batch_size"],
         shuffle=False, # defined shuffling in sampler
-        num_workers=8,
+        num_workers=CONFIG["num_workers"],
         pin_memory=True,
         persistent_workers=True,
         prefetch_factor=4,
@@ -208,8 +209,8 @@ def main():
     dino_loss = DINOLoss().to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(student_head.parameters()),
-        lr=5e-5,
-        weight_decay=0.04
+        lr = CONFIG["lr"],
+        weight_decay=CONFIG["weight_decay"]
     )
 
     # Teacher update
@@ -224,7 +225,7 @@ def main():
                 pt.mul_(momentum).add_(ps * (1 - momentum))
 
     # Training loop
-    n_epochs = 60
+    n_epochs = CONFIG["n_epochs"]
     losses = []
 
     VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
