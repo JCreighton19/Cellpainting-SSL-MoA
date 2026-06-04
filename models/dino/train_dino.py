@@ -44,7 +44,7 @@ def main():
     data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
     dataset = CellPaintingDataset(
         processed_dir=data_dir,
-        random_crop=True
+        return_full_image=True
     )
     debug_dir = os.path.join(run_dir, "aug_debug")
     os.makedirs(debug_dir, exist_ok=True)
@@ -150,6 +150,67 @@ def main():
         x = x + noise_mask * torch.randn_like(x) * 0.02
         return x.clamp(0, 1)
 
+
+    def _otsu_threshold(dna):
+        d_min, d_max = dna.min(), dna.max()
+        if d_max <= d_min:
+            return d_min
+        bins = 256
+        quant = ((dna - d_min) / (d_max - d_min) * (bins - 1)).long().clamp(0, bins - 1)
+        hist = torch.bincount(quant.flatten(), minlength=bins).float()
+        total = hist.sum()
+        vals = torch.arange(bins, dtype=torch.float32, device=dna.device)
+        cum_n = hist.cumsum(0)
+        cum_s = (hist * vals).cumsum(0)
+        w0 = cum_n / total
+        w1 = 1.0 - w0
+
+        sigma_b = (cum_s[-1] * w0 - cum_s) ** 2 / (w0 * w1 + 1e-6)
+        t_bin = sigma_b.argmax().item()
+
+        return d_min + (d_max - d_min) * (t_bin / (bins - 1))
+
+
+    @torch.no_grad()
+    def otsu_batch(dna_batch):
+        return torch.stack(
+            [_otsu_threshold(dna_batch[b]) for b in range(dna_batch.shape[0])],
+            dim=0
+        )
+
+
+    def foreground_crop(images, crop_size, masks=None):
+        B, C, H, W = images.shape
+        ts = crop_size
+        if masks is None:
+            dna = images[:, 4]
+            masks = dna >= otsu_batch(dna)[:, None, None]
+        coords = masks.view(B, -1).float()
+
+        # fallback centers if empty
+        has_fg = coords.sum(dim=1) > 0
+
+        # random fallback indices
+        rand_idx = torch.randint(0, H * W, (B,), device=images.device)
+        fg_idx = torch.multinomial(coords + 1e-6, 1).squeeze(1)
+        idx = torch.where(has_fg, fg_idx, rand_idx)
+        ys = idx // W
+        xs = idx % W
+
+        jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
+        jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
+        r = (ys + jitter_y - ts // 2).clamp(0, H - ts)
+        c = (xs + jitter_x - ts // 2).clamp(0, W - ts)
+
+        crops = []
+        for b in range(B):
+            crops.append(
+                images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
+            )
+
+        return torch.cat(crops, dim=0)
+
+
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
     teacher_enc = CellPaintingViT(in_channels=5).to(device)
@@ -211,7 +272,6 @@ def main():
     for epoch in range(n_epochs):
 
         epoch_start = time.perf_counter()
-
         epoch_start_dt = datetime.now()
         print(f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
 
@@ -226,26 +286,32 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
 
-            # create global views
-            # 2 GLOBAL VIEWS (teacher)
-            g1 = teacher_augment(images)
-            g2 = teacher_augment(images)
+            # Compute foreground mask once per batch
+            with torch.no_grad():
+                dna = images[:, 4]
+                masks = dna >= otsu_batch(dna)[:, None, None]
 
-            # 6 LOCAL VIEWS (student)
+            # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
+            g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
+            g2 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
+
+            # 8 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
             locals_ = [
-                student_augment(images)
-                for _ in range(6)
+                student_augment(
+                    F.interpolate(foreground_crop(images, crop_size=96, masks=masks),
+                                  size=224, mode='bilinear', align_corners=False)
+                )
+                for _ in range(8)
             ]
 
             # Save augmented images for visual inspection/debugging
             if step % 200 == 0 and epoch == 0:
                 n = 10
-                orig = to_vis(images[:n])
                 g1_v = to_vis(g1[:n])
                 g2_v = to_vis(g2[:n])
-                stacked = torch.stack([orig, g1_v, g2_v], dim=1)
-                stacked = stacked.view(n * 3, *orig.shape[1:])
-                grid = make_grid(stacked, nrow=3)
+                stacked = torch.stack([g1_v, g2_v], dim=1)
+                stacked = stacked.view(n * 2, *g1_v.shape[1:])
+                grid = make_grid(stacked, nrow=2)
                 save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING
