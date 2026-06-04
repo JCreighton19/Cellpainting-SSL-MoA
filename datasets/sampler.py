@@ -18,13 +18,10 @@ class MoASampler:
         _compound_moa = {}
 
         for idx, row in df.reset_index().iterrows():
-            moa = str(row.get("moa") or "unknown")
-            if moa == "nan":
-                moa = "unknown"
-
-            compound = str(row.get("broad_sample") or "unknown")
-            if compound == "nan":
-                compound = "unknown"
+            moa = row.get("moa")
+            compound = row.get("broad_sample")
+            moa_missing = pd.isna(moa)
+            compound_missing = pd.isna(compound)
 
             plate = str(row.get("plate") or "")
             well  = str(row.get("well") or "")
@@ -34,9 +31,10 @@ class MoASampler:
                 continue
 
             fp = str(file_path)
-            self.moa_to_files[moa].append(fp)
+            if not moa_missing:
+                self.moa_to_files[moa].append(fp)
 
-            if compound == "unknown":
+            if compound_missing:
                 continue
 
             self.compound_to_files[compound].append(fp)
@@ -60,7 +58,7 @@ class MoASampler:
         self.replicate_compounds = [
             c for c, well_list in self.compound_well_index.items()
             if len({w["plate"] for w in well_list}) >= 2
-            and _compound_moa.get(c, "") != "control vehicle"
+            and _compound_moa.get(c) != "control vehicle"
         ]
 
         print(f"Loaded {len(self.moa_list)} MOAs | "
