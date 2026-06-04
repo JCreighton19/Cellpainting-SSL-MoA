@@ -233,7 +233,7 @@ def main():
     # Teacher update
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
-                       student_head, teacher_head, momentum=0.995):
+                       student_head, teacher_head, momentum):
         with torch.no_grad():
             for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
                 pt.mul_(momentum).add_(ps * (1 - momentum))
@@ -260,6 +260,7 @@ def main():
         student_enc.train()
         student_head.train()
         total_loss = 0
+        m = 0.99 + (0.9995 - 0.99) * (epoch / n_epochs)
         cos_sims = []
         embed_stds = []
         embed_norms = []
@@ -300,9 +301,9 @@ def main():
                 t1 = teacher_head(teacher_enc(g1))
                 t2 = teacher_head(teacher_enc(g2))
 
-            s_global = student_head(student_enc(g1))
+            s_global   = student_head(student_enc(g1))
             s_global_2 = student_head(student_enc(g2))
-            s_local = [student_head(student_enc(v)) for v in locals_]
+            s_local    = [student_head(student_enc(v)) for v in locals_]
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
@@ -319,12 +320,10 @@ def main():
             embed_norms.append(embed_norm)
 
             loss = (
-               dino_loss(s_global, t2, epoch=epoch) +
-               dino_loss(s_global_2, t1, epoch=epoch) +
-               sum(
-                   dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
-                   for sl in s_local
-               )
+                dino_loss(s_global,   t2, epoch=epoch) +
+                dino_loss(s_global_2, t1, epoch=epoch) +
+                sum(dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
+                    for sl in s_local)
             ) / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
@@ -345,7 +344,7 @@ def main():
             optimizer.step()
 
             update_teacher(student_enc, teacher_enc,
-                           student_head, teacher_head)
+                           student_head, teacher_head, m)
 
             total_loss += loss.item()
 
@@ -354,7 +353,6 @@ def main():
 
         avg_loss = total_loss / len(loader)
         losses.append(avg_loss)
-
         avg_cos = np.mean(cos_sims)
         avg_std = np.mean(embed_stds)
         avg_norm = np.mean(embed_norms)
