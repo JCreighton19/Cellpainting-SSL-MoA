@@ -123,13 +123,13 @@ def main():
         intensity = torch.empty(
             B, 1, 1, 1,
             device=x.device
-        ).uniform_(0.4, 1.6)
+        ).uniform_(0.6, 1.4)
         x = x * intensity
 
         channel_scale = torch.empty(
             B, 5, 1, 1,
             device=x.device
-        ).uniform_(0.7, 1.3)
+        ).uniform_(0.9,1.1)
         x = x * channel_scale
 
         # gaussian blur
@@ -140,7 +140,7 @@ def main():
             )
 
         # channel dropout
-        channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.15)
+        channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
         x = x * (~channel_drop)
 
         # noise
