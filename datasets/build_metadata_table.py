@@ -290,7 +290,6 @@ def main():
 
     print("\nConcatenating all plates...")
     master_df = pd.concat(all_master, ignore_index=True)
-
     master_df["is_control"] = (master_df["control_type"] == "negcon").astype(int)
     master_df["compound_count"] = (
         master_df.groupby("broad_sample", dropna=False)["broad_sample"]
