@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #SBATCH --job-name=prep-cp
 #SBATCH --time=08:00:00
-#SBATCH --mem=64G
-#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=4
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/prep_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/prep_%j.err
 
