@@ -223,7 +223,7 @@ def main():
         p.requires_grad = False
 
     # Loss + optimizer
-    dino_loss = DINOLoss().to(device)
+    dino_loss = DINOLoss(center_momentum=0.9).to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(student_head.parameters()),
         lr = CONFIG["lr"],
@@ -251,6 +251,9 @@ def main():
     # Training loop
     n_epochs = CONFIG["n_epochs"]
     losses = []
+    m_min = 0.99
+    m_max = 0.9995
+
     for epoch in range(n_epochs):
 
         epoch_start = time.perf_counter()
@@ -260,7 +263,9 @@ def main():
         student_enc.train()
         student_head.train()
         total_loss = 0
-        m = 0.99 + (0.9995 - 0.99) * (epoch / n_epochs)
+        progress = epoch / (n_epochs - 1)
+        m = m_max - 0.5 * (m_max - m_min) * (1 + np.cos(np.pi * progress))
+
         cos_sims = []
         embed_stds = []
         embed_norms = []
@@ -301,9 +306,9 @@ def main():
                 t1 = teacher_head(teacher_enc(g1))
                 t2 = teacher_head(teacher_enc(g2))
 
-            s_global   = student_head(student_enc(g1))
+            s_global = student_head(student_enc(g1))
             s_global_2 = student_head(student_enc(g2))
-            s_local    = [student_head(student_enc(v)) for v in locals_]
+            s_local = [student_head(student_enc(v)) for v in locals_]
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
@@ -319,15 +324,13 @@ def main():
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
-            with torch.no_grad():
-                dino_loss.update_center(torch.cat([t1, t2], dim=0))
-
-            loss = (
-                dino_loss(s_global,   t2, epoch=epoch) +
-                dino_loss(s_global_2, t1, epoch=epoch) +
-                sum(dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
-                    for sl in s_local)
-            ) / (2 + 2 * len(locals_))
+            loss = 0.0
+            loss += dino_loss(s_global, t2, epoch=epoch)
+            loss += dino_loss(s_global_2, t1, epoch=epoch)
+            teacher_views = [t1, t2]
+            for i, sl in enumerate(s_local):
+                loss += dino_loss(sl, teacher_views[i % 2], epoch=epoch)
+            loss = loss / (2 + len(s_local))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
