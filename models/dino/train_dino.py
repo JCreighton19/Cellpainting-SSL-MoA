@@ -270,7 +270,7 @@ def main():
             # Compute foreground mask once per batch
             with torch.no_grad():
                 dna = images[:, 4]
-                masks = dna >= otsu_batch(dna)[:, None, None]
+                masks = dna >= quantile_threshold_batch(dna)[:, None, None]
 
             # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
             g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
