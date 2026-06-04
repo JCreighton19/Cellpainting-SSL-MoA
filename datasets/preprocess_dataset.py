@@ -4,6 +4,7 @@ import tifffile as tiff
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from skimage.filters import threshold_otsu
 from concurrent.futures import ThreadPoolExecutor
 
 OUT_DIR = Path(os.path.join(
@@ -12,11 +13,21 @@ OUT_DIR = Path(os.path.join(
 ))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def normalize(image, channel_stats, eps=1e-6):
     image = np.log1p(image)
     means = np.array([s["mean"] for s in channel_stats], dtype=np.float32)[:, None, None]
     stds  = np.array([s["std"]  for s in channel_stats], dtype=np.float32)[:, None, None]
     return ((image - means) / (stds + eps)).astype(np.float32)
+
+
+def compute_otsu_mask(dna_img):
+    if np.std(dna_img) < 1e-6:
+        return np.zeros_like(dna_img, dtype=bool)
+
+    t = threshold_otsu(dna_img)
+    return dna_img > t
+
 
 def image_qc(image):
     # image: (C, H, W)
@@ -28,16 +39,18 @@ def image_qc(image):
 
     global_std = float(np.mean(per_channel_std))
     min_channel_std = float(np.min(per_channel_std))
-    low_signal_frac = float((image < p1).mean())
     high_signal_frac = float((image > p99).mean())
-    structure_score = float(np.mean(per_channel_var))
+
+    dna_img = image[4]
+    otsu_mask = compute_otsu_mask(dna_img)
+    otsu_foreground_frac = float(otsu_mask.mean())
 
     return {
         "global_std": global_std,
         "min_channel_std": min_channel_std,
-        "low_signal_frac": low_signal_frac,
+        "otsu_foreground_frac": otsu_foreground_frac,
         "high_signal_frac": high_signal_frac,
-        "structure_score": structure_score
+        "otsu_mask": otsu_mask
     }
 
 
@@ -51,6 +64,8 @@ def process_row(args):
         [tiff.imread(p).astype(np.float32) for p in paths],
         axis=0
     )
+    dna_raw = image[4]
+
 
     # QC filtering (note: thresholds somewhat arbitrarily chosen)
     qc = image_qc(image)
@@ -59,22 +74,21 @@ def process_row(args):
         print(f"Skipping dead/low-signal channel image: {idx}")
         return None
 
-    if qc["low_signal_frac"] > 0.995:
-        print(f"Skipping near-empty image: {idx}")
+    if qc.get("otsu_foreground_frac", 0.0) < 0.001:
+        print(f"Skipping near-empty image (Otsu): {idx}")
         return None
 
     if qc["high_signal_frac"] > 0.05:
         print(f"Skipping saturated image: {idx}")
         return None
 
-    if qc["structure_score"] < 0.05:
-        return None
-
     image = normalize(image, channel_stats)
+    otsu_mask = qc["otsu_mask"]
     save_path = OUT_DIR / f"{idx}.pt"
 
-    payload = { # save key metadata for self-contained debugging
+    payload = {
         "image": torch.from_numpy(image),
+        "otsu_mask": torch.from_numpy(otsu_mask.astype(np.bool_)),
         "plate": plate,
         "well": well,
         "site": site,

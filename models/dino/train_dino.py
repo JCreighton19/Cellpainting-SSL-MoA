@@ -154,40 +154,30 @@ def main():
         x = x + noise_mask * torch.randn_like(x) * 0.02
         return x.clamp(0, 1)
 
-
-    @torch.no_grad()
-    def quantile_threshold_batch(dna_batch):
-        return torch.quantile(dna_batch.flatten(1), 0.6, dim=1)
-
-
-    def foreground_crop(images, crop_size, masks=None):
+    def foreground_crop(images, crop_size, masks):
         B, C, H, W = images.shape
         ts = crop_size
-        if masks is None:
-            dna = images[:, 4]
-            masks = dna >= quantile_threshold_batch(dna)[:, None, None]
         coords = masks.view(B, -1).float()
-
-        # fallback centers if empty
         has_fg = coords.sum(dim=1) > 0
 
-        # random fallback indices
-        rand_idx = torch.randint(0, H * W, (B,), device=images.device)
+        # sample foreground pixel
         fg_idx = torch.multinomial(coords + 1e-6, 1).squeeze(1)
+
+        # fallback random if empty mask
+        rand_idx = torch.randint(0, H * W, (B,), device=images.device)
+
         idx = torch.where(has_fg, fg_idx, rand_idx)
         ys = idx // W
         xs = idx % W
-
         jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
         jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
         r = (ys + jitter_y - ts // 2).clamp(0, H - ts)
         c = (xs + jitter_x - ts // 2).clamp(0, W - ts)
 
-        crops = []
-        for b in range(B):
-            crops.append(
-                images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
-            )
+        crops = [
+            images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
+            for b in range(B)
+        ]
 
         return torch.cat(crops, dim=0)
 
@@ -272,11 +262,7 @@ def main():
 
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
-
-            # Compute foreground mask once per batch
-            with torch.no_grad():
-                dna = images[:, 4]
-                masks = dna >= quantile_threshold_batch(dna)[:, None, None]
+            masks = batch["otsu_mask"].to(device)
 
             # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
             g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
