@@ -123,13 +123,13 @@ def main():
         intensity = torch.empty(
             B, 1, 1, 1,
             device=x.device
-        ).uniform_(0.7, 1.3)
+        ).uniform_(0.4, 1.6)
         x = x * intensity
 
         channel_scale = torch.empty(
             B, 5, 1, 1,
             device=x.device
-        ).uniform_(0.85, 1.15)
+        ).uniform_(0.7, 1.3)
         x = x * channel_scale
 
         # gaussian blur
@@ -138,6 +138,10 @@ def main():
                 kernel_size=9,
                 sigma=(0.5, 1.5)
             )
+
+        # channel dropout
+        channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.15)
+        x = x * (~channel_drop)
 
         # noise
         noise_mask = (
@@ -151,32 +155,9 @@ def main():
         return x.clamp(0, 1)
 
 
-    def _otsu_threshold(dna):
-        d_min, d_max = dna.min(), dna.max()
-        if d_max <= d_min:
-            return d_min
-        bins = 256
-        quant = ((dna - d_min) / (d_max - d_min) * (bins - 1)).long().clamp(0, bins - 1)
-        hist = torch.bincount(quant.flatten(), minlength=bins).float()
-        total = hist.sum()
-        vals = torch.arange(bins, dtype=torch.float32, device=dna.device)
-        cum_n = hist.cumsum(0)
-        cum_s = (hist * vals).cumsum(0)
-        w0 = cum_n / total
-        w1 = 1.0 - w0
-
-        sigma_b = (cum_s[-1] * w0 - cum_s) ** 2 / (w0 * w1 + 1e-6)
-        t_bin = sigma_b.argmax().item()
-
-        return d_min + (d_max - d_min) * (t_bin / (bins - 1))
-
-
     @torch.no_grad()
-    def otsu_batch(dna_batch):
-        return torch.stack(
-            [_otsu_threshold(dna_batch[b]) for b in range(dna_batch.shape[0])],
-            dim=0
-        )
+    def quantile_threshold_batch(dna_batch):
+        return torch.quantile(dna_batch.flatten(1), 0.6, dim=1)
 
 
     def foreground_crop(images, crop_size, masks=None):
@@ -184,7 +165,7 @@ def main():
         ts = crop_size
         if masks is None:
             dna = images[:, 4]
-            masks = dna >= otsu_batch(dna)[:, None, None]
+            masks = dna >= quantile_threshold_batch(dna)[:, None, None]
         coords = masks.view(B, -1).float()
 
         # fallback centers if empty
@@ -295,13 +276,13 @@ def main():
             g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
             g2 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
 
-            # 8 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
+            # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
             locals_ = [
                 student_augment(
                     F.interpolate(foreground_crop(images, crop_size=96, masks=masks),
                                   size=224, mode='bilinear', align_corners=False)
                 )
-                for _ in range(8)
+                for _ in range(4) # reduced to 4 from 8
             ]
 
             # Save augmented images for visual inspection/debugging
