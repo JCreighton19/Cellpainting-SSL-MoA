@@ -263,6 +263,9 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
             masks = batch["otsu_mask"].to(device)
+            if step == 0:
+                print(images.shape)
+                print(masks.shape)
 
             # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
             g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
