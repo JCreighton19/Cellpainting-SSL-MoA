@@ -263,9 +263,6 @@ def main():
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
             masks = batch["otsu_mask"].to(device)
-            if step == 0:
-                print(images.shape)
-                print(masks.shape)
 
             # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
             g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
@@ -279,16 +276,6 @@ def main():
                 )
                 for _ in range(4) # reduced to 4 from 8
             ]
-
-            # Save augmented images for visual inspection/debugging
-            if step % 200 == 0 and epoch == 0:
-                n = 10
-                g1_v = to_vis(g1[:n])
-                g2_v = to_vis(g2[:n])
-                stacked = torch.stack([g1_v, g2_v], dim=1)
-                stacked = stacked.view(n * 2, *g1_v.shape[1:])
-                grid = make_grid(stacked, nrow=2)
-                save_image(grid, f"{debug_dir}/grid_e{epoch}_s{step}.png")
 
             # ENCODING
             with torch.no_grad():
