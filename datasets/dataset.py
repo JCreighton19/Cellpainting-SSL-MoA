@@ -75,7 +75,7 @@ class CellPaintingDataset(Dataset):
             sample0 = torch.load(files[0], weights_only=False)
             tile0 = self._crop_img(sample0["image"])
             tiles = torch.stack([tile0] + [self._load_tile(f) for f in files[1:]])
-            return {"image": tiles, "plate": sample0["plate"], "well": sample0["well"], "moa": moa}
+            return {"image": tiles, "plate": sample0["plate"], "well": sample0["well"], "moa": moa, "otsu_mask": sample0["otsu_mask"]}
 
         file, moa = self.sampler.sample_moa()
         sample = torch.load(file, weights_only=False)
@@ -84,5 +84,6 @@ class CellPaintingDataset(Dataset):
             "image": img if self.return_full_image else self._crop_img(img),
             "plate": sample["plate"],
             "well": sample["well"],
-            "moa": moa
+            "moa": moa,
+            "otsu_mask": sample["otsu_mask"]
         }
