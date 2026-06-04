@@ -223,7 +223,7 @@ def main():
         p.requires_grad = False
 
     # Loss + optimizer
-    dino_loss = DINOLoss(center_momentum=0.9).to(device)
+    dino_loss = DINOLoss().to(device)
     optimizer = torch.optim.AdamW(
         list(student_enc.parameters()) + list(student_head.parameters()),
         lr = CONFIG["lr"],
@@ -250,9 +250,9 @@ def main():
 
     # Training loop
     n_epochs = CONFIG["n_epochs"]
-    losses = []
     m_min = 0.99
     m_max = 0.9995
+    losses = []
 
     for epoch in range(n_epochs):
 
@@ -264,7 +264,7 @@ def main():
         student_head.train()
         total_loss = 0
         progress = epoch / (n_epochs - 1)
-        m = m_max - 0.5 * (m_max - m_min) * (1 + np.cos(np.pi * progress))
+        m = m_min + (m_max - m_min) * (0.5 * (1 - np.cos(np.pi * progress)))
 
         cos_sims = []
         embed_stds = []
@@ -324,13 +324,14 @@ def main():
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
-            loss = 0.0
-            loss += dino_loss(s_global, t2, epoch=epoch)
-            loss += dino_loss(s_global_2, t1, epoch=epoch)
-            teacher_views = [t1, t2]
-            for i, sl in enumerate(s_local):
-                loss += dino_loss(sl, teacher_views[i % 2], epoch=epoch)
-            loss = loss / (2 + len(s_local))
+            loss = (
+               dino_loss(s_global, t2, epoch=epoch) +
+               dino_loss(s_global_2, t1, epoch=epoch) +
+               sum(
+                   dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
+                   for sl in s_local
+               )
+            ) / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
@@ -359,6 +360,7 @@ def main():
 
         avg_loss = total_loss / len(loader)
         losses.append(avg_loss)
+
         avg_cos = np.mean(cos_sims)
         avg_std = np.mean(embed_stds)
         avg_norm = np.mean(embed_norms)
