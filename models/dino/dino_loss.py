@@ -14,10 +14,11 @@ class DINOLoss(nn.Module):
         self.warmup_epochs = warmup_epochs
         self.register_buffer("center", torch.zeros(1, proj_dim))
 
-    def forward(self, student_out, teacher_out, epoch=0):
+    def forward(self, student_out, teacher_out, epoch=0, update_center=False):
         """
         student_out: (B, D)  — one student view
         teacher_out: (B, D)  — one teacher view (cross-view pair)
+        update_center: should be False for all but the explicit once-per-step center update
         """
         if epoch < self.warmup_epochs:
             alpha = epoch / self.warmup_epochs
@@ -29,7 +30,8 @@ class DINOLoss(nn.Module):
         teacher_probs = F.softmax((teacher_out - self.center) / teacher_temp, dim=-1).detach()
         student_log_probs = F.log_softmax(student_out / student_temp, dim=-1)
         loss = -(teacher_probs * student_log_probs).sum(dim=-1).mean()
-        self.update_center(teacher_out)
+        if update_center:
+            self.update_center(teacher_out)
         return loss
 
     @torch.no_grad()

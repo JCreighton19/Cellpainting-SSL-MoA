@@ -319,6 +319,9 @@ def main():
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
+            with torch.no_grad():
+                dino_loss.update_center(torch.cat([t1, t2], dim=0))
+
             loss = (
                 dino_loss(s_global,   t2, epoch=epoch) +
                 dino_loss(s_global_2, t1, epoch=epoch) +
