@@ -65,7 +65,7 @@ def main():
         num_workers=CONFIG["num_workers"],
         pin_memory=True,
         persistent_workers=True,
-        prefetch_factor=4,
+        prefetch_factor=2,
         worker_init_fn=worker_init_fn
     )
 
