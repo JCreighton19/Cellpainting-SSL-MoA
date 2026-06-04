@@ -178,30 +178,37 @@ def main():
             dim=0
         )
 
+
     def foreground_crop(images, crop_size, masks=None):
         B, C, H, W = images.shape
         ts = crop_size
         if masks is None:
             dna = images[:, 4]
             masks = dna >= otsu_batch(dna)[:, None, None]
-
         coords = masks.view(B, -1).float()
+
+        # fallback centers if empty
         has_fg = coords.sum(dim=1) > 0
+
+        # random fallback indices
         rand_idx = torch.randint(0, H * W, (B,), device=images.device)
         fg_idx = torch.multinomial(coords + 1e-6, 1).squeeze(1)
         idx = torch.where(has_fg, fg_idx, rand_idx)
         ys = idx // W
         xs = idx % W
 
-        # normalize coords for grid_sample
-        theta = torch.zeros(B, 2, 3, device=images.device)
-        theta[:, 0, 0] = ts / W
-        theta[:, 1, 1] = ts / H
-        theta[:, 0, 2] = (2 * xs / W) - 1
-        theta[:, 1, 2] = (2 * ys / H) - 1
+        jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
+        jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
+        r = (ys + jitter_y - ts // 2).clamp(0, H - ts)
+        c = (xs + jitter_x - ts // 2).clamp(0, W - ts)
 
-        grid = F.affine_grid(theta, size=(B, C, ts, ts), align_corners=False)
-        return F.grid_sample(images, grid, align_corners=False)
+        crops = []
+        for b in range(B):
+            crops.append(
+                images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
+            )
+
+        return torch.cat(crops, dim=0)
 
 
     # Models
