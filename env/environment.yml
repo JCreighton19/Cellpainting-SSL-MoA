@@ -20,6 +20,7 @@ dependencies:
   # Imaging + embeddings
   - tifffile
   - umap-learn
+  - scikit-image
 
   # PyTorch GPU stack
   - pytorch
