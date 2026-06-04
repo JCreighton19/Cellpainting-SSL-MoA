@@ -291,14 +291,15 @@ def main():
     print("\nConcatenating all plates...")
     master_df = pd.concat(all_master, ignore_index=True)
 
-    # Fill missing metadata
-    for col in ["broad_sample", "gene", "control_type"]:
-        if col in master_df.columns:
-            master_df[col] = master_df[col].fillna("unknown")
-
     master_df["is_control"] = (master_df["control_type"] == "negcon").astype(int)
-    master_df["compound_count"] = master_df.groupby("broad_sample")["broad_sample"].transform("count")
-    master_df["moa_count"] = master_df.groupby("moa")["moa"].transform("count")
+    master_df["compound_count"] = (
+        master_df.groupby("broad_sample", dropna=False)["broad_sample"]
+        .transform("size")
+    )
+    master_df["moa_count"] = (
+        master_df.groupby("moa", dropna=False)["moa"]
+        .transform("size")
+    )
 
     print("final shape:", master_df.shape)
     print("final cols:", master_df.columns)
