@@ -11,19 +11,28 @@ class DINOLoss(nn.Module):
         self.ncrops = ncrops
         self.center_momentum = center_momentum
         self.teacher_temp = teacher_temp
+        self.warmup_teacher_temp = warmup_teacher_temp
+        self.warmup_epochs = warmup_epochs
         self.register_buffer("center", torch.zeros(1, proj_dim))
 
-    def forward(self, student_out, teacher_out):
+    def forward(self, student_out, teacher_out, epoch=0):
         """
         student_out: (B, proj_dim)
         teacher_out: (B, proj_dim)
         """
+        # linear warmup of teacher temperature
+        if epoch < self.warmup_epochs:
+            alpha = epoch / self.warmup_epochs
+            teacher_temp = self.warmup_teacher_temp + alpha * (self.teacher_temp - self.warmup_teacher_temp)
+        else:
+            teacher_temp = self.teacher_temp
+
         # student log softmax
         student_temp = 0.2
         student_log_probs = F.log_softmax(student_out / student_temp, dim=-1)
 
         # update center (EMA of teacher outputs)
-        teacher_logits = (teacher_out - self.center) / self.teacher_temp
+        teacher_logits = (teacher_out - self.center) / teacher_temp
         teacher_probs = F.softmax(teacher_logits, dim=-1).detach()
 
         # cross entropy loss

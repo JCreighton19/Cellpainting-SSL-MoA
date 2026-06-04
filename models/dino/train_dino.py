@@ -319,10 +319,10 @@ def main():
             embed_norms.append(embed_norm)
 
             loss = (
-               dino_loss(s_global, t2) +
-               dino_loss(s_global_2, t1) +
+               dino_loss(s_global, t2, epoch=epoch) +
+               dino_loss(s_global_2, t1, epoch=epoch) +
                sum(
-                   dino_loss(sl, t1) + dino_loss(sl, t2)
+                   dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
                    for sl in s_local
                )
             ) / (2 + 2 * len(locals_))
