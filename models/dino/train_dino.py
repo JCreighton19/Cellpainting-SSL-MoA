@@ -308,13 +308,18 @@ def main():
                            student_head, teacher_head, m)
 
             # Recompute teacher AFTER EMA update before updating center
+            if epoch == 0 and step < 200:
+                effective_center_momentum = 0.9999
+            else:
+                effective_center_momentum = 0.9995
+
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1_t))
                 t2 = teacher_head(teacher_enc(g2_t))
                 t1 = F.normalize(t1, dim=-1)
                 t2 = F.normalize(t2, dim=-1)
                 teacher_batch = torch.cat([t1, t2], dim=0)
-                dino_loss.update_center(teacher_batch)
+                dino_loss.update_center(teacher_batch, effective_center_momentum)
 
             total_loss += loss.item()
 
