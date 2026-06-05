@@ -37,9 +37,9 @@ class DINOLoss(nn.Module):
         loss = -(teacher_probs * student_log_probs).sum(dim=-1).mean()
         return loss
 
-
     @torch.no_grad()
     def update_center(self, teacher_out):
         batch_center = teacher_out.mean(dim=0, keepdim=True)
-        self.center.mul_(self.center_momentum)
-        self.center.add_(batch_center * (1 - self.center_momentum))
+        momentum = 0.9995 # stronger stability (key fix)
+        self.center.mul_(momentum)
+        self.center.add_(batch_center * (1.0 - momentum))

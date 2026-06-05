@@ -290,9 +290,9 @@ def main():
                     f"cos_sim={cos_sim:.4f}"
                 )
             if step % 500 == 0:
-                print(f"teacher norm: , {t1.norm(dim=-1).mean().item():.4f} ",
-                      f"student norm: , {s_global.norm(dim=-1).mean().item():.4f} ",
-                      f"center norm: , {dino_loss.center.norm().item():.4f} ")
+                print(f"teacher norm: {t1.norm(dim=-1).mean().item():.4f} ",
+                      f"student norm: {s_global.norm(dim=-1).mean().item():.4f} ",
+                      f"center norm: {dino_loss.center.norm().item():.4f} ")
 
             optimizer.zero_grad()
             loss.backward()
@@ -311,6 +311,8 @@ def main():
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1_t))
                 t2 = teacher_head(teacher_enc(g2_t))
+                t1 = F.normalize(t1, dim=-1)
+                t2 = F.normalize(t2, dim=-1)
                 teacher_batch = torch.cat([t1, t2], dim=0)
                 dino_loss.update_center(teacher_batch)
 
