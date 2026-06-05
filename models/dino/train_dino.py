@@ -306,17 +306,16 @@ def main():
             embed_norms.append(embed_norm)
 
             loss = 0
-
-            # global-global (crossed)
+            # symmetric global loss (IMPORTANT: cross only once per pair)
             loss += dino_loss(s_global, t1, epoch=epoch)
             loss += dino_loss(s_global_2, t2, epoch=epoch)
 
-            # local -> BOTH global targets
+            # locals ONLY match ONE randomly chosen global per step (critical stabilization trick)
             for sl in s_local:
-                loss += dino_loss(sl, t1, epoch=epoch)
-                loss += dino_loss(sl, t2, epoch=epoch)
+                target = t1 if torch.rand(1).item() < 0.5 else t2
+                loss += dino_loss(sl, target, epoch=epoch)
 
-            loss = loss / (2 + 2 * len(s_local))
+            loss = loss / (2 + len(s_local))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
@@ -325,6 +324,7 @@ def main():
                     f"norm={embed_norm:.4f} "
                     f"cos_sim={cos_sim:.4f}"
                 )
+            if step % 500 == 0:
                 print("teacher norm:", t1.norm(dim=-1).mean().item(),
                       "student norm:", s_global.norm(dim=-1).mean().item(),
                       "center norm:", dino_loss.center.norm().item())
