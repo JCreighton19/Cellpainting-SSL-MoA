@@ -231,9 +231,11 @@ def main():
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
             masks = batch["otsu_mask"].to(device)
 
-            # 2 GLOBAL VIEWS (teacher): independent 224×224 foreground crops
-            g1 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
-            g2 = teacher_augment(foreground_crop(images, crop_size=224, masks=masks))
+            # 2 GLOBAL VIEWS: independent 224×224 foreground crops
+            g1_t = teacher_augment(foreground_crop(images, 224, masks))
+            g2_t = teacher_augment(foreground_crop(images, 224, masks))
+            g1_s = student_augment(foreground_crop(images, 224, masks))
+            g2_s = student_augment(foreground_crop(images, 224, masks))
 
             # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
             locals_ = [
@@ -247,11 +249,11 @@ def main():
             # ENCODING
             with torch.no_grad():
                 # Do NOT normalize projection head outputs
-                t1 = teacher_head(teacher_enc(g1))
-                t2 = teacher_head(teacher_enc(g2))
+                t1 = teacher_head(teacher_enc(g1_t))
+                t2 = teacher_head(teacher_enc(g2_t))
 
-            s_global = student_head(student_enc(g1))
-            s_global_2 = student_head(student_enc(g2))
+            s_global = student_head(student_enc(g1_s))
+            s_global_2 = student_head(student_enc(g2_s))
             s_local = [student_head(student_enc(v)) for v in locals_]
 
             with torch.no_grad():
@@ -307,8 +309,8 @@ def main():
 
             # Recompute teacher AFTER EMA update before updating center
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(g1))
-                t2 = teacher_head(teacher_enc(g2))
+                t1 = teacher_head(teacher_enc(g1_t))
+                t2 = teacher_head(teacher_enc(g2_t))
                 teacher_batch = torch.cat([t1, t2], dim=0)
                 dino_loss.update_center(teacher_batch)
 

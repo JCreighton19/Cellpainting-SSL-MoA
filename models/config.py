@@ -1,7 +1,7 @@
 # Basic config
 
 CONFIG = {
-    "lr": 1e-4,
+    "lr": 5e-5,
     "n_epochs": 30,
     "batch_size": 8,
     "num_workers": 4,
