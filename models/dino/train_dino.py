@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import os
 import sys
@@ -8,13 +7,11 @@ import numpy as np
 import time
 from datetime import datetime
 import torch.nn.functional as F
-from torchvision.utils import save_image
-from torchvision.utils import make_grid
 import torchvision.transforms.functional as TF
 
 from datasets.dataset import CellPaintingDataset
 from models.dino.dino_loss import DINOLoss
-from models.dino.dino import CellPaintingViT
+from models.dino.dino import CellPaintingViT, DINOHead
 from models.config import CONFIG
 
 
@@ -48,7 +45,6 @@ def main():
     )
     debug_dir = os.path.join(run_dir, "aug_debug")
     os.makedirs(debug_dir, exist_ok=True)
-
     print("\n=== Dataset Summary ===")
     print(f"Dataset directory: {data_dir}")
     print(f"Dataset length: {len(dataset)}")
@@ -99,7 +95,7 @@ def main():
         ).uniform_(0.95, 1.05)
         x = x * channel_scale
 
-        return x.clamp(0, 1)
+        return x
 
 
     def student_augment(x):
@@ -120,16 +116,12 @@ def main():
         )
 
         # stronger intensity perturbation
-        intensity = torch.empty(
-            B, 1, 1, 1,
-            device=x.device
-        ).uniform_(0.6, 1.4)
+        intensity = torch.empty(B, 1, 1, 1,device=x.device
+                                ).uniform_(0.6, 1.4)
         x = x * intensity
 
-        channel_scale = torch.empty(
-            B, 5, 1, 1,
-            device=x.device
-        ).uniform_(0.9,1.1)
+        channel_scale = torch.empty(B, 5, 1, 1,device=x.device
+                                    ).uniform_(0.9,1.1)
         x = x * channel_scale
 
         # gaussian blur
@@ -145,14 +137,11 @@ def main():
 
         # noise
         noise_mask = (
-                torch.rand(
-                    B, 1, 1, 1,
-                    device=x.device
-                ) < 0.5
+                torch.rand(B, 1, 1, 1,device=x.device) < 0.5
         )
 
         x = x + noise_mask * torch.randn_like(x) * 0.02
-        return x.clamp(0, 1)
+        return x
 
     def foreground_crop(images, crop_size, masks):
         B, C, H, W = images.shape
@@ -165,7 +154,6 @@ def main():
 
         # fallback random if empty mask
         rand_idx = torch.randint(0, H * W, (B,), device=images.device)
-
         idx = torch.where(has_fg, fg_idx, rand_idx)
         ys = idx // W
         xs = idx % W
@@ -186,26 +174,12 @@ def main():
     student_enc = CellPaintingViT(in_channels=5).to(device)
     teacher_enc = CellPaintingViT(in_channels=5).to(device)
     teacher_enc.load_state_dict(student_enc.state_dict())
-
     for p in teacher_enc.parameters():
         p.requires_grad = False
-
-    class DINOHead(nn.Module):
-        def __init__(self, dim=384, proj_dim=256):
-            super().__init__()
-            self.mlp = nn.Sequential(
-                nn.Linear(dim, 512),
-                nn.GELU(),
-                nn.Linear(512, proj_dim)
-            )
-
-        def forward(self, x):
-            return self.mlp(x)
 
     student_head = DINOHead().to(device)
     teacher_head = DINOHead().to(device)
     teacher_head.load_state_dict(student_head.state_dict())
-
     teacher_enc.eval()
     teacher_head.eval()
 
@@ -275,8 +249,6 @@ def main():
                 # Do NOT normalize projection head outputs
                 t1 = teacher_head(teacher_enc(g1))
                 t2 = teacher_head(teacher_enc(g2))
-                teacher_batch = torch.cat([t1, t2],dim=0)
-                dino_loss.update_center(teacher_batch)
 
             s_global = student_head(student_enc(g1))
             s_global_2 = student_head(student_enc(g2))
@@ -316,12 +288,13 @@ def main():
                     f"cos_sim={cos_sim:.4f}"
                 )
             if step % 500 == 0:
-                print("teacher norm:", t1.norm(dim=-1).mean().item(),
-                      "student norm:", s_global.norm(dim=-1).mean().item(),
-                      "center norm:", dino_loss.center.norm().item())
+                print(f"teacher norm: , {t1.norm(dim=-1).mean().item():.4f} ",
+                      f"student norm: , {s_global.norm(dim=-1).mean().item():.4f} ",
+                      f"center norm: , {dino_loss.center.norm().item():.4f} ")
 
             optimizer.zero_grad()
             loss.backward()
+
             torch.nn.utils.clip_grad_norm_(
                 list(student_enc.parameters()) +
                 list(student_head.parameters()),
@@ -332,6 +305,13 @@ def main():
             update_teacher(student_enc, teacher_enc,
                            student_head, teacher_head, m)
 
+            # Recompute teacher AFTER EMA update before updating center
+            with torch.no_grad():
+                t1 = teacher_head(teacher_enc(g1))
+                t2 = teacher_head(teacher_enc(g2))
+                teacher_batch = torch.cat([t1, t2], dim=0)
+                dino_loss.update_center(teacher_batch)
+
             total_loss += loss.item()
 
         epoch_end = time.perf_counter()
@@ -339,7 +319,6 @@ def main():
 
         avg_loss = total_loss / len(loader)
         losses.append(avg_loss)
-
         avg_cos = np.mean(cos_sims)
         avg_std = np.mean(embed_stds)
         avg_norm = np.mean(embed_norms)

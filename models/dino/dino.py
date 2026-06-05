@@ -50,6 +50,19 @@ class CellPaintingViT(nn.Module):
         return x
 
 
+class DINOHead(nn.Module):
+    def __init__(self, dim=384, proj_dim=256):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(dim, 512),
+            nn.GELU(),
+            nn.Linear(512, proj_dim)
+        )
+
+    def forward(self, x):
+        return self.mlp(x)
+
+
 if __name__ == "__main__":
     model = CellPaintingViT(in_channels=5, pretrained=True)
     x = torch.randn(2, 5, 224, 224)
