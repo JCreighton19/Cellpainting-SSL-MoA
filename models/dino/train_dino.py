@@ -281,6 +281,14 @@ def main():
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1))
                 t2 = teacher_head(teacher_enc(g2))
+                teacher_batch = torch.cat(
+                    [t1, t2],
+                    dim=0
+                )
+
+                dino_loss.update_center(
+                    teacher_batch
+                )
 
             s_global = student_head(student_enc(g1))
             s_global_2 = student_head(student_enc(g2))

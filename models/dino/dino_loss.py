@@ -5,8 +5,8 @@ from torch import nn
 
 class DINOLoss(nn.Module):
     def __init__(self, proj_dim=256, ncrops=2, warmup_teacher_temp=0.04,
-                 teacher_temp=0.1, warmup_epochs=10, nepochs=100,
-                 center_momentum=0.95):
+                 teacher_temp=0.07, warmup_epochs=10, nepochs=100,
+                 center_momentum=0.99):
         super().__init__()
         self.ncrops = ncrops
         self.center_momentum = center_momentum
@@ -37,7 +37,6 @@ class DINOLoss(nn.Module):
 
         # cross entropy loss
         loss = -(teacher_probs * student_log_probs).sum(dim=-1).mean()
-        self.update_center(teacher_out)
 
         return loss
 
