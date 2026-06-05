@@ -224,18 +224,11 @@ def main():
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
                        student_head, teacher_head, momentum):
-        with torch.no_grad():
-            for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
-                pt.mul_(momentum).add_(ps * (1 - momentum))
+        for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
+            pt.mul_(momentum).add_(ps * (1 - momentum))
 
-            for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
-                pt.mul_(momentum).add_(ps * (1 - momentum))
-
-
-    VIS_CHANS = [0, 3, 4]  # Mito, ER, DNA
-    def to_vis(x):
-        x = x[:, VIS_CHANS]  # select channels
-        return x.detach().cpu().float().clamp(0, 1)
+        for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
+            pt.mul_(momentum).add_(ps * (1 - momentum))
 
 
     # Training loop
@@ -279,17 +272,15 @@ def main():
 
             # ENCODING
             with torch.no_grad():
-                t1 = F.normalize(teacher_head(teacher_enc(g1)), dim=-1)
-                t2 = F.normalize(teacher_head(teacher_enc(g2)), dim=-1)
-                teacher_batch = torch.cat(
-                    [t1, t2],
-                    dim=0
-                )
-                dino_loss.update_center(F.normalize(teacher_batch, dim=-1))
+                # Do NOT normalize projection head outputs
+                t1 = teacher_head(teacher_enc(g1))
+                t2 = teacher_head(teacher_enc(g2))
+                teacher_batch = torch.cat([t1, t2],dim=0)
+                dino_loss.update_center(teacher_batch)
 
-            s_global = F.normalize(student_head(student_enc(g1)), dim=-1)
-            s_global_2 = F.normalize(student_head(student_enc(g2)), dim=-1)
-            s_local = [F.normalize(student_head(student_enc(v)), dim=-1) for v in locals_]
+            s_global = student_head(student_enc(g1))
+            s_global_2 = student_head(student_enc(g2))
+            s_local = [student_head(student_enc(v)) for v in locals_]
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
@@ -306,16 +297,16 @@ def main():
             embed_norms.append(embed_norm)
 
             loss = 0
-            # symmetric global loss (IMPORTANT: cross only once per pair)
-            loss += dino_loss(s_global, t1, epoch=epoch)
-            loss += dino_loss(s_global_2, t2, epoch=epoch)
+            # cross-global losses
+            loss += dino_loss(s_global, t2)
+            loss += dino_loss(s_global_2, t1)
 
-            # locals ONLY match ONE randomly chosen global per step (critical stabilization trick)
+            # local losses
             for sl in s_local:
-                target = t1 if torch.rand(1).item() < 0.5 else t2
-                loss += dino_loss(sl, target, epoch=epoch)
+                loss += dino_loss(sl, t1)
+                loss += dino_loss(sl, t2)
 
-            loss = loss / (2 + len(s_local))
+            loss = loss / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
