@@ -29,7 +29,7 @@ class DINOLoss(nn.Module):
         student_temp = 0.1
 
         # teacher distribution
-        teacher_logits = (teacher_out - self.center) / teacher_temp
+        teacher_logits = (F.normalize(teacher_out, dim=-1) - self.center) / teacher_temp
         teacher_probs = F.softmax(teacher_logits, dim=-1).detach()
 
         # student distribution

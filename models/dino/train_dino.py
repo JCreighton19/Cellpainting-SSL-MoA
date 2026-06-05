@@ -272,13 +272,13 @@ def main():
 
             loss = 0
             # cross-global losses
-            loss += dino_loss(s_global, t2)
-            loss += dino_loss(s_global_2, t1)
+            loss += dino_loss(s_global,   t2, epoch=epoch)
+            loss += dino_loss(s_global_2, t1, epoch=epoch)
 
             # local losses
             for sl in s_local:
-                loss += dino_loss(sl, t1)
-                loss += dino_loss(sl, t2)
+                loss += dino_loss(sl, t1, epoch=epoch)
+                loss += dino_loss(sl, t2, epoch=epoch)
 
             loss = loss / (2 + 2 * len(locals_))
 
@@ -308,10 +308,7 @@ def main():
                            student_head, teacher_head, m)
 
             # Recompute teacher AFTER EMA update before updating center
-            if epoch == 0 and step < 200:
-                effective_center_momentum = 0.9999
-            else:
-                effective_center_momentum = 0.9995
+            effective_center_momentum = 0.9
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1_t))
