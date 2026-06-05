@@ -279,20 +279,17 @@ def main():
 
             # ENCODING
             with torch.no_grad():
-                t1 = teacher_head(teacher_enc(g1))
-                t2 = teacher_head(teacher_enc(g2))
+                t1 = F.normalize(teacher_head(teacher_enc(g1)), dim=-1)
+                t2 = F.normalize(teacher_head(teacher_enc(g2)), dim=-1)
                 teacher_batch = torch.cat(
                     [t1, t2],
                     dim=0
                 )
+                dino_loss.update_center(F.normalize(teacher_batch, dim=-1))
 
-                dino_loss.update_center(
-                    teacher_batch
-                )
-
-            s_global = student_head(student_enc(g1))
-            s_global_2 = student_head(student_enc(g2))
-            s_local = [student_head(student_enc(v)) for v in locals_]
+            s_global = F.normalize(student_head(student_enc(g1)), dim=-1)
+            s_global_2 = F.normalize(student_head(student_enc(g2)), dim=-1)
+            s_local = [F.normalize(student_head(student_enc(v)), dim=-1) for v in locals_]
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
@@ -308,14 +305,18 @@ def main():
             embed_stds.append(embed_std)
             embed_norms.append(embed_norm)
 
-            loss = (
-               dino_loss(s_global, t2, epoch=epoch) +
-               dino_loss(s_global_2, t1, epoch=epoch) +
-               sum(
-                   dino_loss(sl, t1, epoch=epoch) + dino_loss(sl, t2, epoch=epoch)
-                   for sl in s_local
-               )
-            ) / (2 + 2 * len(locals_))
+            loss = 0
+
+            # global-global (crossed)
+            loss += dino_loss(s_global, t1, epoch=epoch)
+            loss += dino_loss(s_global_2, t2, epoch=epoch)
+
+            # local -> BOTH global targets
+            for sl in s_local:
+                loss += dino_loss(sl, t1, epoch=epoch)
+                loss += dino_loss(sl, t2, epoch=epoch)
+
+            loss = loss / (2 + 2 * len(s_local))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps "
@@ -324,6 +325,9 @@ def main():
                     f"norm={embed_norm:.4f} "
                     f"cos_sim={cos_sim:.4f}"
                 )
+                print("teacher norm:", t1.norm(dim=-1).mean().item(),
+                      "student norm:", s_global.norm(dim=-1).mean().item(),
+                      "center norm:", dino_loss.center.norm().item())
 
             optimizer.zero_grad()
             loss.backward()
@@ -363,9 +367,9 @@ def main():
         print(
             f"Epoch {epoch + 1}/{n_epochs} | "
             f"Loss: {avg_loss:.4f} | "
-            f"cos_sim: {avg_cos:.4f} | "
             f"std: {avg_std:.4f} | "
             f"norm: {avg_norm:.4f} | "
+            f"cos_sim: {avg_cos:.4f} | "
             f"collapse: {collapse_score:.4f} | "
             f"Time: {epoch_time / 60:.2f} min\n"
         )
