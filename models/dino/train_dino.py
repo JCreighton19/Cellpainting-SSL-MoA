@@ -308,7 +308,7 @@ def main():
                            student_head, teacher_head, m)
 
             # Recompute teacher AFTER EMA update before updating center
-            effective_center_momentum = 0.998
+            effective_center_momentum = 0.97
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1_t))
