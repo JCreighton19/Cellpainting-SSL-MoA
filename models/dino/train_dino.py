@@ -289,10 +289,6 @@ def main():
                     f"norm={embed_norm:.4f} "
                     f"cos_sim={cos_sim:.4f}"
                 )
-            if step % 500 == 0:
-                print(f"teacher norm: {t1.norm(dim=-1).mean().item():.4f} ",
-                      f"student norm: {s_global.norm(dim=-1).mean().item():.4f} ",
-                      f"center norm: {dino_loss.center.norm().item():.4f} ")
 
             optimizer.zero_grad()
             loss.backward()
