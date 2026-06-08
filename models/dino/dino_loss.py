@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
+import torch.distributed as dist
 
 
 class DINOLoss(nn.Module):
@@ -39,7 +40,14 @@ class DINOLoss(nn.Module):
 
     @torch.no_grad()
     def update_center(self, teacher_out, momentum=None):
-        batch_center = teacher_out.mean(dim=0, keepdim=True)
-        momentum = momentum if momentum is not None else 0.9995
+        batch_center = teacher_out.mean(dim=0, keepdim=True) # local GPU mean
+        momentum = (momentum if momentum is not None else self.center_momentum)
+
+        # synchronize across GPUs
+        if dist.is_available() and dist.is_initialized():
+            dist.all_reduce(batch_center,op=dist.ReduceOp.SUM)
+            batch_center /= dist.get_world_size()
+
+        # EMA update
         self.center.mul_(momentum)
-        self.center.add_(batch_center * (1.0 - momentum))
+        self.center.add_(batch_center *(1.0 - momentum))
