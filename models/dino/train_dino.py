@@ -207,8 +207,8 @@ def main():
 
     # Training loop
     n_epochs = CONFIG["n_epochs"]
-    m_min = 0.990
-    m_max = 0.9999
+    m_min = 0.996
+    m_max = 0.9998
     losses = []
 
     for epoch in range(n_epochs):
@@ -294,11 +294,6 @@ def main():
                       f"student norm: {s_global.norm(dim=-1).mean().item():.4f} ",
                       f"center norm: {dino_loss.center.norm().item():.4f} ")
 
-            all_student = torch.cat([s_global, s_global_2] + s_local, dim=0)
-            std_s = all_student.std(dim=0)
-            var_loss = F.relu(1.0 - std_s).mean()
-            loss = loss + 0.1 * var_loss
-
             optimizer.zero_grad()
             loss.backward()
 
@@ -313,13 +308,11 @@ def main():
                            student_head, teacher_head, m)
 
             # Recompute teacher AFTER EMA update before updating center
-            effective_center_momentum = 0.995
+            effective_center_momentum = 0.998
 
             with torch.no_grad():
                 t1 = teacher_head(teacher_enc(g1_t))
                 t2 = teacher_head(teacher_enc(g2_t))
-                t1 = F.normalize(t1, dim=-1)
-                t2 = F.normalize(t2, dim=-1)
                 teacher_batch = torch.cat([t1, t2], dim=0)
 
                 # TEACHER ENTROPY METRICS
