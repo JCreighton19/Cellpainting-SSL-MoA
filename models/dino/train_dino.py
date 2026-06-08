@@ -215,7 +215,8 @@ def main():
 
         epoch_start = time.perf_counter()
         epoch_start_dt = datetime.now()
-        print(f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
+        print(f"\n====================="
+              f"\nEpoch {epoch + 1}/{n_epochs} | Start time: {epoch_start_dt.strftime('%I:%M %p')}")
 
         student_enc.train()
         student_head.train()
@@ -283,10 +284,10 @@ def main():
             loss = loss / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
-                print(f"{step}/{len(loader)} steps "
-                    f"loss={loss.item():.4f} "
-                    f"std={embed_std:.4f} "
-                    f"norm={embed_norm:.4f} "
+                print(f"{step}/{len(loader)} steps |"
+                    f"loss={loss.item():.4f} |"
+                    f"std={embed_std:.4f} |"
+                    f"norm={embed_norm:.4f} |"
                     f"cos_sim={cos_sim:.4f}"
                 )
 
@@ -322,11 +323,11 @@ def main():
                 entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                 max_prob = teacher_probs.max(dim=-1).values.mean()
                 effective_classes = entropy.exp()
-                if step % 100 == 0:
+                if step % 100 == 0 and step != 0:
                     print(
                         f"teacher entropy={entropy.item():.3f} | "
                         f"eff_classes={effective_classes.item():.1f} | "
-                        f"top1={max_prob.item():.4f}\n"
+                        f"top1={max_prob.item():.4f}"
                     )
 
                 # update center AFTER diagnostics
@@ -362,6 +363,7 @@ def main():
             f"cos_sim: {avg_cos:.4f} | "
             f"collapse: {collapse_score:.4f} | "
             f"Time: {epoch_time / 60:.2f} min\n"
+            f"====================="
         )
 
     print(f"Finished training. Checkpoints saved at {run_dir}")
