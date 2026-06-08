@@ -1,6 +1,7 @@
 # models/dino.py
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import timm
 
 class CellPaintingViT(nn.Module):
@@ -60,7 +61,7 @@ class DINOHead(nn.Module):
         )
 
     def forward(self, x):
-        return self.mlp(x)
+        return F.normalize(self.mlp(x), dim=-1)
 
 
 if __name__ == "__main__":

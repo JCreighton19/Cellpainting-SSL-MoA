@@ -207,7 +207,7 @@ def main():
 
     # Training loop
     n_epochs = CONFIG["n_epochs"]
-    m_min = 0.9960
+    m_min = 0.990
     m_max = 0.9999
     losses = []
 
@@ -294,6 +294,11 @@ def main():
                       f"student norm: {s_global.norm(dim=-1).mean().item():.4f} ",
                       f"center norm: {dino_loss.center.norm().item():.4f} ")
 
+            all_student = torch.cat([s_global, s_global_2] + s_local, dim=0)
+            std_s = all_student.std(dim=0)
+            var_loss = F.relu(1.0 - std_s).mean()
+            loss = loss + 0.1 * var_loss
+
             optimizer.zero_grad()
             loss.backward()
 
@@ -318,14 +323,18 @@ def main():
                 teacher_batch = torch.cat([t1, t2], dim=0)
 
                 # TEACHER ENTROPY METRICS
-                teacher_logits = teacher_batch / 0.1  # use SAME temp as loss (adjust if needed)
+                if epoch < dino_loss.warmup_epochs:
+                    alpha = epoch / dino_loss.warmup_epochs
+                    diag_temp = dino_loss.warmup_teacher_temp + alpha * (dino_loss.teacher_temp - dino_loss.warmup_teacher_temp)
+                else:
+                    diag_temp = dino_loss.teacher_temp
+                teacher_logits = (teacher_batch - dino_loss.center) / diag_temp
                 teacher_probs = F.softmax(teacher_logits, dim=-1)
                 entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                 max_prob = teacher_probs.max(dim=-1).values.mean()
                 effective_classes = entropy.exp()
                 if step % 100 == 0:
                     print(
-                        f"[teacher stats] "
                         f"teacher entropy={entropy.item():.3f} | "
                         f"eff_classes={effective_classes.item():.1f} | "
                         f"top1={max_prob.item():.4f}\n"
