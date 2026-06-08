@@ -326,9 +326,9 @@ def main():
                 if step % 100 == 0:
                     print(
                         f"[teacher stats] "
-                        f"entropy={entropy.item():.3f} "
-                        f"eff_classes={effective_classes.item():.1f} "
-                        f"top1={max_prob.item():.4f}"
+                        f"teacher entropy={entropy.item():.3f} | "
+                        f"eff_classes={effective_classes.item():.1f} | "
+                        f"top1={max_prob.item():.4f}\n"
                     )
 
                 # update center AFTER diagnostics
