@@ -51,7 +51,7 @@ class CellPaintingViT(nn.Module):
 
 
 class DINOHead(nn.Module):
-    def __init__(self, dim=384, proj_dim=256):
+    def __init__(self, dim=384, proj_dim=4096):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(dim, 512),
