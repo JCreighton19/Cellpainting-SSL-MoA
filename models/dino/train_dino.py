@@ -316,6 +316,22 @@ def main():
                 t1 = F.normalize(t1, dim=-1)
                 t2 = F.normalize(t2, dim=-1)
                 teacher_batch = torch.cat([t1, t2], dim=0)
+
+                # TEACHER ENTROPY METRICS
+                teacher_logits = teacher_batch / 0.1  # use SAME temp as loss (adjust if needed)
+                teacher_probs = F.softmax(teacher_logits, dim=-1)
+                entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
+                max_prob = teacher_probs.max(dim=-1).values.mean()
+                effective_classes = entropy.exp()
+                if step % 100 == 0:
+                    print(
+                        f"[teacher stats] "
+                        f"entropy={entropy.item():.3f} "
+                        f"eff_classes={effective_classes.item():.1f} "
+                        f"top1={max_prob.item():.4f}"
+                    )
+
+                # update center AFTER diagnostics
                 dino_loss.update_center(teacher_batch, effective_center_momentum)
 
             total_loss += loss.item()
