@@ -207,8 +207,8 @@ def main():
 
     # Training loop
     n_epochs = CONFIG["n_epochs"]
-    m_min = 0.99
-    m_max = 0.9995
+    m_min = 0.9960
+    m_max = 0.9999
     losses = []
 
     for epoch in range(n_epochs):
