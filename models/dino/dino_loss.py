@@ -5,8 +5,8 @@ import torch.distributed as dist
 
 
 class DINOLoss(nn.Module):
-    def __init__(self, proj_dim=4096, ncrops=2, warmup_teacher_temp=0.04,
-                 teacher_temp=0.07, warmup_epochs=10, nepochs=100,
+    def __init__(self, proj_dim=4096, ncrops=2, warmup_teacher_temp=0.01,
+                 teacher_temp=0.04, warmup_epochs=30, nepochs=100,
                  center_momentum=0.99):
         super().__init__()
         self.ncrops = ncrops
