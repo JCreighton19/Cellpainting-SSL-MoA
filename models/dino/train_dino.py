@@ -117,7 +117,7 @@ def main():
 
         # stronger intensity perturbation
         intensity = torch.empty(B, 1, 1, 1,device=x.device
-                                ).uniform_(0.6, 1.4)
+                                ).uniform_(0.9, 1.1)
         x = x * intensity
 
         channel_scale = torch.empty(B, 5, 1, 1,device=x.device
@@ -125,22 +125,22 @@ def main():
         x = x * channel_scale
 
         # gaussian blur
-        if random.random() < 0.5:
-            x = TF.gaussian_blur(x,
-                kernel_size=9,
-                sigma=(0.5, 1.5)
-            )
+        # if random.random() < 0.5:
+        #     x = TF.gaussian_blur(x,
+        #         kernel_size=9,
+        #         sigma=(0.5, 1.5)
+        #     )
 
         # channel dropout
-        channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
-        x = x * (~channel_drop)
-
-        # noise
-        noise_mask = (
-                torch.rand(B, 1, 1, 1,device=x.device) < 0.5
-        )
-
-        x = x + noise_mask * torch.randn_like(x) * 0.02
+        # channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
+        # x = x * (~channel_drop)
+        #
+        # # noise
+        # noise_mask = (
+        #         torch.rand(B, 1, 1, 1,device=x.device) < 0.5
+        # )
+        #
+        # x = x + noise_mask * torch.randn_like(x) * 0.02
         return x
 
     def foreground_crop(images, crop_size, masks):
