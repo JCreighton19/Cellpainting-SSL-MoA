@@ -323,7 +323,7 @@ def main():
                 entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                 max_prob = teacher_probs.max(dim=-1).values.mean()
                 effective_classes = entropy.exp()
-                if step % 100 == 0 and step != 0:
+                if step % 100 == 0:
                     print(
                         f"teacher entropy={entropy.item():.3f} | "
                         f"eff_classes={effective_classes.item():.1f} | "
