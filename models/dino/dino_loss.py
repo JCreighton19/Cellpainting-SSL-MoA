@@ -31,7 +31,6 @@ class DINOLoss(nn.Module):
 
         # teacher distribution - should be raw unnormalized logits!
         teacher_logits = (teacher_out - self.center) / teacher_temp
-        teacher_logits = torch.clamp(teacher_logits, -10, 10) # clamp
         teacher_probs = F.softmax(teacher_logits, dim=-1).detach()
         teacher_probs = teacher_probs.clamp(min=1e-8)
 
