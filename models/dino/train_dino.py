@@ -125,11 +125,11 @@ def main():
         x = x * channel_scale
 
         #gaussian blur
-        if random.random() < 0.5:
-            x = TF.gaussian_blur(x,
-                kernel_size=9,
-                sigma=(0.5, 1.5)
-            )
+        # if random.random() < 0.5:
+        #     x = TF.gaussian_blur(x,
+        #         kernel_size=9,
+        #         sigma=(0.5, 1.5)
+        #     )
 
         # channel dropout
         # channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
@@ -207,6 +207,7 @@ def main():
 
     # Training loop
     n_epochs = CONFIG["n_epochs"]
+    accum_steps = CONFIG.get("accum_steps", 4)
     m_min = 0.996
     m_max = 0.9998
     losses = []
@@ -291,47 +292,49 @@ def main():
                     f"cos_sim={cos_sim:.4f}"
                 )
 
-            optimizer.zero_grad()
+            loss = loss / accum_steps
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(
-                list(student_enc.parameters()) +
-                list(student_head.parameters()),
-                3.0
-            )
-            optimizer.step()
+            if (step + 1) % accum_steps == 0:
+                torch.nn.utils.clip_grad_norm_(
+                    list(student_enc.parameters()) +
+                    list(student_head.parameters()),
+                    3.0
+                )
 
-            update_teacher(student_enc, teacher_enc,
-                           student_head, teacher_head, m)
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                update_teacher(student_enc, teacher_enc,
+                               student_head, teacher_head, m)
 
-            # Recompute teacher AFTER EMA update before updating center
-            effective_center_momentum = 0.97
+                # Recompute teacher AFTER EMA update before updating center
+                effective_center_momentum = 0.97
 
-            with torch.no_grad():
-                t1 = teacher_head(teacher_enc(g1_t))
-                t2 = teacher_head(teacher_enc(g2_t))
-                teacher_batch = torch.cat([t1, t2], dim=0)
+                with torch.no_grad():
+                    t1 = teacher_head(teacher_enc(g1_t))
+                    t2 = teacher_head(teacher_enc(g2_t))
+                    teacher_batch = torch.cat([t1, t2], dim=0)
 
-                # TEACHER ENTROPY METRICS
-                if epoch < dino_loss.warmup_epochs:
-                    alpha = epoch / dino_loss.warmup_epochs
-                    diag_temp = dino_loss.warmup_teacher_temp + alpha * (dino_loss.teacher_temp - dino_loss.warmup_teacher_temp)
-                else:
-                    diag_temp = dino_loss.teacher_temp
-                teacher_logits = (teacher_batch - dino_loss.center) / diag_temp
-                teacher_probs = F.softmax(teacher_logits, dim=-1)
-                entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
-                max_prob = teacher_probs.max(dim=-1).values.mean()
-                effective_classes = entropy.exp()
-                if step % 100 == 0:
-                    print(
-                        f"teacher entropy={entropy.item():.3f} | "
-                        f"eff_classes={effective_classes.item():.1f} | "
-                        f"top1={max_prob.item():.4f}"
-                    )
+                    # TEACHER ENTROPY METRICS
+                    if epoch < dino_loss.warmup_epochs:
+                        alpha = epoch / dino_loss.warmup_epochs
+                        diag_temp = dino_loss.warmup_teacher_temp + alpha * (dino_loss.teacher_temp - dino_loss.warmup_teacher_temp)
+                    else:
+                        diag_temp = dino_loss.teacher_temp
+                    teacher_logits = (teacher_batch - dino_loss.center) / diag_temp
+                    teacher_probs = F.softmax(teacher_logits, dim=-1)
+                    entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
+                    max_prob = teacher_probs.max(dim=-1).values.mean()
+                    effective_classes = entropy.exp()
+                    if step % 100 == 0:
+                        print(
+                            f"teacher entropy={entropy.item():.3f} | "
+                            f"eff_classes={effective_classes.item():.1f} | "
+                            f"top1={max_prob.item():.4f}"
+                        )
 
-                # update center AFTER diagnostics
-                dino_loss.update_center(teacher_batch, effective_center_momentum)
+                    # update center AFTER diagnostics
+                    dino_loss.update_center(teacher_batch, effective_center_momentum)
 
             total_loss += loss.item()
 

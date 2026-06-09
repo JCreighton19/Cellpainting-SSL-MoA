@@ -3,7 +3,8 @@
 CONFIG = {
     "lr": 5e-5,
     "n_epochs": 30,
-    "batch_size": 32,
+    "batch_size": 32, # GPU limited to 32 without gradient accumulation
     "num_workers": 4,
     "weight_decay": 0.04,
+    "accum_steps": 4 # effective batch size = batch size × accum_steps
 }
