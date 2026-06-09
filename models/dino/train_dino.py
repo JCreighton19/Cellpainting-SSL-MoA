@@ -124,12 +124,12 @@ def main():
                                     ).uniform_(0.9,1.1)
         x = x * channel_scale
 
-        # gaussian blur
-        # if random.random() < 0.5:
-        #     x = TF.gaussian_blur(x,
-        #         kernel_size=9,
-        #         sigma=(0.5, 1.5)
-        #     )
+        #gaussian blur
+        if random.random() < 0.5:
+            x = TF.gaussian_blur(x,
+                kernel_size=9,
+                sigma=(0.5, 1.5)
+            )
 
         # channel dropout
         # channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
