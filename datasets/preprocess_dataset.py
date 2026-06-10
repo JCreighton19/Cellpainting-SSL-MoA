@@ -129,7 +129,7 @@ def compute_channel_stats(rows):
         for row in rows
     ]
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         for i, (sums, sq, n) in enumerate(executor.map(_stats_worker, path_lists)):
             channel_sums += sums
             channel_sq   += sq
@@ -167,7 +167,14 @@ def main():
     assert df["row_id"].is_unique, "row_id is not unique — indexing bug risk"
 
     rows = df.to_dict("records")
-    channel_stats = compute_channel_stats(rows)
+
+    # Create cache of channel stats
+    stats_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/channel_stats.npy")
+    if os.path.exists(stats_path):
+        channel_stats = np.load(stats_path, allow_pickle=True)
+    else:
+        channel_stats = compute_channel_stats(rows)
+        np.save(stats_path, channel_stats)
 
     saved = 0
     kept_indices = []
