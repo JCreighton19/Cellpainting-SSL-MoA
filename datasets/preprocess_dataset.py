@@ -74,7 +74,7 @@ def process_row(args):
         print(f"Skipping dead/low-signal channel image: {idx}")
         return None
 
-    if qc.get("otsu_foreground_frac", 0.0) < 0.001:
+    if qc.get("otsu_foreground_frac", 0.0) < 0.03:
         print(f"Skipping near-empty image (Otsu): {idx}")
         return None
 

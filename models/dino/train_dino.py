@@ -274,7 +274,7 @@ def main():
                     F.interpolate(foreground_crop(images, crop_size=96, masks=masks),
                                   size=224, mode='bilinear', align_corners=False)
                 )
-                for _ in range(4) # reduced to 4 from 8
+                for _ in range(8)
             ]
 
             # ENCODING
