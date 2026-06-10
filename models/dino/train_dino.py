@@ -35,8 +35,6 @@ def main():
 
     # Write run_dir so SLURM can requeue pointing at this directory
     current_run_file = os.path.join(os.environ["CP_OUTPUT_ROOT"], "checkpoints", "current_run")
-    with open(current_run_file, "w") as f:
-        f.write(run_dir)
 
     # Device
     device = (
@@ -202,6 +200,10 @@ def main():
         lr = CONFIG["lr"],
         weight_decay=CONFIG["weight_decay"]
     )
+
+    if not resume_dir:
+        with open(current_run_file, "w") as f:
+            f.write(run_dir)
 
     # Teacher update
     @torch.no_grad()

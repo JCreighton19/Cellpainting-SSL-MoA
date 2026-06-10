@@ -3,10 +3,11 @@
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
 #SBATCH --time=08:00:00
-#SBATCH --mem=24G
+#SBATCH --mem=64G
 #SBATCH --cpus-per-task=2
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
+#SBATCH --requeue
 
 
 # Paths
@@ -46,9 +47,3 @@ echo $CP_DATA_ROOT
 echo "Starting training..."
 
 $PYTHON models/dino/train_dino.py
-
-# Requeue if there are remaining epochs (Python writes run_dir to current_run)
-CURRENT_RUN=$(cat $OUT/checkpoints/current_run 2>/dev/null || true)
-if [ -n "$CURRENT_RUN" ]; then
-    sbatch --export=ALL,RESUME_DIR="$CURRENT_RUN" $REPO/models/dino/train_dino.slurm
-fi
