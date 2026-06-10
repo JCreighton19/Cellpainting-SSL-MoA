@@ -54,7 +54,6 @@ class MoASampler:
 
         self.moa_list      = list(self.moa_to_files.keys())
         self.compound_list = list(self.compound_to_files.keys())
-
         self.replicate_compounds = [
             c for c, well_list in self.compound_well_index.items()
             if len({w["plate"] for w in well_list}) >= 2

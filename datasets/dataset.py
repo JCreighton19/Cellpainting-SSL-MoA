@@ -16,6 +16,7 @@ class CellPaintingDataset(Dataset):
         )
         self.metadata = pd.read_parquet(metadata_path)
         self.files = self.metadata["pt_path"].tolist()
+        self.n_files = len(self.files)
         self.tile_size = tile_size
         self.random_crop = random_crop
         self.k_per_class = k_per_class
@@ -26,9 +27,7 @@ class CellPaintingDataset(Dataset):
         )
 
     def __len__(self):
-        if self.k_per_class > 1:
-            return len(self.files) // self.k_per_class
-        return len(self.files)
+        return 20000
 
     @staticmethod
     def sample_foreground_crop(img, tile_size):
