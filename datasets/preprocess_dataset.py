@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from skimage.filters import threshold_otsu
+import time
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 OUT_DIR = Path(os.path.join(
@@ -66,7 +68,6 @@ def process_row(args):
     )
     dna_raw = image[4]
 
-
     # QC filtering (note: thresholds somewhat arbitrarily chosen)
     qc = image_qc(image)
 
@@ -121,7 +122,11 @@ def compute_channel_stats(rows):
     channel_sums = np.zeros(5, dtype=np.float64)
     channel_sq   = np.zeros(5, dtype=np.float64)
     n_pixels     = np.zeros(5, dtype=np.float64)
+    start_time = time.time()
+    start_dt = datetime.now()
+    total = len(rows)
     print("Computing dataset normalization stats...")
+    print(f"Start time: {start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
     path_lists = [
         [row["mito_img_path"], row["agp_img_path"], row["rna_img_path"],
@@ -134,8 +139,18 @@ def compute_channel_stats(rows):
             channel_sums += sums
             channel_sq   += sq
             n_pixels     += n
-            if i % 100 == 0:
-                print(f"{i}/{len(rows)}")
+            if i % 1000 == 0 and i > 0:
+                elapsed = time.time() - start_time
+                rate = i / elapsed
+                remaining = total - i
+                eta_seconds = remaining / rate
+                eta_dt = datetime.now() + timedelta(seconds=eta_seconds)
+
+                print(
+                    f"{i}/{total} | "
+                    f"{rate:.1f} files/sec | "
+                    f"ETA: {eta_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
 
     means = channel_sums / n_pixels
     vars_ = channel_sq / n_pixels - means**2
