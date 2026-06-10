@@ -8,7 +8,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
 
-set -e
 
 # Paths
 REPO=/home/creighton.jo/Cellpainting-SSL-MoA
@@ -47,3 +46,9 @@ echo $CP_DATA_ROOT
 echo "Starting training..."
 
 $PYTHON models/dino/train_dino.py
+
+# Requeue if there are remaining epochs (Python writes run_dir to current_run)
+CURRENT_RUN=$(cat $OUT/checkpoints/current_run 2>/dev/null || true)
+if [ -n "$CURRENT_RUN" ]; then
+    sbatch --export=ALL,RESUME_DIR="$CURRENT_RUN" $REPO/models/dino/train_dino.slurm
+fi

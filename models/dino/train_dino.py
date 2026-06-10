@@ -21,13 +21,22 @@ def main():
     random.seed(42)
     sys.stdout.reconfigure(line_buffering=True)
 
-    # Make checkpoints dir, if it does not yet exist
-    run_dir = os.path.join(
-        os.environ["CP_OUTPUT_ROOT"],
-        "checkpoints",
-        datetime.now().strftime("%m%d%y_%H%M")
-    )
+    # Make checkpoints dir, or resume an existing one
+    resume_dir = os.environ.get("RESUME_DIR", "")
+    if resume_dir:
+        run_dir = resume_dir
+    else:
+        run_dir = os.path.join(
+            os.environ["CP_OUTPUT_ROOT"],
+            "checkpoints",
+            datetime.now().strftime("%m%d%y_%H%M")
+        )
     os.makedirs(run_dir, exist_ok=True)
+
+    # Write run_dir so SLURM can requeue pointing at this directory
+    current_run_file = os.path.join(os.environ["CP_OUTPUT_ROOT"], "checkpoints", "current_run")
+    with open(current_run_file, "w") as f:
+        f.write(run_dir)
 
     # Device
     device = (
@@ -205,6 +214,25 @@ def main():
             pt.mul_(momentum).add_(ps * (1 - momentum))
 
 
+    # Resume from latest checkpoint if available
+    start_epoch = 0
+    checkpoints = sorted([
+        f for f in os.listdir(run_dir) if f.startswith("dino_epoch_") and f.endswith(".pt")
+    ], key=lambda x: int(x.split("_")[-1].split(".")[0]))
+    if checkpoints:
+        ckpt_path = os.path.join(run_dir, checkpoints[-1])
+        print(f"Resuming from checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=device)
+        student_enc.load_state_dict(ckpt["student_enc"])
+        student_head.load_state_dict(ckpt["student_head"])
+        teacher_enc.load_state_dict(ckpt["teacher_enc"])
+        teacher_head.load_state_dict(ckpt["teacher_head"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        if "center" in ckpt:
+            dino_loss.center.copy_(ckpt["center"])
+        start_epoch = ckpt["epoch"] + 1
+        print(f"Resuming from epoch {start_epoch}")
+
     # Training loop
     n_epochs = CONFIG["n_epochs"]
     accum_steps = CONFIG.get("accum_steps", 4)
@@ -212,7 +240,7 @@ def main():
     m_max = 0.9998
     losses = []
 
-    for epoch in range(n_epochs):
+    for epoch in range(start_epoch, n_epochs):
 
         epoch_start = time.perf_counter()
         epoch_start_dt = datetime.now()
@@ -228,6 +256,7 @@ def main():
         cos_sims = []
         embed_stds = []
         embed_norms = []
+        opt_step = 0
 
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
@@ -292,6 +321,7 @@ def main():
                     f"cos_sim={cos_sim:.4f}"
                 )
 
+            total_loss += loss.item()
             loss = loss / accum_steps
             loss.backward()
 
@@ -306,6 +336,7 @@ def main():
                 optimizer.zero_grad(set_to_none=True)
                 update_teacher(student_enc, teacher_enc,
                                student_head, teacher_head, m)
+                opt_step += 1
 
                 # Recompute teacher AFTER EMA update before updating center
                 effective_center_momentum = 0.97
@@ -326,7 +357,7 @@ def main():
                     entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                     max_prob = teacher_probs.max(dim=-1).values.mean()
                     effective_classes = entropy.exp()
-                    if step % 50 == 0:
+                    if opt_step % 50 == 0:
                         print(
                             f"teacher entropy={entropy.item():.3f} | "
                             f"eff_classes={effective_classes.item():.1f} | "
@@ -336,7 +367,6 @@ def main():
                     # update center AFTER diagnostics
                     dino_loss.update_center(teacher_batch, effective_center_momentum)
 
-            total_loss += loss.item()
 
         epoch_end = time.perf_counter()
         epoch_time = epoch_end - epoch_start
@@ -353,7 +383,9 @@ def main():
             "student_enc": student_enc.state_dict(),
             "student_head": student_head.state_dict(),
             "teacher_enc": teacher_enc.state_dict(),
+            "teacher_head": teacher_head.state_dict(),
             "optimizer": optimizer.state_dict(),
+            "center": dino_loss.center,
             "epoch": epoch,
             "loss": avg_loss
         }, os.path.join(run_dir, f"dino_epoch_{epoch + 1}.pt"))
