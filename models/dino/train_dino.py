@@ -268,13 +268,12 @@ def main():
 
             # ENCODING
             with torch.no_grad():
-                # Do NOT normalize projection head outputs
-                t1 = teacher_head(teacher_enc(g1_t))
-                t2 = teacher_head(teacher_enc(g2_t))
+                t_both = teacher_head(teacher_enc(torch.cat([g1_t, g2_t], dim=0)))
+                t1, t2 = t_both.chunk(2, dim=0)
 
-            s_global = student_head(student_enc(g1_s))
-            s_global_2 = student_head(student_enc(g2_s))
-            s_local = [student_head(student_enc(v)) for v in locals_]
+            s_globals = student_head(student_enc(torch.cat([g1_s, g2_s], dim=0)))
+            s_global, s_global_2 = s_globals.chunk(2, dim=0)
+            s_local = list(student_head(student_enc(torch.cat(locals_, dim=0))).chunk(len(locals_), dim=0))
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
@@ -331,8 +330,6 @@ def main():
                 effective_center_momentum = 0.97
 
                 with torch.no_grad():
-                    t1 = teacher_head(teacher_enc(g1_t))
-                    t2 = teacher_head(teacher_enc(g2_t))
                     teacher_batch = torch.cat([t1, t2], dim=0)
 
                     # TEACHER ENTROPY METRICS
