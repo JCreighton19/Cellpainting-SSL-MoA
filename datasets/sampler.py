@@ -27,6 +27,7 @@ class MoASampler:
 
             plate = str(row.get("plate") or "")
             well  = str(row.get("well") or "")
+            fp = row["pt_path"]
 
             if not moa_missing:
                 self.moa_to_files[moa].append(fp)
