@@ -57,7 +57,6 @@ class DINOHead(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(dim, 2048),
-            nn.BatchNorm1d(2048),
             nn.GELU(),
             nn.Linear(2048, proj_dim)
         )
