@@ -68,7 +68,7 @@ def main():
         num_workers=CONFIG["num_workers"],
         pin_memory=True,
         persistent_workers=True,
-        prefetch_factor=2,
+        prefetch_factor=4,
         worker_init_fn=worker_init_fn
     )
 
@@ -118,23 +118,6 @@ def main():
                                     ).uniform_(0.9,1.1)
         x = x * channel_scale
 
-        #gaussian blur
-        # if random.random() < 0.5:
-        #     x = TF.gaussian_blur(x,
-        #         kernel_size=9,
-        #         sigma=(0.5, 1.5)
-        #     )
-
-        # channel dropout
-        # channel_drop = (torch.rand(B, C, 1, 1, device=x.device) < 0.10)
-        # x = x * (~channel_drop)
-        #
-        # # noise
-        # noise_mask = (
-        #         torch.rand(B, 1, 1, 1,device=x.device) < 0.5
-        # )
-        #
-        # x = x + noise_mask * torch.randn_like(x) * 0.02
         return x
 
     def foreground_crop(images, crop_size, masks):
@@ -249,7 +232,7 @@ def main():
 
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
-            masks = batch["otsu_mask"].to(device)
+            masks = batch["otsu_mask"].to(device, non_blocking=True)
 
             # 2 GLOBAL VIEWS: independent 224×224 foreground crops
             g1_t = teacher_augment(foreground_crop(images, 224, masks))

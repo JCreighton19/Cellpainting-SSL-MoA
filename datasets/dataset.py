@@ -65,10 +65,6 @@ class CellPaintingDataset(Dataset):
         return img[:, r:r + ts, c:c + ts]
 
 
-    def _load_tile(self, file):
-        return self._crop_img(torch.load(file, weights_only=False)["image"])
-
-
     def __getitem__(self, idx):
         file, _ = self.sampler.sample_moa()
         sample = torch.load(file, weights_only=False)

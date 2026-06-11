@@ -17,7 +17,9 @@ class MoASampler:
         _well_files   = {}
         _compound_moa = {}
 
-        for idx, row in df.reset_index().iterrows():
+        df = df[df["pt_path"].apply(lambda x: Path(x).exists())]
+
+        for row in df.to_dict("records"):
             moa = row.get("moa")
             compound = row.get("broad_sample")
             moa_missing = pd.isna(moa)
@@ -25,12 +27,6 @@ class MoASampler:
 
             plate = str(row.get("plate") or "")
             well  = str(row.get("well") or "")
-
-            file_path = Path(row["pt_path"])
-            if not file_path.exists():
-                continue
-
-            fp = str(file_path)
 
             if not moa_missing:
                 self.moa_to_files[moa].append(fp)
