@@ -27,7 +27,7 @@ class CellPaintingDataset(Dataset):
         )
 
     def __len__(self):
-        return 20000
+        return len(self.files)
 
     @staticmethod
     def sample_foreground_crop(img, tile_size):
@@ -42,7 +42,6 @@ class CellPaintingDataset(Dataset):
 
         small = small - small.min()
         small = small / (small.max() + 1e-6)
-
         flat = small.flatten()
         idx = torch.multinomial(flat + 1e-6, 1).item()
 
@@ -50,11 +49,11 @@ class CellPaintingDataset(Dataset):
         x = idx % small.shape[1]
         y = int(y * 8)
         x = int(x * 8)
-
         r = max(0, min(H - ts, y + random.randint(-ts // 2, ts // 2)))
         c = max(0, min(W - ts, x + random.randint(-ts // 2, ts // 2)))
 
         return img[:, r:r + ts, c:c + ts]
+
 
     def _crop_img(self, img):
         if self.random_crop:
@@ -65,20 +64,17 @@ class CellPaintingDataset(Dataset):
         c = (W - ts) // 2
         return img[:, r:r + ts, c:c + ts]
 
+
     def _load_tile(self, file):
         return self._crop_img(torch.load(file, weights_only=False)["image"])
 
-    def __getitem__(self, idx):
-        if self.k_per_class > 1:
-            files, moa = self.sampler.sample_compound_k(self.k_per_class)
-            sample0 = torch.load(files[0], weights_only=False)
-            tile0 = self._crop_img(sample0["image"])
-            tiles = torch.stack([tile0] + [self._load_tile(f) for f in files[1:]])
-            return {"image": tiles, "plate": sample0["plate"], "well": sample0["well"], "moa": moa, "otsu_mask": sample0["otsu_mask"]}
 
-        file, moa = self.sampler.sample_moa()
+    def __getitem__(self, idx):
+        file, _ = self.sampler.sample_moa()
         sample = torch.load(file, weights_only=False)
+        moa = sample.get("moa", None)
         img = sample["image"]
+
         return {
             "image": img if self.return_full_image else self._crop_img(img),
             "plate": sample["plate"],

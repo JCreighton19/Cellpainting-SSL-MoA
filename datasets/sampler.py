@@ -1,5 +1,6 @@
 import random
 import pandas as pd
+import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
@@ -8,7 +9,6 @@ class MoASampler:
     def __init__(self, processed_dir, metadata_path):
         self.moa_to_files      = defaultdict(list)
         self.compound_to_files = defaultdict(list)
-        processed_dir = Path(processed_dir)
 
         print("Loading metadata...")
         df = pd.read_parquet(metadata_path)
@@ -31,6 +31,7 @@ class MoASampler:
                 continue
 
             fp = str(file_path)
+
             if not moa_missing:
                 self.moa_to_files[moa].append(fp)
 
@@ -60,39 +61,47 @@ class MoASampler:
             and _compound_moa.get(c) != "control vehicle"
         ]
 
+        self.moa_keys = list(self.moa_to_files.keys())
+        self.moa_weights = np.array([len(self.moa_to_files[m]) for m in self.moa_keys])
+        self.moa_weights = self.moa_weights / self.moa_weights.sum()
+
         print(f"Loaded {len(self.moa_list)} MOAs | "
               f"{len(self.compound_list)} compounds | "
               f"{len(self.replicate_compounds)} replicate compounds (>=2 plates, non-control)")
 
+
     def sample_moa(self):
-        moa = random.choice(self.moa_list)
+        moa = random.choices(self.moa_keys, weights=self.moa_weights, k=1)[0]
         return random.choice(self.moa_to_files[moa]), moa
+
 
     def sample_moa_k(self, k):
         moa = random.choice(self.moa_list)
         return random.choices(self.moa_to_files[moa], k=k), moa
 
-    def sample_compound_k(self, k):
-        compound = random.choice(self.compound_list)
-        return random.choices(self.compound_to_files[compound], k=k), compound
 
-    def sample_cross_plate_batch(self, n_compounds, n_tiles_per_well):
-        compounds = random.sample(
-            self.replicate_compounds,
-            min(n_compounds, len(self.replicate_compounds))
-        )
-        result = []
-        for cpd_idx, compound in enumerate(compounds):
-            plate_to_wells = defaultdict(list)
-            for w in self.compound_well_index[compound]:
-                plate_to_wells[w["plate"]].append(w)
+    # def sample_compound_k(self, k):
+    #     compound = random.choice(self.compound_list)
+    #     return random.choices(self.compound_to_files[compound], k=k), compound
 
-            plates = list(plate_to_wells.keys())
-            p1, p2 = random.sample(plates, 2)
-            well1 = random.choice(plate_to_wells[p1])
-            well2 = random.choice(plate_to_wells[p2])
 
-            result.append((cpd_idx, random.choices(well1["files"], k=n_tiles_per_well)))
-            result.append((cpd_idx, random.choices(well2["files"], k=n_tiles_per_well)))
+    # def sample_cross_plate_batch(self, n_compounds, n_tiles_per_well):
+    #     compounds = random.sample(
+    #         self.replicate_compounds,
+    #         min(n_compounds, len(self.replicate_compounds))
+    #     )
+    #     result = []
+    #     for cpd_idx, compound in enumerate(compounds):
+    #         plate_to_wells = defaultdict(list)
+    #         for w in self.compound_well_index[compound]:
+    #             plate_to_wells[w["plate"]].append(w)
+    #
+    #         plates = list(plate_to_wells.keys())
+    #         p1, p2 = random.sample(plates, 2)
+    #         well1 = random.choice(plate_to_wells[p1])
+    #         well2 = random.choice(plate_to_wells[p2])
+    #
+    #         result.append((cpd_idx, random.choices(well1["files"], k=n_tiles_per_well)))
+    #         result.append((cpd_idx, random.choices(well2["files"], k=n_tiles_per_well)))
 
         return result
