@@ -89,19 +89,6 @@ def main():
             x
         )
 
-        # Small intensity changes only
-        intensity = torch.empty(
-            B, 1, 1, 1,
-            device=x.device
-        ).uniform_(0.9, 1.1)
-        x = x * intensity
-
-        channel_scale = torch.empty(
-            B, 5, 1, 1,
-            device=x.device
-        ).uniform_(0.95, 1.05)
-        x = x * channel_scale
-
         return x
 
 
