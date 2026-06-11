@@ -7,6 +7,7 @@ import argparse
 
 from datasets.dataset import CellPaintingDataset
 from models.dino.dino import CellPaintingViT
+from models.config import CONFIG
 
 
 def get_checkpoints(run_dir):
@@ -25,6 +26,33 @@ def get_checkpoints(run_dir):
 
     ckpts.sort()
     return [(e, os.path.join(run_dir, f)) for e, f in ckpts]
+
+
+def foreground_multi_crop(images, crop_size, masks, offsets=[-32, 0, 32]):
+    """
+    Note: this function differs from foreground_crop in training loop
+    in that it is deterministic - random foreground sampling, random
+    jitter, and stochastic fallback have been removed.
+    """
+    B, C, H, W = images.shape
+    ts = crop_size
+    coords = masks.view(B, -1).float()
+    fg_idx = coords.argmax(dim=1)
+    ys = fg_idx // W
+    xs = fg_idx % W
+    crops = []
+
+    for oy in offsets:
+        for ox in offsets:
+            r = (ys + oy - ts // 2).clamp(0, H - ts)
+            c = (xs + ox - ts // 2).clamp(0, W - ts)
+            crop = torch.stack([
+                images[b, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
+                for b in range(B)
+            ])
+            crops.append(crop)
+
+    return torch.cat(crops, dim=0)
 
 
 def load_model(checkpoint_path, device):
@@ -104,10 +132,12 @@ def main():
 
     loader = DataLoader(
         dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=2,
-        pin_memory=True
+        batch_size=CONFIG["batch_size"],
+        shuffle=False,  # defined shuffling in sampler
+        num_workers=CONFIG["num_workers"],
+        pin_memory=True,
+        persistent_workers=True,
+        prefetch_factor=4,
     )
 
     checkpoints = get_checkpoints(run_dir)
@@ -140,8 +170,18 @@ def main():
                 if step % 50 == 0:
                     print(f"Epoch {epoch} | Step {step}/{len(loader)}")
                 x = batch["image"].to(device, non_blocking=True)
-                z = model(x)
-                z = torch.nn.functional.normalize(z, dim=1)
+                m = batch["otsu_mask"].to(device, non_blocking=True)
+
+                # multi-crop inference (KEY CHANGE)
+                x_crops = foreground_multi_crop(x, crop_size=224, masks=m)
+                with torch.no_grad():
+                    z = model(x_crops)
+                    z = torch.nn.functional.normalize(z, dim=1)
+
+                # reshape: (num_crops, B, D)
+                B = x.shape[0]
+                n_crops = 9  # 3x3 offsets
+                z = z.view(n_crops, B, -1).mean(dim=0)
 
                 embeddings.append(z.cpu().numpy())
                 plates.extend(batch["plate"])

@@ -4,7 +4,7 @@
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/embed_%j.err
 #SBATCH --time=01:00:00
 #SBATCH --mem=48G
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
