@@ -316,7 +316,7 @@ def main():
                 opt_step += 1
 
                 # Recompute teacher AFTER EMA update before updating center
-                effective_center_momentum = 0.97
+                effective_center_momentum = 0.95
 
                 with torch.no_grad():
                     teacher_batch = torch.cat([t1, t2], dim=0)

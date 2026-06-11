@@ -62,7 +62,7 @@ class DINOHead(nn.Module):
         )
 
     def forward(self, x):
-        return F.normalize(self.mlp(x), dim=-1)
+        return self.mlp(x)
 
 
 if __name__ == "__main__":
