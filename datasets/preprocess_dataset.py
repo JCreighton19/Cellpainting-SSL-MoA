@@ -139,7 +139,7 @@ def compute_channel_stats(rows):
             channel_sums += sums
             channel_sq   += sq
             n_pixels     += n
-            if i % 1000 == 0 and i > 0:
+            if i % 500 == 0 and i > 0: # changed from 1000
                 elapsed = time.time() - start_time
                 rate = i / elapsed
                 remaining = total - i
