@@ -64,7 +64,6 @@ class MoASampler:
         self.moa_keys = list(self.moa_to_files.keys())
         self.moa_weights = np.array([len(self.moa_to_files[m]) for m in self.moa_keys])
         self.moa_weights = self.moa_weights / self.moa_weights.sum()
-
         print(f"Loaded {len(self.moa_list)} MOAs | "
               f"{len(self.compound_list)} compounds | "
               f"{len(self.replicate_compounds)} replicate compounds (>=2 plates, non-control)")
