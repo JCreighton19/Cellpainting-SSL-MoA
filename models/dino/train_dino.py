@@ -109,14 +109,20 @@ def main():
             x
         )
 
-        # stronger intensity perturbation
-        intensity = torch.empty(B, 1, 1, 1,device=x.device
-                                ).uniform_(0.9, 1.1)
+        # intensity jitter (strengthened: 0.8–1.2)
+        intensity = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.8, 1.2)
         x = x * intensity
 
-        channel_scale = torch.empty(B, 5, 1, 1,device=x.device
-                                    ).uniform_(0.9,1.1)
+        # per-channel scale (strengthened: 0.85–1.15)
+        channel_scale = torch.empty(B, 5, 1, 1, device=x.device).uniform_(0.85, 1.15)
         x = x * channel_scale
+
+        # Gaussian blur — destroys local texture cues (applied 50% of steps)
+        if random.random() < 0.5:
+            x = TF.gaussian_blur(x, kernel_size=9, sigma=(0.5, 2.0))
+
+        # light additive noise — forces robustness to imaging noise
+        x = x + torch.randn_like(x) * 0.02
 
         return x
 
