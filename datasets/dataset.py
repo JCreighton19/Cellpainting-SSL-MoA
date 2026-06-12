@@ -21,10 +21,10 @@ class CellPaintingDataset(Dataset):
         self.random_crop = random_crop
         self.k_per_class = k_per_class
         self.return_full_image = return_full_image
-        self.sampler = MoASampler(
-            processed_dir=processed_dir,
-            metadata_path=metadata_path
-        )
+        # self.sampler = MoASampler(
+        #     processed_dir=processed_dir,
+        #     metadata_path=metadata_path
+        # )
 
     def __len__(self):
         return len(self.files)
