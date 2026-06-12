@@ -14,10 +14,25 @@ OUT_DIR = Path(os.path.join(
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def normalize(image, channel_stats, eps=1e-6):
-    means = np.array([s["mean"] for s in channel_stats], dtype=np.float32)[:, None, None]
-    stds  = np.array([s["std"]  for s in channel_stats], dtype=np.float32)[:, None, None]
-    return ((image - means) / (stds + eps)).astype(np.float32)
+def preprocess_image(image, eps=1e-6):
+    """
+    Paper-faithful preprocessing (paper: https://pmc.ncbi.nlm.nih.gov/articles/PMC11811211):
+    - per-channel percentile clipping (global behavior approximated per image)
+    - scaling to [0, 1]
+    """
+    image = image.astype(np.float32)
+    out = np.zeros_like(image, dtype=np.float32)
+
+    for c in range(image.shape[0]):
+        ch = image[c]
+        lo = np.percentile(ch, 0.01)
+        hi = np.percentile(ch, 99.9)
+        ch = np.clip(ch, lo, hi)
+        ch = (ch - lo) / (hi - lo + eps)
+        out[c] = ch
+
+    return out
+
 
 
 def compute_otsu_mask(dna_img):
@@ -52,7 +67,7 @@ def image_qc(image):
 
 
 def process_row(args):
-    row, channel_stats = args
+    row, _ = args  # channel_stats removed
     plate, well, site, mito, agp, rna, er, dna, moa = row
     idx = f"{plate}_{well}_{site}"
     paths = [mito, agp, rna, er, dna]
@@ -61,8 +76,7 @@ def process_row(args):
         [tiff.imread(p).astype(np.float32) for p in paths],
         axis=0
     )
-    qc = image_qc(image)  # RAW ONLY QC
-    image_log = np.log1p(image)  # LOG ONLY FOR MODEL
+    qc = image_qc(image)
 
     if qc["min_channel_std"] < 1e-2:
         print(f"Skipping dead/low-signal channel image: {idx}")
@@ -76,7 +90,7 @@ def process_row(args):
         print(f"Skipping saturated image: {idx}")
         return None
 
-    image = normalize(image_log, channel_stats)
+    image = preprocess_image(image)
     otsu_mask = qc["otsu_mask"]
     save_path = OUT_DIR / f"{idx}.pt"
 
@@ -89,63 +103,18 @@ def process_row(args):
         "moa": moa
     }
 
-    # verification check
-    if "moa" not in payload:
-        raise ValueError(f"Missing moa in payload for idx={idx}")
-
     torch.save(payload, save_path)
+    sums = image.sum(axis=(1, 2))
+    sq   = (image ** 2).sum(axis=(1, 2))
+    n    = float(image.shape[1] * image.shape[2])
+    return idx, (sums, sq, n)
 
-    return idx
-
-
-def _stats_worker(paths):
-    image = np.stack(
-        [tiff.imread(p).astype(np.float32) for p in paths],
-        axis=0
-    )
-    image = np.log1p(image)
-    return (
-        image.sum(axis=(1, 2)),
-        np.square(image).sum(axis=(1, 2)),
-        image.shape[1] * image.shape[2],
-    )
-
-
-def compute_per_plate_channel_stats(rows):
-    from collections import defaultdict
-    plates = defaultdict(list)
-    for row in rows:
-        plates[row["plate"]].append([
-            row["mito_img_path"], row["agp_img_path"], row["rna_img_path"],
-            row["er_img_path"],   row["dna_img_path"]
-        ])
-
-    plate_stats = {}
-    for plate, path_lists in plates.items():
-        sums  = np.zeros(5, dtype=np.float64)
-        sq    = np.zeros(5, dtype=np.float64)
-        n     = np.zeros(5, dtype=np.float64)
-        total = len(path_lists)
-        print(f"Computing stats for plate {plate} ({total} images)...")
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            for s, q, pn in executor.map(_stats_worker, path_lists):
-                sums += s
-                sq   += q
-                n    += pn
-        n_safe = np.maximum(n, 1e-6)
-        means = sums / n_safe
-        stds = np.sqrt(np.maximum(sq / n_safe - means ** 2, 0))
-        plate_stats[plate] = [{"mean": float(means[c]), "std": float(stds[c])} for c in range(5)]
-        print(f"  means={means.round(4)}, stds={stds.round(4)}")
-
-    return plate_stats
 
 
 def main():
     """
     Do dataset-wide normalization
     """
-
     metadata_path = os.path.join(
         os.environ["CP_OUTPUT_ROOT"],
         "data/processed/master_metadata.parquet"
@@ -161,16 +130,11 @@ def main():
 
     rows = df.to_dict("records")
 
-    # Create cache of channel stats
-    stats_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/channel_stats.npy")
-    if os.path.exists(stats_path):
-        plate_stats = np.load(stats_path, allow_pickle=True).item()
-    else:
-        plate_stats = compute_per_plate_channel_stats(rows)
-        np.save(stats_path, plate_stats)
-
     saved = 0
     kept_indices = []
+    ch_sums = np.zeros(5, dtype=np.float64)
+    ch_sq   = np.zeros(5, dtype=np.float64)
+    ch_n    = 0.0
 
     with ThreadPoolExecutor(max_workers=16) as executor:
         worker_inputs = [
@@ -186,15 +150,19 @@ def main():
                     row["dna_img_path"],
                     row.get("moa", "unknown"),
                 ),
-                plate_stats[row["plate"]]
+                None
             )
             for row in rows
         ]
 
         for i, result in enumerate(executor.map(process_row, worker_inputs)):
             if result is not None:
+                idx, (s, q, n) = result
                 saved += 1
-                kept_indices.append(result)
+                kept_indices.append(idx)
+                ch_sums += s
+                ch_sq   += q
+                ch_n    += n
 
             if i % 100 == 0:
                 print(f"checked {i}/{len(rows)} | saved={saved}")
@@ -204,6 +172,30 @@ def main():
     print("unique df row_id example:", df["row_id"].head())
     print("kept_indices example:", kept_indices[:5])
     print("matches:", df["row_id"].isin(kept_indices).sum())
+
+    means = ch_sums / ch_n
+    stds  = np.sqrt(np.maximum(ch_sq / ch_n - means**2, 0))
+    print(f"Global channel means: {means.round(4)}")
+    print(f"Global channel stds:  {stds.round(4)}")
+
+    stats_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/global_channel_stats.npy")
+    np.save(stats_path, {"mean": means.astype(np.float32), "std": stds.astype(np.float32)})
+    print(f"Saved global channel stats → {stats_path}")
+
+    mean_t = torch.from_numpy(means.astype(np.float32)).view(5, 1, 1)
+    std_t  = torch.from_numpy(stds.astype(np.float32)).view(5, 1, 1)
+    print(f"Applying global z-score to {len(kept_indices)} files...")
+
+    def _apply_zscore(idx):
+        path = OUT_DIR / f"{idx}.pt"
+        payload = torch.load(path, weights_only=False)
+        payload["image"] = (payload["image"] - mean_t) / (std_t + 1e-6)
+        torch.save(payload, path)
+
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        for _ in executor.map(_apply_zscore, kept_indices):
+            pass
+    print("Z-score normalization complete.")
 
     filtered_df = df[df["row_id"].isin(kept_indices)].copy()
     filtered_df["pt_path"] = (
@@ -226,7 +218,6 @@ def main():
     )
 
     filtered_df.to_parquet(filtered_metadata_path, index=False)
-
     print(f"Saved QC metadata → {filtered_metadata_path}")
     print(f"Finished pre-processing. {saved} rows saved to {OUT_DIR}")
 
