@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from skimage.filters import threshold_otsu
-import time
-from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 OUT_DIR = Path(os.path.join(
@@ -17,7 +15,6 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def normalize(image, channel_stats, eps=1e-6):
-    image = np.log1p(image)
     means = np.array([s["mean"] for s in channel_stats], dtype=np.float32)[:, None, None]
     stds  = np.array([s["std"]  for s in channel_stats], dtype=np.float32)[:, None, None]
     return ((image - means) / (stds + eps)).astype(np.float32)
@@ -26,7 +23,6 @@ def normalize(image, channel_stats, eps=1e-6):
 def compute_otsu_mask(dna_img):
     if np.std(dna_img) < 1e-6:
         return np.zeros_like(dna_img, dtype=bool)
-
     t = threshold_otsu(dna_img)
     return dna_img > t
 
@@ -34,15 +30,14 @@ def compute_otsu_mask(dna_img):
 def image_qc(image):
     # image: (C, H, W)
 
-    flat = image.reshape(image.shape[0], -1)
-    per_channel_var = np.var(flat, axis=1)
-    per_channel_std = np.sqrt(per_channel_var)
-    p1, p99 = np.percentile(flat, [1, 99])
+    # compute std on RAW scale (pre-log stability check)
+    per_channel_std = np.std(image, axis=(1, 2))
+    raw = image  # keep reference in raw space for thresholding
+    p1, p99 = np.percentile(raw, [1, 99])
+    high_signal_frac = float((raw > p99).mean())
 
     global_std = float(np.mean(per_channel_std))
     min_channel_std = float(np.min(per_channel_std))
-    high_signal_frac = float((image > p99).mean())
-
     dna_img = image[4]
     otsu_mask = compute_otsu_mask(dna_img)
     otsu_foreground_frac = float(otsu_mask.mean())
@@ -66,12 +61,10 @@ def process_row(args):
         [tiff.imread(p).astype(np.float32) for p in paths],
         axis=0
     )
-    dna_raw = image[4]
+    qc = image_qc(image)  # RAW ONLY QC
+    image_log = np.log1p(image)  # LOG ONLY FOR MODEL
 
-    # QC filtering (note: thresholds somewhat arbitrarily chosen)
-    qc = image_qc(image)
-
-    if qc["min_channel_std"] < 0.01:
+    if qc["min_channel_std"] < 1e-2:
         print(f"Skipping dead/low-signal channel image: {idx}")
         return None
 
@@ -83,7 +76,7 @@ def process_row(args):
         print(f"Skipping saturated image: {idx}")
         return None
 
-    image = normalize(image, channel_stats)
+    image = normalize(image_log, channel_stats)
     otsu_mask = qc["otsu_mask"]
     save_path = OUT_DIR / f"{idx}.pt"
 
@@ -118,49 +111,34 @@ def _stats_worker(paths):
     )
 
 
-def compute_channel_stats(rows):
-    channel_sums = np.zeros(5, dtype=np.float64)
-    channel_sq   = np.zeros(5, dtype=np.float64)
-    n_pixels     = np.zeros(5, dtype=np.float64)
-    start_time = time.time()
-    start_dt = datetime.now()
-    total = len(rows)
-    print("Computing dataset normalization stats...")
-    print(f"Start time: {start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+def compute_per_plate_channel_stats(rows):
+    from collections import defaultdict
+    plates = defaultdict(list)
+    for row in rows:
+        plates[row["plate"]].append([
+            row["mito_img_path"], row["agp_img_path"], row["rna_img_path"],
+            row["er_img_path"],   row["dna_img_path"]
+        ])
 
-    path_lists = [
-        [row["mito_img_path"], row["agp_img_path"], row["rna_img_path"],
-         row["er_img_path"], row["dna_img_path"]]
-        for row in rows
-    ]
+    plate_stats = {}
+    for plate, path_lists in plates.items():
+        sums  = np.zeros(5, dtype=np.float64)
+        sq    = np.zeros(5, dtype=np.float64)
+        n     = np.zeros(5, dtype=np.float64)
+        total = len(path_lists)
+        print(f"Computing stats for plate {plate} ({total} images)...")
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for s, q, pn in executor.map(_stats_worker, path_lists):
+                sums += s
+                sq   += q
+                n    += pn
+        n_safe = np.maximum(n, 1e-6)
+        means = sums / n_safe
+        stds = np.sqrt(np.maximum(sq / n_safe - means ** 2, 0))
+        plate_stats[plate] = [{"mean": float(means[c]), "std": float(stds[c])} for c in range(5)]
+        print(f"  means={means.round(4)}, stds={stds.round(4)}")
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        for i, (sums, sq, n) in enumerate(executor.map(_stats_worker, path_lists)):
-            channel_sums += sums
-            channel_sq   += sq
-            n_pixels     += n
-            if i % 500 == 0 and i > 0: # changed from 1000
-                elapsed = time.time() - start_time
-                rate = i / elapsed
-                remaining = total - i
-                eta_seconds = remaining / rate
-                eta_dt = datetime.now() + timedelta(seconds=eta_seconds)
-
-                print(
-                    f"{i}/{total} | "
-                    f"{rate:.1f} files/sec | "
-                    f"ETA: {eta_dt.strftime('%Y-%m-%d %H:%M:%S')}"
-                )
-
-    means = channel_sums / n_pixels
-    vars_ = channel_sq / n_pixels - means**2
-    stds  = np.sqrt(vars_)
-    stats = [{"mean": means[c], "std": stds[c]} for c in range(5)]
-
-    print("Means:", means)
-    print("Stds:", stds)
-
-    return stats
+    return plate_stats
 
 
 def main():
@@ -186,10 +164,10 @@ def main():
     # Create cache of channel stats
     stats_path = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/processed/channel_stats.npy")
     if os.path.exists(stats_path):
-        channel_stats = np.load(stats_path, allow_pickle=True)
+        plate_stats = np.load(stats_path, allow_pickle=True).item()
     else:
-        channel_stats = compute_channel_stats(rows)
-        np.save(stats_path, channel_stats)
+        plate_stats = compute_per_plate_channel_stats(rows)
+        np.save(stats_path, plate_stats)
 
     saved = 0
     kept_indices = []
@@ -208,7 +186,7 @@ def main():
                     row["dna_img_path"],
                     row.get("moa", "unknown"),
                 ),
-                channel_stats
+                plate_stats[row["plate"]]
             )
             for row in rows
         ]

@@ -1,3 +1,4 @@
+import math
 import torch
 from torch.utils.data import DataLoader
 import os
@@ -89,6 +90,8 @@ def main():
             x
         )
 
+        k = torch.randint(0, 4, (B,), device=x.device)
+        x = torch.stack([torch.rot90(x[b], int(k[b]), dims=[1, 2]) for b in range(B)])
         return x
 
 
@@ -108,6 +111,9 @@ def main():
             torch.flip(x, dims=[3]),
             x
         )
+
+        k = torch.randint(0, 4, (B,), device=x.device)
+        x = torch.stack([torch.rot90(x[b], int(k[b]), dims=[1, 2]) for b in range(B)])
 
         # intensity jitter (strengthened: 0.8–1.2)
         intensity = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.8, 1.2)
@@ -133,7 +139,8 @@ def main():
         has_fg = coords.sum(dim=1) > 0
 
         # sample foreground pixel
-        fg_idx = torch.multinomial(coords + 1e-6, 1).squeeze(1)
+        weights = coords / (coords.sum(dim=1, keepdim=True) + 1e-6)
+        fg_idx = torch.multinomial(weights, 1).squeeze(1)
 
         # fallback random if empty mask
         rand_idx = torch.randint(0, H * W, (B,), device=images.device)
@@ -142,15 +149,14 @@ def main():
         xs = idx % W
         jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
         jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
-        r = (ys + jitter_y - ts // 2).clamp(0, H - ts).tolist()
-        c = (xs + jitter_x - ts // 2).clamp(0, W - ts).tolist()
+        y0 = (ys + jitter_y - ts // 2).clamp(0, H - ts)
+        x0 = (xs + jitter_x - ts // 2).clamp(0, W - ts)
+        patches = images.unfold(2, ts, 1).unfold(3, ts, 1)
+        # patches: (B, C, H-ts+1, W-ts+1, ts, ts)
 
-        crops = [
-            images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
-            for b in range(B)
-        ]
+        out = patches[torch.arange(B, device=images.device), :, y0, x0]
 
-        return torch.cat(crops, dim=0)
+        return out
 
 
     # Models
@@ -177,6 +183,19 @@ def main():
         weight_decay=CONFIG["weight_decay"]
     )
 
+    _total_steps   = CONFIG["n_epochs"] * len(loader)
+    _warmup_steps  = 15 * len(loader)
+    _min_lr_ratio  = 1e-6 / CONFIG["lr"]
+
+    def lr_lambda(step):
+        if step < _warmup_steps:
+            return step / max(1, _warmup_steps)
+        progress = (step - _warmup_steps) / max(1, _total_steps - _warmup_steps)
+        cosine   = 0.5 * (1 + math.cos(math.pi * progress))
+        return _min_lr_ratio + (1 - _min_lr_ratio) * cosine
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
     if not resume_dir:
         with open(current_run_file, "w") as f:
             f.write(run_dir)
@@ -185,10 +204,11 @@ def main():
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
                        student_head, teacher_head, momentum):
-        t_params = list(teacher_enc.parameters()) + list(teacher_head.parameters())
-        s_params = list(student_enc.parameters()) + list(student_head.parameters())
-        torch._foreach_mul_(t_params, momentum)
-        torch._foreach_add_(t_params, s_params, alpha=1 - momentum)
+        for tp, sp in zip(
+            list(teacher_enc.parameters()) + list(teacher_head.parameters()),
+            list(student_enc.parameters()) + list(student_head.parameters())
+        ):
+            tp.data.mul_(momentum).add_(sp.data, alpha=1 - momentum)
 
 
     # Resume from latest checkpoint if available
@@ -207,6 +227,8 @@ def main():
         optimizer.load_state_dict(ckpt["optimizer"])
         if "center" in ckpt:
             dino_loss.center.copy_(ckpt["center"])
+        if "scheduler" in ckpt:
+            scheduler.load_state_dict(ckpt["scheduler"])
         start_epoch = ckpt["epoch"] + 1
         print(f"Resuming from epoch {start_epoch}")
 
@@ -305,6 +327,7 @@ def main():
                 )
 
                 optimizer.step()
+                scheduler.step()
                 optimizer.zero_grad(set_to_none=True)
                 update_teacher(student_enc, teacher_enc,
                                student_head, teacher_head, m)
@@ -322,6 +345,7 @@ def main():
                         diag_temp = dino_loss.warmup_teacher_temp + alpha * (dino_loss.teacher_temp - dino_loss.warmup_teacher_temp)
                     else:
                         diag_temp = dino_loss.teacher_temp
+
                     teacher_logits = (teacher_batch - dino_loss.center) / diag_temp
                     teacher_probs = F.softmax(teacher_logits, dim=-1)
                     entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
@@ -355,6 +379,7 @@ def main():
             "teacher_enc": teacher_enc.state_dict(),
             "teacher_head": teacher_head.state_dict(),
             "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
             "center": dino_loss.center,
             "epoch": epoch,
             "loss": avg_loss
