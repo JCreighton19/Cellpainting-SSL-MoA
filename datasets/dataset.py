@@ -66,7 +66,7 @@ class CellPaintingDataset(Dataset):
 
 
     def __getitem__(self, idx):
-        file, _ = self.sampler.sample_moa()
+        file = self.files[idx]
         sample = torch.load(file, weights_only=False)
         moa = sample.get("moa", None)
         img = sample["image"]

@@ -64,7 +64,7 @@ def main():
     loader = DataLoader(
         dataset,
         batch_size=CONFIG["batch_size"],
-        shuffle=False, # defined shuffling in sampler
+        shuffle=True,
         num_workers=CONFIG["num_workers"],
         pin_memory=True,
         persistent_workers=True,
