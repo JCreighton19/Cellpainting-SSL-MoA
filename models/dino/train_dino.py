@@ -142,8 +142,8 @@ def main():
         xs = idx % W
         jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
         jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
-        r = (ys + jitter_y - ts // 2).clamp(0, H - ts)
-        c = (xs + jitter_x - ts // 2).clamp(0, W - ts)
+        r = (ys + jitter_y - ts // 2).clamp(0, H - ts).tolist()
+        c = (xs + jitter_x - ts // 2).clamp(0, W - ts).tolist()
 
         crops = [
             images[b:b + 1, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
@@ -185,11 +185,10 @@ def main():
     @torch.no_grad()
     def update_teacher(student_enc, teacher_enc,
                        student_head, teacher_head, momentum):
-        for ps, pt in zip(student_enc.parameters(), teacher_enc.parameters()):
-            pt.mul_(momentum).add_(ps * (1 - momentum))
-
-        for ps, pt in zip(student_head.parameters(), teacher_head.parameters()):
-            pt.mul_(momentum).add_(ps * (1 - momentum))
+        t_params = list(teacher_enc.parameters()) + list(teacher_head.parameters())
+        s_params = list(student_enc.parameters()) + list(student_head.parameters())
+        torch._foreach_mul_(t_params, momentum)
+        torch._foreach_add_(t_params, s_params, alpha=1 - momentum)
 
 
     # Resume from latest checkpoint if available
@@ -247,13 +246,9 @@ def main():
             g2_s = student_augment(foreground_crop(images, 224, masks))
 
             # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
-            locals_ = [
-                student_augment(
-                    F.interpolate(foreground_crop(images, crop_size=96, masks=masks),
-                                  size=224, mode='bilinear', align_corners=False)
-                )
-                for _ in range(4) # changed from 8 to 4
-            ]
+            local_crops = torch.cat([foreground_crop(images, 96, masks) for _ in range(4)], dim=0)
+            local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
+            locals_ = [student_augment(c) for c in local_resized.chunk(4, dim=0)]
 
             # ENCODING
             with torch.no_grad():
