@@ -76,5 +76,5 @@ class CellPaintingDataset(Dataset):
             "plate": sample["plate"],
             "well": sample["well"],
             "moa": moa,
-            "otsu_mask": sample["otsu_mask"]
+            "otsu_threshold": sample["otsu_threshold"]
         }
