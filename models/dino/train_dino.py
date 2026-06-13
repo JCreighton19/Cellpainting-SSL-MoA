@@ -73,88 +73,71 @@ def main():
         worker_init_fn=worker_init_fn
     )
 
-    def teacher_augment(x):
+    def augment(x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
 
-        # flips
-        flip_h = torch.rand(B,device=x.device) < 0.5
-        flip_w = torch.rand(B,device=x.device) < 0.5
+        # Flip along H axis
+        flip_h = torch.rand(B, device=x.device) < 0.5
         x = torch.where(
             flip_h[:, None, None, None],
             torch.flip(x, dims=[2]),
             x
         )
-        x = torch.where(
-            flip_w[:, None, None, None],
-            torch.flip(x, dims=[3]),
-            x
-        )
 
-        k = torch.randint(0, 4, (B,), device=x.device)
-        x = torch.stack([torch.rot90(x[b], int(k[b]), dims=[1, 2]) for b in range(B)])
-        return x
-
-
-    def student_augment(x):
-        B, C, H, W = x.shape
-
-        # flips
-        flip_h = torch.rand(B, device=x.device) < 0.5
+        # Flip along W axis
         flip_w = torch.rand(B, device=x.device) < 0.5
         x = torch.where(
-            flip_h[:, None, None, None],
-            torch.flip(x, dims=[2]),
-            x
-        )
-        x = torch.where(
             flip_w[:, None, None, None],
             torch.flip(x, dims=[3]),
             x
         )
 
-        k = torch.randint(0, 4, (B,), device=x.device)
-        x = torch.stack([torch.rot90(x[b], int(k[b]), dims=[1, 2]) for b in range(B)])
+        # Color step 1: additive intensity shift
+        eps = torch.empty(B, device=x.device).uniform_(-0.3, 0.3)
+        x = torch.clamp(x + eps[:, None, None, None], 0.0, 1.0)
 
-        # intensity jitter (strengthened: 0.8–1.2)
-        intensity = torch.empty(B, 1, 1, 1, device=x.device).uniform_(0.8, 1.2)
-        x = x * intensity
-
-        # per-channel scale (strengthened: 0.85–1.15)
-        channel_scale = torch.empty(B, 5, 1, 1, device=x.device).uniform_(0.85, 1.15)
-        x = x * channel_scale
-
-        # Gaussian blur — destroys local texture cues (applied 50% of steps)
-        if random.random() < 0.5:
-            x = TF.gaussian_blur(x, kernel_size=9, sigma=(0.5, 2.0))
-
-        # light additive noise — forces robustness to imaging noise
-        x = x + torch.randn_like(x) * 0.02
+        # Color step 2: gamma brightness change
+        gamma = torch.empty(B, device=x.device).uniform_(0.5, 1.5)
+        x = torch.clamp(x ** gamma[:, None, None, None], 0.0, 1.0)
 
         return x
 
-    def foreground_crop(images, crop_size, masks):
+    def foreground_crop(images, crop_size, otsu_thresholds):
         B, C, H, W = images.shape
         ts = crop_size
-        coords = masks.view(B, -1).float()
-        has_fg = coords.sum(dim=1) > 0
+        dna = images[:, 4, :, :]  # (B, H, W)
 
-        # sample foreground pixel
-        weights = coords / (coords.sum(dim=1, keepdim=True) + 1e-6)
-        fg_idx = torch.multinomial(weights, 1).squeeze(1)
+        max_attempts = 10
+        y0_final = torch.zeros(B, dtype=torch.long, device=images.device)
+        x0_final = torch.zeros(B, dtype=torch.long, device=images.device)
+        accepted = torch.zeros(B, dtype=torch.bool, device=images.device)
 
-        # fallback random if empty mask
-        rand_idx = torch.randint(0, H * W, (B,), device=images.device)
-        idx = torch.where(has_fg, fg_idx, rand_idx)
-        ys = idx // W
-        xs = idx % W
-        jitter_y = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
-        jitter_x = torch.randint(-ts // 2, ts // 2 + 1, (B,), device=images.device)
-        y0 = (ys + jitter_y - ts // 2).clamp(0, H - ts)
-        x0 = (xs + jitter_x - ts // 2).clamp(0, W - ts)
+        for _ in range(max_attempts):
+            # sample random top-left corners for unaccepted crops
+            y0 = torch.randint(0, H - ts + 1, (B,), device=images.device)
+            x0 = torch.randint(0, W - ts + 1, (B,), device=images.device)
+
+            # extract DNA channel crop for each image and use unfold to get all possible crops, then index
+            dna_crops = dna.unfold(1, ts, 1).unfold(2, ts, 1)
+            dna_patch = dna_crops[torch.arange(B, device=images.device), y0, x0]
+
+            # check foreground fraction against per-image otsu scalar
+            thresh = otsu_thresholds[:, None, None]  # (B, 1, 1)
+            fg_fraction = (dna_patch > thresh).float().mean(dim=[1, 2])  # (B,)
+            valid = fg_fraction >= 0.01  # paper threshold: 1% foreground
+
+            # accept crops that pass and haven't been accepted yet
+            newly_accepted = valid & ~accepted
+            y0_final = torch.where(newly_accepted, y0, y0_final)
+            x0_final = torch.where(newly_accepted, x0, x0_final)
+            accepted = accepted | newly_accepted
+
+            if accepted.all():
+                break
+
+        # extract final crops from all channels
         patches = images.unfold(2, ts, 1).unfold(3, ts, 1)
-        # patches: (B, C, H-ts+1, W-ts+1, ts, ts)
-
-        out = patches[torch.arange(B, device=images.device), :, y0, x0]
+        out = patches[torch.arange(B, device=images.device), :, y0_final, x0_final]
 
         return out
 
@@ -194,8 +177,8 @@ def main():
         cosine   = 0.5 * (1 + math.cos(math.pi * progress))
         return _min_lr_ratio + (1 - _min_lr_ratio) * cosine
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     if not resume_dir:
         with open(current_run_file, "w") as f:
             f.write(run_dir)
@@ -240,7 +223,6 @@ def main():
     losses = []
 
     for epoch in range(start_epoch, n_epochs):
-
         epoch_start = time.perf_counter()
         epoch_start_dt = datetime.now()
         print(f"\n====================="
@@ -259,18 +241,21 @@ def main():
 
         for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
-            masks = batch["otsu_mask"].to(device, non_blocking=True)
+            thresholds = batch["otsu_threshold"].to(device, non_blocking=True)
 
             # 2 GLOBAL VIEWS: independent 224×224 foreground crops
-            g1_t = teacher_augment(foreground_crop(images, 224, masks))
-            g2_t = teacher_augment(foreground_crop(images, 224, masks))
-            g1_s = student_augment(foreground_crop(images, 224, masks))
-            g2_s = student_augment(foreground_crop(images, 224, masks))
+            g1 = foreground_crop(images, 224, thresholds)
+            g2 = foreground_crop(images, 224, thresholds)
+
+            g1_t = augment(g1)
+            g2_t = augment(g2)
+            g1_s = augment(g1)
+            g2_s = augment(g2)
 
             # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
-            local_crops = torch.cat([foreground_crop(images, 96, masks) for _ in range(4)], dim=0)
+            local_crops = torch.cat([foreground_crop(images, 96, thresholds) for _ in range(4)], dim=0)
             local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
-            locals_ = [student_augment(c) for c in local_resized.chunk(4, dim=0)]
+            locals_ = [augment(c) for c in local_resized.chunk(4, dim=0)]
 
             # ENCODING
             with torch.no_grad():
@@ -334,7 +319,7 @@ def main():
                 opt_step += 1
 
                 # Recompute teacher AFTER EMA update before updating center
-                effective_center_momentum = 0.95
+                effective_center_momentum = 0.9
 
                 with torch.no_grad():
                     teacher_batch = torch.cat([t1, t2], dim=0)

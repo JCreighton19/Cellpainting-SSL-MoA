@@ -18,7 +18,6 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 def preprocess_image(image, eps=1e-6):
     image = image.astype(np.float32)
     out = np.zeros_like(image, dtype=np.float32)
-
     for c in range(image.shape[0]):
         ch = image[c]
         lo = np.percentile(ch, 0.01)
@@ -30,19 +29,11 @@ def preprocess_image(image, eps=1e-6):
     return out
 
 
-def compute_otsu_mask(dna_img):
+def compute_otsu_threshold(dna_img):
     if np.std(dna_img) < 1e-6:
-        return np.zeros_like(dna_img, dtype=bool)
+        return 0.0
     t = threshold_otsu(dna_img)
-    return dna_img > t
-
-
-def image_qc(image):
-    dna_img = image[4]
-    otsu_mask = compute_otsu_mask(dna_img)
-    return {
-        "otsu_mask": otsu_mask
-    }
+    return t
 
 
 def process_row(args):
@@ -54,15 +45,14 @@ def process_row(args):
         [tiff.imread(p).astype(np.float32) for p in paths],
         axis=0
     )
-    qc = image_qc(image)
-    otsu_mask = qc["otsu_mask"]
+    image = preprocess_image(image)
+    otsu_threshold = compute_otsu_threshold(image[4])
 
     # Always keep image (no QC rejection)
-    image = preprocess_image(image)
     save_path = OUT_DIR / f"{idx}.pt"
     payload = {
         "image": torch.from_numpy(image),
-        "otsu_mask": torch.from_numpy(otsu_mask.astype(np.bool_)),
+        "otsu_threshold":otsu_threshold,
         "plate": plate,
         "well": well,
         "site": site,
@@ -81,12 +71,7 @@ def main():
     )
 
     df = pd.read_parquet(metadata_path)
-
     rows = df.to_dict("records")
-
-    saved = 0
-    kept_indices = []
-
     with ThreadPoolExecutor(max_workers=16) as executor:
         worker_inputs = [
             (
@@ -107,12 +92,8 @@ def main():
         ]
 
         for i, result in enumerate(executor.map(process_row, worker_inputs)):
-            if result is not None:
-                saved += 1
-                kept_indices.append(result)
-
             if i % 100 == 0:
-                print(f"checked {i}/{len(rows)} | saved={saved}")
+                print(f"processed {i}/{len(rows)}")
 
     filtered_df = df.copy()
     filtered_df["pt_path"] = (
@@ -129,7 +110,7 @@ def main():
 
     filtered_df.to_parquet(filtered_metadata_path, index=False)
     print(f"Saved metadata → {filtered_metadata_path}")
-    print(f"Finished preprocessing. {saved} images saved.")
+    print(f"Finished preprocessing.")
 
 if __name__ == "__main__":
     main()

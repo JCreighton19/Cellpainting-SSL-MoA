@@ -47,7 +47,6 @@ def extract_rc_from_filename(name: str):
 def load_imaging_index(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     df.columns = [c.lower() for c in df.columns]
-
     df = df.rename(columns={
         "metadata_plate": "plate",
         "metadata_well": "well",
