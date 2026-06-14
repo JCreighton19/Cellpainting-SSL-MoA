@@ -46,4 +46,22 @@ echo $CP_DATA_ROOT
 
 echo "Starting training..."
 
+# Resume from previous job if one exists
+CURRENT_RUN=$(cat $OUT/checkpoints/current_run 2>/dev/null)
+if [ -n "$CURRENT_RUN" ]; then
+    export RESUME_DIR=$CURRENT_RUN
+    echo "Resuming from: $RESUME_DIR"
+else
+    echo "Starting fresh run"
+fi
+
 $PYTHON models/dino/train_dino.py
+EXIT_CODE=$?
+
+# Resubmit if killed before finishing (wall time); do NOT resubmit on clean exit
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "Job interrupted (exit $EXIT_CODE) — resubmitting..."
+    sbatch "$0"
+else
+    echo "Training complete — not resubmitting."
+fi
