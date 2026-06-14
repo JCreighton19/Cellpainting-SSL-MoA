@@ -2,7 +2,7 @@
 #SBATCH --job-name=dino-cp
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
-#SBATCH --time=08:00:00
+#SBATCH --time=01:00:00
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
