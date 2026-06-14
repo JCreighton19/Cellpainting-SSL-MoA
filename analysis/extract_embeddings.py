@@ -91,6 +91,10 @@ def main():
             --all
     """
 
+    # Set seed for reproducibility
+    torch.manual_seed(42)
+    np.random.seed(42)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_dir", required=True)
 
@@ -181,7 +185,7 @@ def main():
                 m = batch["otsu_threshold"].to(device, non_blocking=True)
 
                 # multi-crop inference
-                x_crop = foreground_center_crop(
+                x_crop = foreground_crop(
                     x,crop_size=224,otsu_thresholds=m
                 )
                 z = model(x_crop)
