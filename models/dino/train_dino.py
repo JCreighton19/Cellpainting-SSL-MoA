@@ -253,7 +253,7 @@ def main():
             g2_s = augment(g2)
 
             # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
-            local_crops = torch.cat([foreground_crop(images, 96, thresholds) for _ in range(4)], dim=0)
+            local_crops = torch.cat([foreground_crop(images, 96, thresholds) for _ in range(6)], dim=0)
             local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
             locals_ = [augment(c) for c in local_resized.chunk(6, dim=0)]
 
