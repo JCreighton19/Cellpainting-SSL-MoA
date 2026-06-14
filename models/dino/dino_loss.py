@@ -5,7 +5,7 @@ import torch.distributed as dist
 
 
 class DINOLoss(nn.Module):
-    def __init__(self, proj_dim=4096, ncrops=2, warmup_teacher_temp=0.04,
+    def __init__(self, proj_dim=4096, ncrops=2, warmup_teacher_temp=0.01,
                  teacher_temp=0.04, warmup_epochs=10, nepochs=100,
                  center_momentum=0.95):
         super().__init__()
@@ -18,7 +18,15 @@ class DINOLoss(nn.Module):
 
 
     def forward(self, student_out, teacher_out, epoch=0):
-        teacher_temp = self.teacher_temp  # fixed at 0.04; no warmup ramp
+        # Linear temperature scheduler
+        if epoch < self.warmup_epochs:
+            alpha = epoch / self.warmup_epochs
+            teacher_temp = (
+                    self.warmup_teacher_temp +
+                    alpha * (self.teacher_temp - self.warmup_teacher_temp)
+            )
+        else:
+            teacher_temp = self.teacher_temp
 
         student_temp = 0.1
 

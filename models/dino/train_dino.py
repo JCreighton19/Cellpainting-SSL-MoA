@@ -255,7 +255,7 @@ def main():
             # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
             local_crops = torch.cat([foreground_crop(images, 96, thresholds) for _ in range(4)], dim=0)
             local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
-            locals_ = [augment(c) for c in local_resized.chunk(4, dim=0)]
+            locals_ = [augment(c) for c in local_resized.chunk(6, dim=0)]
 
             # ENCODING
             with torch.no_grad():
@@ -325,14 +325,18 @@ def main():
                     teacher_batch = torch.cat([t1, t2], dim=0)
 
                     # TEACHER ENTROPY METRICS
-                    if epoch < dino_loss.warmup_epochs:
-                        alpha = epoch / dino_loss.warmup_epochs
-                        diag_temp = dino_loss.warmup_teacher_temp + alpha * (dino_loss.teacher_temp - dino_loss.warmup_teacher_temp)
-                    else:
-                        diag_temp = dino_loss.teacher_temp
-
-                    teacher_logits = (teacher_batch - dino_loss.center) / diag_temp
+                    teacher_logits = (teacher_batch - dino_loss.center) / dino_loss.teacher_temp
                     teacher_probs = F.softmax(teacher_logits, dim=-1)
+                    raw_teacher_probs = F.softmax(
+                        teacher_batch - dino_loss.center,
+                        dim=-1
+                    )
+                    raw_entropy = -(
+                            raw_teacher_probs *
+                            raw_teacher_probs.log()
+                    ).sum(dim=-1).mean()
+                    raw_eff_classes = raw_entropy.exp()
+
                     entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                     max_prob = teacher_probs.max(dim=-1).values.mean()
                     effective_classes = entropy.exp()
@@ -340,6 +344,7 @@ def main():
                         print(
                             f"teacher entropy={entropy.item():.3f} | "
                             f"eff_classes={effective_classes.item():.1f} | "
+                            f"raw_eff_classes={raw_eff_classes.item():.1f} | "
                             f"top1={max_prob.item():.4f}"
                         )
 
