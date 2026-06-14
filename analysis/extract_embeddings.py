@@ -28,31 +28,39 @@ def get_checkpoints(run_dir):
     return [(e, os.path.join(run_dir, f)) for e, f in ckpts]
 
 
-def foreground_multi_crop(images, crop_size, masks, offsets=[-32, 0, 32]):
-    """
-    Note: this function differs from foreground_crop in training loop
-    in that it is deterministic - random foreground sampling, random
-    jitter, and stochastic fallback have been removed.
-    """
+@torch.no_grad()
+def foreground_crop(images, crop_size, otsu_thresholds):
     B, C, H, W = images.shape
     ts = crop_size
-    coords = masks.view(B, -1).float()
-    fg_idx = coords.argmax(dim=1)
-    ys = fg_idx // W
-    xs = fg_idx % W
-    crops = []
+    dna = images[:, 4, :, :]
 
-    for oy in offsets:
-        for ox in offsets:
-            r = (ys + oy - ts // 2).clamp(0, H - ts)
-            c = (xs + ox - ts // 2).clamp(0, W - ts)
-            crop = torch.stack([
-                images[b, :, r[b]:r[b] + ts, c[b]:c[b] + ts]
-                for b in range(B)
-            ])
-            crops.append(crop)
+    max_attempts = 10
+    y0_final = torch.zeros(B, dtype=torch.long, device=images.device)
+    x0_final = torch.zeros(B, dtype=torch.long, device=images.device)
+    accepted = torch.zeros(B, dtype=torch.bool, device=images.device)
 
-    return torch.cat(crops, dim=0)
+    for _ in range(max_attempts):
+        y0 = torch.randint(0, H - ts + 1, (B,), device=images.device)
+        x0 = torch.randint(0, W - ts + 1, (B,), device=images.device)
+        dna_crops = dna.unfold(1, ts, 1).unfold(2, ts, 1)
+        dna_patch = dna_crops[torch.arange(B, device=images.device),y0,x0]
+        thresh = otsu_thresholds[:, None, None]
+        fg_fraction = (dna_patch > thresh).float().mean(dim=[1, 2])
+        valid = fg_fraction >= 0.01
+
+        newly_accepted = valid & ~accepted
+        y0_final = torch.where(newly_accepted, y0, y0_final)
+        x0_final = torch.where(newly_accepted, x0, x0_final)
+        accepted |= newly_accepted
+
+        if accepted.all():
+            break
+
+    patches = images.unfold(2, ts, 1).unfold(3, ts, 1)
+
+    return patches[
+        torch.arange(B, device=images.device),:,y0_final,x0_final
+    ]
 
 
 def load_model(checkpoint_path, device):
@@ -170,18 +178,14 @@ def main():
                 if step % 50 == 0:
                     print(f"Epoch {epoch} | Step {step}/{len(loader)}")
                 x = batch["image"].to(device, non_blocking=True)
-                m = batch["otsu_mask"].to(device, non_blocking=True)
+                m = batch["otsu_threshold"].to(device, non_blocking=True)
 
-                # multi-crop inference (KEY CHANGE)
-                x_crops = foreground_multi_crop(x, crop_size=224, masks=m)
-                with torch.no_grad():
-                    z = model(x_crops)
-                    z = torch.nn.functional.normalize(z, dim=1)
-
-                # reshape: (num_crops, B, D)
-                B = x.shape[0]
-                n_crops = 9  # 3x3 offsets
-                z = z.view(n_crops, B, -1).mean(dim=0)
+                # multi-crop inference
+                x_crop = foreground_center_crop(
+                    x,crop_size=224,otsu_thresholds=m
+                )
+                z = model(x_crop)
+                z = torch.nn.functional.normalize(z, dim=1)
 
                 embeddings.append(z.cpu().numpy())
                 plates.extend(batch["plate"])
