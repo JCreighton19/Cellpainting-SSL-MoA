@@ -25,12 +25,16 @@ python replicate_correlation.py \
 """
 
 import argparse
+import os
+import sys
 import numpy as np
 import pandas as pd
 from scipy import stats
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def build_well_embeddings(embeddings, metadata):
+
+def build_well_embeddings(embeddings, metadata, normalize=True):
     """Mean-pool tile embeddings to well level. Returns (well_embs, well_df)."""
     metadata = metadata.copy().reset_index(drop=True)
     metadata["_idx"] = np.arange(len(metadata))
@@ -50,9 +54,9 @@ def build_well_embeddings(embeddings, metadata):
         })
 
     well_embs = np.stack(embs).astype(np.float32)
-    # L2 normalize for cosine similarity via dot product
-    norms = np.linalg.norm(well_embs, axis=1, keepdims=True)
-    well_embs = well_embs / (norms + 1e-8)
+    if normalize:
+        norms = np.linalg.norm(well_embs, axis=1, keepdims=True)
+        well_embs = well_embs / (norms + 1e-8)
     return well_embs, pd.DataFrame(rows).reset_index(drop=True)
 
 
@@ -86,12 +90,14 @@ def random_baseline(well_embs, well_df, n_pairs, seed=42):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--embeddings", required=True, help="Path to embeddings .npy")
-    parser.add_argument("--metadata",   required=True, help="Path to master_metadata_qc.parquet")
-    parser.add_argument("--plates",     default=None,  help="plates .npy aligned with embeddings")
-    parser.add_argument("--wells",      default=None,  help="wells .npy aligned with embeddings")
-    parser.add_argument("--n_random",   type=int, default=10000, help="Random pairs for baseline")
-    parser.add_argument("--min_plates", type=int, default=2,     help="Min plates per compound to include")
+    parser.add_argument("--embeddings",  required=True, help="Path to embeddings .npy")
+    parser.add_argument("--metadata",    required=True, help="Path to master_metadata_qc.parquet")
+    parser.add_argument("--plates",      default=None,  help="plates .npy aligned with embeddings")
+    parser.add_argument("--wells",       default=None,  help="wells .npy aligned with embeddings")
+    parser.add_argument("--n_random",    type=int, default=10000, help="Random pairs for baseline")
+    parser.add_argument("--min_plates",  type=int, default=2,     help="Min plates per compound to include")
+    parser.add_argument("--postprocess", action="store_true",
+                        help="Apply MAD scaling + sphering (fit on DMSO controls) before evaluation")
     args = parser.parse_args()
 
     # --- Load ---
@@ -127,7 +133,19 @@ def main():
     print(f"broad_sample null   : {metadata['broad_sample'].isna().sum()}")
 
     # --- Well-level aggregation ---
-    well_embs, well_df = build_well_embeddings(embeddings, metadata)
+    well_embs, well_df = build_well_embeddings(embeddings, metadata, normalize=not args.postprocess)
+
+    if args.postprocess:
+        from utils.postprocessing import postprocess
+        ctrl_mask = (
+            well_df["moa"].isin(["control vehicle"]) |
+            well_df["broad_sample"].isin(["DMSO", ""])
+        ).values
+        print(f"\nPostprocessing with {ctrl_mask.sum()} control wells (MAD + sphering)...")
+        well_embs = postprocess(well_embs, ctrl_mask).astype(np.float32)
+        norms = np.linalg.norm(well_embs, axis=1, keepdims=True)
+        well_embs = well_embs / (norms + 1e-8)
+
     print(f"\nWells      : {len(well_df)}")
     print(f"Tiles/well : mean={well_df['n_tiles'].mean():.1f}  "
           f"min={well_df['n_tiles'].min()}  max={well_df['n_tiles'].max()}")

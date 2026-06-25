@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import DataLoader
 import re
@@ -8,6 +9,10 @@ import argparse
 from datasets.dataset import CellPaintingDataset
 from models.dino.dino import CellPaintingViT
 from models.config import CONFIG
+
+CROP_SIZE  = 224
+CROP_BATCH = 64   # max crops per model forward pass (bounds VRAM)
+MIN_FG     = 0.01 # paper: ≥1% foreground in DNA channel
 
 
 def get_checkpoints(run_dir):
@@ -29,38 +34,42 @@ def get_checkpoints(run_dir):
 
 
 @torch.no_grad()
-def foreground_crop(images, crop_size, otsu_thresholds):
-    B, C, H, W = images.shape
-    ts = crop_size
-    dna = images[:, 4, :, :]
+def embed_fov(model, img, otsu_thresh, device):
+    """
+    Tile a single FOV into non-overlapping CROP_SIZE×CROP_SIZE crops,
+    keep those with ≥MIN_FG foreground (DNA channel > Otsu), embed each,
+    and return the L2-normalised mean. Falls back to centre crop if none pass.
 
-    max_attempts = 10
-    y0_final = torch.zeros(B, dtype=torch.long, device=images.device)
-    x0_final = torch.zeros(B, dtype=torch.long, device=images.device)
-    accepted = torch.zeros(B, dtype=torch.bool, device=images.device)
+    img: (C, H, W) tensor, already on CPU (moved per-item to avoid OOM).
+    """
+    C, H, W = img.shape
+    n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
 
-    for _ in range(max_attempts):
-        y0 = torch.randint(0, H - ts + 1, (B,), device=images.device)
-        x0 = torch.randint(0, W - ts + 1, (B,), device=images.device)
-        dna_crops = dna.unfold(1, ts, 1).unfold(2, ts, 1)
-        dna_patch = dna_crops[torch.arange(B, device=images.device),y0,x0]
-        thresh = otsu_thresholds[:, None, None]
-        fg_fraction = (dna_patch > thresh).float().mean(dim=[1, 2])
-        valid = fg_fraction >= 0.01
+    if n_h == 0 or n_w == 0:
+        # image smaller than crop size — use the full image
+        crops = img.unsqueeze(0).to(device)
+    else:
+        # unfold into (n_h*n_w, C, CROP_SIZE, CROP_SIZE) — views until .contiguous()
+        crops = (img.unfold(1, CROP_SIZE, CROP_SIZE)   # (C, n_h, W, crop)
+                    .unfold(2, CROP_SIZE, CROP_SIZE)   # (C, n_h, n_w, crop, crop)
+                    .permute(1, 2, 0, 3, 4)            # (n_h, n_w, C, crop, crop)
+                    .contiguous()
+                    .view(n_h * n_w, C, CROP_SIZE, CROP_SIZE))  # ~4 MB for 16 crops
 
-        newly_accepted = valid & ~accepted
-        y0_final = torch.where(newly_accepted, y0, y0_final)
-        x0_final = torch.where(newly_accepted, x0, x0_final)
-        accepted |= newly_accepted
+        fg = (crops[:, 4] > otsu_thresh).float().mean(dim=[1, 2]) >= MIN_FG
+        crops = crops[fg]
 
-        if accepted.all():
-            break
+        if len(crops) == 0:
+            r0 = (H - CROP_SIZE) // 2
+            c0 = (W - CROP_SIZE) // 2
+            crops = img[:, r0:r0 + CROP_SIZE, c0:c0 + CROP_SIZE].unsqueeze(0)
 
-    patches = images.unfold(2, ts, 1).unfold(3, ts, 1)
+        crops = crops.to(device)
 
-    return patches[
-        torch.arange(B, device=images.device),:,y0_final,x0_final
-    ]
+    # sub-batch through model to bound VRAM usage
+    parts = [model(crops[i:i + CROP_BATCH]) for i in range(0, len(crops), CROP_BATCH)]
+    z = F.normalize(torch.cat(parts, dim=0), dim=1)
+    return z.mean(dim=0)  # (D,)
 
 
 def load_model(checkpoint_path, device):
@@ -68,7 +77,6 @@ def load_model(checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint["student_enc"])
     model.eval()
-
     return model
 
 
@@ -90,66 +98,49 @@ def main():
             --run_dir /path/to/checkpoints \
             --all
     """
-
-    # Set seed for reproducibility
     torch.manual_seed(42)
     np.random.seed(42)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_dir", required=True)
 
-    # Optionally specify epochs
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--run_dir", required=True)
-
     group = parser.add_mutually_exclusive_group()
-
     group.add_argument(
-        "--epochs",
-        nargs="+",
-        type=int,
-        default=None,
+        "--epochs", nargs="+", type=int, default=None,
         help="Specific epochs to extract (e.g. 1 5 10)"
     )
-
     group.add_argument(
-        "--all",
-        action="store_true",
+        "--all", action="store_true",
         help="Extract ALL checkpoints"
     )
-
     args = parser.parse_args()
     run_dir = args.run_dir
 
     if not os.path.exists(run_dir):
         raise ValueError("run_dir does not exist")
 
-    run_name = os.path.basename(os.path.normpath(run_dir))
-
+    run_name   = os.path.basename(os.path.normpath(run_dir))
     base_output = "/scratch/creighton.jo/cellpainting/embeddings"
-    output_dir = os.path.join(base_output, run_name)
+    output_dir  = os.path.join(base_output, run_name)
     os.makedirs(output_dir, exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using device:", device)
 
-    # Dataset (same for all checkpoints)
+    # Load full images — extraction tiles each FOV into multiple crops
     dataset = CellPaintingDataset(
-        processed_dir=os.path.join(
-            os.environ["CP_OUTPUT_ROOT"],
-            "data/tiles_qc"
-        ),
-        random_crop=False
+        processed_dir=os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc"),
+        return_full_image=True,
     )
 
     loader = DataLoader(
         dataset,
         batch_size=CONFIG["batch_size"],
-        shuffle=False,  # ordered sweep; all tiles visited exactly once
+        shuffle=False,
         num_workers=CONFIG["num_workers"],
-        pin_memory=True,
+        pin_memory=False,      # full images are large; skip pinning to save CPU RAM
         persistent_workers=True,
-        prefetch_factor=4,
+        prefetch_factor=2,     # reduced from training to limit CPU RAM pressure
     )
 
     checkpoints = get_checkpoints(run_dir)
@@ -158,64 +149,48 @@ def main():
     if args.all:
         selected_checkpoints = checkpoints
     elif args.epochs is not None:
-        selected_checkpoints = [
-            (e, p) for (e, p) in checkpoints if e in args.epochs
-        ]
+        selected_checkpoints = [(e, p) for (e, p) in checkpoints if e in args.epochs]
     else:
-        # Default: latest checkpoint only
         selected_checkpoints = [checkpoints[-1]]
 
     print(f"Found {len(selected_checkpoints)} checkpoints to process")
 
-
-    # Extract embeddings
     for epoch, checkpoint_path in selected_checkpoints:
         print(f"\n=== Processing epoch {epoch} ===")
         print(f"Checkpoint: {checkpoint_path}")
         model = load_model(checkpoint_path, device)
-        embeddings = []
-        plates = []
-        wells = []
+
+        embeddings, plates, wells = [], [], []
 
         with torch.no_grad():
             for step, batch in enumerate(loader):
                 if step % 50 == 0:
                     print(f"Epoch {epoch} | Step {step}/{len(loader)}")
-                x = batch["image"].to(device, non_blocking=True)
-                m = batch["otsu_threshold"].to(device, non_blocking=True)
 
-                # multi-crop inference
-                x_crop = foreground_crop(
-                    x,crop_size=224,otsu_thresholds=m
-                )
-                z = model(x_crop)
-                z = torch.nn.functional.normalize(z, dim=1)
+                images     = batch["image"]           # (B, C, H, W) full resolution, on CPU
+                thresholds = batch["otsu_threshold"]  # (B,) per-FOV Otsu scalar
 
-                embeddings.append(z.cpu().numpy())
+                fov_embs = torch.stack([
+                    embed_fov(model, images[b], thresholds[b].item(), device)
+                    for b in range(len(images))
+                ])  # (B, D)
+
+                embeddings.append(fov_embs.cpu().numpy())
                 plates.extend(batch["plate"])
                 wells.extend(batch["well"])
 
         embeddings = np.concatenate(embeddings, axis=0)
-        plates = np.array(plates)
-        wells = np.array(wells)
+        plates     = np.array(plates)
+        wells      = np.array(wells)
 
         print("Shape:", embeddings.shape)
 
-        # Save
-        np.save(
-            os.path.join(output_dir, f"embeddings_epoch_{epoch}.npy"),
-            embeddings
-        )
-        np.save(
-            os.path.join(output_dir, f"plates_epoch_{epoch}.npy"),
-            plates
-        )
-        np.save(
-            os.path.join(output_dir, f"wells_epoch_{epoch}.npy"),
-            wells
-        )
-        embedding_file_name = f"embeddings_epoch_{epoch}"
-        print(f"Saved epoch {epoch} at {os.path.join(output_dir, embedding_file_name)}.npy\n")
+        np.save(os.path.join(output_dir, f"embeddings_epoch_{epoch}.npy"), embeddings)
+        np.save(os.path.join(output_dir, f"plates_epoch_{epoch}.npy"),     plates)
+        np.save(os.path.join(output_dir, f"wells_epoch_{epoch}.npy"),      wells)
+
+        print(f"Saved epoch {epoch} → {os.path.join(output_dir, f'embeddings_epoch_{epoch}')}.npy\n")
+
 
 if __name__ == "__main__":
     main()

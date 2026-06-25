@@ -53,16 +53,30 @@ class CellPaintingViT(nn.Module):
 
 
 class DINOHead(nn.Module):
-    def __init__(self, dim=384, proj_dim=4096):
+    """Canonical DINO projection head: 3-layer MLP → L2 norm → weight-norm linear.
+    Weight-normalised last layer prevents output-magnitude collapse.
+    norm_last_layer=True freezes the scale (weight_g), matching the paper."""
+    def __init__(self, in_dim=384, out_dim=20000,
+                 hidden_dim=2048, bottleneck_dim=256, norm_last_layer=True):
         super().__init__()
         self.mlp = nn.Sequential(
-            nn.Linear(dim, 1024),
+            nn.Linear(in_dim, hidden_dim),
             nn.GELU(),
-            nn.Linear(1024, proj_dim)
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, bottleneck_dim),
         )
+        self.last_layer = nn.utils.weight_norm(
+            nn.Linear(bottleneck_dim, out_dim, bias=False)
+        )
+        self.last_layer.weight_g.data.fill_(1)
+        if norm_last_layer:
+            self.last_layer.weight_g.requires_grad = False
 
     def forward(self, x):
-        return self.mlp(x)
+        x = self.mlp(x)
+        x = F.normalize(x, dim=-1, p=2)   # L2-normalise bottleneck before last layer
+        return self.last_layer(x)
 
 
 if __name__ == "__main__":

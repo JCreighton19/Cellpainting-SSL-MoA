@@ -167,7 +167,7 @@ def main():
     )
 
     _total_steps   = CONFIG["n_epochs"] * len(loader)
-    _warmup_steps  = 15 * len(loader)
+    _warmup_steps  = 20 * len(loader)
     _min_lr_ratio  = 1e-6 / CONFIG["lr"]
 
     def lr_lambda(step):
@@ -204,12 +204,23 @@ def main():
         print(f"Resuming from checkpoint: {ckpt_path}")
         ckpt = torch.load(ckpt_path, map_location=device)
         student_enc.load_state_dict(ckpt["student_enc"])
-        student_head.load_state_dict(ckpt["student_head"])
+        try:
+            student_head.load_state_dict(ckpt["student_head"])
+            teacher_head.load_state_dict(ckpt["teacher_head"])
+        except RuntimeError as e:
+            print(f"Could not restore head weights (architecture mismatch): {e}")
+            print("Starting heads from scratch — encoder weights preserved.")
         teacher_enc.load_state_dict(ckpt["teacher_enc"])
-        teacher_head.load_state_dict(ckpt["teacher_head"])
-        optimizer.load_state_dict(ckpt["optimizer"])
+        try:
+            optimizer.load_state_dict(ckpt["optimizer"])
+        except (ValueError, RuntimeError) as e:
+            print(f"Could not restore optimizer state (architecture change?): {e}")
+            print("Starting optimizer from scratch.")
         if "center" in ckpt:
-            dino_loss.center.copy_(ckpt["center"])
+            if ckpt["center"].shape == dino_loss.center.shape:
+                dino_loss.center.copy_(ckpt["center"])
+            else:
+                print(f"Skipping center restore: shape {ckpt['center'].shape} != {dino_loss.center.shape}")
         if "scheduler" in ckpt:
             scheduler.load_state_dict(ckpt["scheduler"])
         start_epoch = ckpt["epoch"] + 1
@@ -221,6 +232,8 @@ def main():
     m_min = 0.996
     m_max = 0.9998
     losses = []
+    total_opt_steps  = n_epochs * max(len(loader) // accum_steps, 1)
+    global_opt_step  = start_epoch * max(len(loader) // accum_steps, 1)
 
     for epoch in range(start_epoch, n_epochs):
         epoch_start = time.perf_counter()
@@ -313,6 +326,12 @@ def main():
 
                 optimizer.step()
                 scheduler.step()
+                global_opt_step += 1
+                wd = CONFIG["weight_decay"] + (
+                    CONFIG.get("wd_end", CONFIG["weight_decay"]) - CONFIG["weight_decay"]
+                ) * (global_opt_step / total_opt_steps)
+                for param_group in optimizer.param_groups:
+                    param_group["weight_decay"] = wd
                 optimizer.zero_grad(set_to_none=True)
                 update_teacher(student_enc, teacher_enc,
                                student_head, teacher_head, m)
