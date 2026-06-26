@@ -249,7 +249,7 @@ def main():
 
         cos_sims = []
         embed_stds = []
-        embed_norms = []
+        encoder_stds = []
         opt_step = 0
 
         for step, batch in enumerate(loader):
@@ -275,14 +275,15 @@ def main():
                 t_both = teacher_head(teacher_enc(torch.cat([g1_t, g2_t], dim=0)))
                 t1, t2 = t_both.chunk(2, dim=0)
 
-            s_globals = student_head(student_enc(torch.cat([g1_s, g2_s], dim=0)))
+            s_enc = student_enc(torch.cat([g1_s, g2_s], dim=0))
+            s_globals = student_head(s_enc)
             s_global, s_global_2 = s_globals.chunk(2, dim=0)
             s_local = list(student_head(student_enc(torch.cat(locals_, dim=0))).chunk(len(locals_), dim=0))
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
                 embed_std = all_s.std(dim=0).mean().item()
-                embed_norm = all_s.norm(dim=1).mean().item()
+                encoder_std = s_enc.detach().std(dim=0).mean().item()
 
                 cos_sim = 0.5 * (
                     F.cosine_similarity(s_global.detach(), t2, dim=1).mean() +
@@ -291,7 +292,7 @@ def main():
 
             cos_sims.append(cos_sim)
             embed_stds.append(embed_std)
-            embed_norms.append(embed_norm)
+            encoder_stds.append(encoder_std)
 
             loss = 0
             # cross-global losses
@@ -309,7 +310,7 @@ def main():
                 print(f"{step}/{len(loader)} steps |"
                     f"loss={loss.item():.4f} |"
                     f"std={embed_std:.4f} |"
-                    f"norm={embed_norm:.4f} |"
+                    f"enc_std={encoder_std:.4f} |"
                     f"cos_sim={cos_sim:.4f}"
                 )
 
@@ -338,7 +339,7 @@ def main():
                 opt_step += 1
 
                 # Recompute teacher AFTER EMA update before updating center
-                effective_center_momentum = 0.9
+                effective_center_momentum = 0.95
 
                 with torch.no_grad():
                     teacher_batch = torch.cat([t1, t2], dim=0)
@@ -354,7 +355,6 @@ def main():
                             raw_teacher_probs *
                             raw_teacher_probs.log()
                     ).sum(dim=-1).mean()
-                    raw_eff_classes = raw_entropy.exp()
 
                     entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                     max_prob = teacher_probs.max(dim=-1).values.mean()
@@ -363,7 +363,6 @@ def main():
                         print(
                             f"teacher entropy={entropy.item():.3f} | "
                             f"eff_classes={effective_classes.item():.1f} | "
-                            f"raw_eff_classes={raw_eff_classes.item():.1f} | "
                             f"top1={max_prob.item():.4f}"
                         )
 
@@ -378,9 +377,8 @@ def main():
         losses.append(avg_loss)
         avg_cos = np.mean(cos_sims)
         avg_std = np.mean(embed_stds)
-        avg_norm = np.mean(embed_norms)
+        avg_enc_std = np.mean(encoder_stds)
         eps = 1e-6
-        collapse_score = avg_std / (1.0 - avg_cos + eps)
 
         torch.save({
             "student_enc": student_enc.state_dict(),
@@ -398,9 +396,8 @@ def main():
             f"Epoch {epoch + 1}/{n_epochs} | "
             f"Loss: {avg_loss:.4f} | "
             f"std: {avg_std:.4f} | "
-            f"norm: {avg_norm:.4f} | "
+            f"enc_std: {avg_enc_std:.4f} | "
             f"cos_sim: {avg_cos:.4f} | "
-            f"collapse: {collapse_score:.4f} | "
             f"Time: {epoch_time / 60:.2f} min\n"
             f"====================="
         )
