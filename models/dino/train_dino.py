@@ -14,6 +14,7 @@ from datasets.dataset import CellPaintingDataset
 from models.dino.dino_loss import DINOLoss
 from models.dino.dino import CellPaintingViT, DINOHead
 from models.config import CONFIG
+from utils.foreground_crop import foreground_crop
 
 
 def main():
@@ -46,10 +47,12 @@ def main():
     print("Using device:", device)
 
     # Dataset
-    data_dir = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
-    dataset = CellPaintingDataset(
+    data_dir  = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
+    use_tiles = os.environ.get("CP_USE_TILES", "0") == "1"
+    dataset   = CellPaintingDataset(
         processed_dir=data_dir,
-        return_full_image=True
+        return_full_image=not use_tiles,
+        use_tiles=use_tiles,
     )
     debug_dir = os.path.join(run_dir, "aug_debug")
     os.makedirs(debug_dir, exist_ok=True)
@@ -101,46 +104,6 @@ def main():
         x = torch.clamp(x ** gamma[:, None, None, None], 0.0, 1.0)
 
         return x
-
-    def foreground_crop(images, crop_size, otsu_thresholds):
-        B, C, H, W = images.shape
-        ts = crop_size
-        dna = images[:, 4, :, :]  # (B, H, W)
-
-        max_attempts = 10
-        y0_final = torch.zeros(B, dtype=torch.long, device=images.device)
-        x0_final = torch.zeros(B, dtype=torch.long, device=images.device)
-        accepted = torch.zeros(B, dtype=torch.bool, device=images.device)
-
-        for _ in range(max_attempts):
-            # sample random top-left corners for unaccepted crops
-            y0 = torch.randint(0, H - ts + 1, (B,), device=images.device)
-            x0 = torch.randint(0, W - ts + 1, (B,), device=images.device)
-
-            # extract DNA channel crop for each image and use unfold to get all possible crops, then index
-            dna_crops = dna.unfold(1, ts, 1).unfold(2, ts, 1)
-            dna_patch = dna_crops[torch.arange(B, device=images.device), y0, x0]
-
-            # check foreground fraction against per-image otsu scalar
-            thresh = otsu_thresholds[:, None, None]  # (B, 1, 1)
-            fg_fraction = (dna_patch > thresh).float().mean(dim=[1, 2])  # (B,)
-            valid = fg_fraction >= 0.01  # paper threshold: 1% foreground
-
-            # accept crops that pass and haven't been accepted yet
-            newly_accepted = valid & ~accepted
-            y0_final = torch.where(newly_accepted, y0, y0_final)
-            x0_final = torch.where(newly_accepted, x0, x0_final)
-            accepted = accepted | newly_accepted
-
-            if accepted.all():
-                break
-
-        # extract final crops from all channels
-        patches = images.unfold(2, ts, 1).unfold(3, ts, 1)
-        out = patches[torch.arange(B, device=images.device), :, y0_final, x0_final]
-
-        return out
-
 
     # Models
     student_enc = CellPaintingViT(in_channels=5).to(device)
@@ -253,20 +216,47 @@ def main():
         opt_step = 0
 
         for step, batch in enumerate(loader):
-            images = batch["image"].to(device, non_blocking=True)  # (B, C, H, W)
-            thresholds = batch["otsu_threshold"].to(device, non_blocking=True)
+            if use_tiles:
+                # --- TILE PATH ---
+                # tiles: (B, N, 5, 224, 224) — precomputed foreground-aware crops
+                tiles = batch["tiles"].to(device, non_blocking=True)
+                B, N  = tiles.shape[:2]
+                aB    = torch.arange(B, device=device)
 
-            # 2 GLOBAL VIEWS: independent 224×224 foreground crops
-            g1 = foreground_crop(images, 224, thresholds)
-            g2 = foreground_crop(images, 224, thresholds)
+                # 2 GLOBAL VIEWS: randomly sample one tile per image
+                g1 = tiles[aB, torch.randint(0, N, (B,), device=device)]
+                g2 = tiles[aB, torch.randint(0, N, (B,), device=device)]
+
+                # 6 LOCAL VIEWS: random 96×96 patch from a randomly sampled tile,
+                # resized to 224 — identical interpolation to the original path.
+                # The 96 patch is always within a foreground tile (equivalent to
+                # the paper's per-crop foreground check, but guaranteed rather
+                # than probabilistic).
+                a6B        = aB.unsqueeze(0).expand(6, -1).reshape(-1)   # (6B,) image indices
+                tile_idx   = torch.randint(0, N, (6 * B,), device=device)
+                local_base = tiles[a6B, tile_idx]                         # (6B, 5, 224, 224)
+                y0 = torch.randint(0, 224 - 96 + 1, (6 * B,), device=device)
+                x0 = torch.randint(0, 224 - 96 + 1, (6 * B,), device=device)
+                lp = local_base.unfold(2, 96, 1).unfold(3, 96, 1)        # (6B, 5, 129, 129, 96, 96)
+                local_crops = lp[torch.arange(6 * B, device=device), :, y0, x0].contiguous()
+            else:
+                # --- ORIGINAL PATH (full-image online foreground cropping) ---
+                images     = batch["image"].to(device, non_blocking=True)
+                thresholds = batch["otsu_threshold"].to(device, non_blocking=True)
+                B          = images.shape[0]
+
+                g1 = foreground_crop(images, 224, thresholds)
+                g2 = foreground_crop(images, 224, thresholds)
+                local_crops = torch.cat(
+                    [foreground_crop(images, 96, thresholds) for _ in range(6)], dim=0
+                )
 
             g1_t = augment(g1)
             g2_t = augment(g2)
             g1_s = augment(g1)
             g2_s = augment(g2)
 
-            # 4 LOCAL VIEWS (student): independent 96×96 crops, resized to 224 for ViT
-            local_crops = torch.cat([foreground_crop(images, 96, thresholds) for _ in range(6)], dim=0)
+            # 6 LOCAL VIEWS (student): resize 96→224 for ViT, then augment
             local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
             locals_ = [augment(c) for c in local_resized.chunk(6, dim=0)]
 

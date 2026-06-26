@@ -9,7 +9,7 @@ import pandas as pd
 from datasets.sampler import MoASampler
 
 class CellPaintingDataset(Dataset):
-    def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1, return_full_image=False):
+    def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1, return_full_image=False, use_tiles=False):
         metadata_path = os.path.join(
             os.environ["CP_OUTPUT_ROOT"],
             "data/processed/master_metadata_qc.parquet"
@@ -21,6 +21,7 @@ class CellPaintingDataset(Dataset):
         self.random_crop = random_crop
         self.k_per_class = k_per_class
         self.return_full_image = return_full_image
+        self.use_tiles = use_tiles
         # self.sampler = MoASampler(
         #     processed_dir=processed_dir,
         #     metadata_path=metadata_path
@@ -69,12 +70,27 @@ class CellPaintingDataset(Dataset):
         file = self.files[idx]
         sample = torch.load(file, weights_only=False)
         moa = sample.get("moa") or ""
-        img = sample["image"]
 
+        if self.use_tiles:
+            tiles_path = Path(file).with_name(Path(file).stem + "_tiles.pt")
+            if not tiles_path.exists():
+                raise FileNotFoundError(
+                    f"Tile bank not found: {tiles_path}. "
+                    f"Run datasets/precompute_tiles.py first."
+                )
+            tiles = torch.load(tiles_path, weights_only=True).float()  # (N, C, H, W)
+            return {
+                "tiles": tiles,
+                "plate": sample["plate"],
+                "well":  sample["well"],
+                "moa":   moa,
+            }
+
+        img = sample["image"]
         return {
             "image": img if self.return_full_image else self._crop_img(img),
             "plate": sample["plate"],
-            "well": sample["well"],
-            "moa": moa,
+            "well":  sample["well"],
+            "moa":   moa,
             "otsu_threshold": sample["otsu_threshold"]
         }
