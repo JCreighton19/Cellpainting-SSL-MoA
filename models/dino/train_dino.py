@@ -351,10 +351,6 @@ def main():
                         teacher_batch - dino_loss.center,
                         dim=-1
                     )
-                    raw_entropy = -(
-                            raw_teacher_probs *
-                            raw_teacher_probs.log()
-                    ).sum(dim=-1).mean()
 
                     entropy = -(teacher_probs * teacher_probs.log()).sum(dim=-1).mean()
                     max_prob = teacher_probs.max(dim=-1).values.mean()
