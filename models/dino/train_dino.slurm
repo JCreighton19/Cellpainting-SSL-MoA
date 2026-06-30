@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=dino-cp
-#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/dino_%j.out
-#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/dino_%j.err
+#SBATCH --output=/scratch/creighton.jo/cellpainting/logs/%x_%j.out
+#SBATCH --error=/scratch/creighton.jo/cellpainting/logs/%x_%j.err
 #SBATCH --time=08:00:00
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=8
@@ -22,14 +22,19 @@ cd $REPO
 # Python path
 export PYTHONPATH=$REPO
 
-# Tell dataset where data lives
+# Dataset + cache paths
 export CP_DATA_ROOT=$DATA
 export CP_OUTPUT_ROOT=$OUT
 export HF_HOME=/scratch/creighton.jo/hf_cache
 export TORCH_HOME=/scratch/creighton.jo/torch_cache
 
-# Use pre-generated foreground tiles
+# Use pre-generated foreground tiles (optional toggle)
 export CP_USE_TILES=1
+
+# Explicit run mode control:
+#   resume = continue last run (default)
+#   new    = force new experiment
+export CP_RUN_MODE=${CP_RUN_MODE:-resume}
 
 # Conda setup
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
@@ -44,24 +49,64 @@ $PYTHON --version
 echo "Torch check:"
 $PYTHON -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
 
-echo "Data root:"
-echo $CP_DATA_ROOT
-
 echo "Starting training..."
+echo "CP_RUN_MODE = $CP_RUN_MODE"
 
-# Resume from previous job if one exists
-CURRENT_RUN=$(cat $OUT/checkpoints/current_run 2>/dev/null)
-if [ -n "$CURRENT_RUN" ]; then
-    export RESUME_DIR=$CURRENT_RUN
-    echo "Resuming from: $RESUME_DIR"
+# ----------------------------
+# RUN DIRECTORY RESOLUTION
+# ----------------------------
+RUN_ROOT="$OUT/checkpoints"
+CURRENT_RUN_FILE="$RUN_ROOT/current_run"
+
+if [ "$CP_RUN_MODE" == "new" ]; then
+
+    echo "Creating NEW experiment run"
+
+    RESUME_DIR="$RUN_ROOT/$(date +%m%d%y_%H%M%S)"
+    mkdir -p "$RESUME_DIR"
+
+    echo "$RESUME_DIR" > "$CURRENT_RUN_FILE"
+
 else
-    echo "Starting fresh run"
+    if [ -f "$CURRENT_RUN_FILE" ]; then
+        RESUME_DIR=$(cat "$CURRENT_RUN_FILE")
+        echo "Resuming existing run: $RESUME_DIR"
+    else
+        echo "No existing run found → creating new run"
+
+        RESUME_DIR="$RUN_ROOT/$(date +%m%d%y_%H%M%S)"
+        mkdir -p "$RESUME_DIR"
+
+        echo "$RESUME_DIR" > "$CURRENT_RUN_FILE"
+    fi
 fi
 
-$PYTHON models/dino/train_dino.py
-EXIT_CODE=$?
+export RESUME_DIR
 
-# Resubmit if killed before finishing (wall time); do NOT resubmit on clean exit
+# ----------------------------
+# SINGLE CONTINUOUS LOG FILE
+# ----------------------------
+LOGFILE="$RESUME_DIR/train.log"
+touch "$LOGFILE"
+
+echo "" >> "$LOGFILE"
+echo "==================================================" >> "$LOGFILE"
+echo "SLURM JOB: $SLURM_JOB_ID" >> "$LOGFILE"
+echo "START TIME: $(date)" >> "$LOGFILE"
+echo "RUN DIR: $RESUME_DIR" >> "$LOGFILE"
+echo "CP_RUN_MODE: $CP_RUN_MODE" >> "$LOGFILE"
+echo "==================================================" >> "$LOGFILE"
+echo "" >> "$LOGFILE"
+
+# ----------------------------
+# TRAINING
+# ----------------------------
+$PYTHON models/dino/train_dino.py 2>&1 | tee -a "$LOGFILE"
+EXIT_CODE=${PIPESTATUS[0]}
+
+# ----------------------------
+# RESUBMIT LOGIC
+# ----------------------------
 if [ $EXIT_CODE -ne 0 ]; then
     echo "Job interrupted (exit $EXIT_CODE) — resubmitting..."
     sbatch "$0"
