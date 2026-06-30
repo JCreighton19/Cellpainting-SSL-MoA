@@ -28,6 +28,9 @@ export CP_OUTPUT_ROOT=$OUT
 export HF_HOME=/scratch/creighton.jo/hf_cache
 export TORCH_HOME=/scratch/creighton.jo/torch_cache
 
+# Use pre-generated foreground tiles
+export CP_USE_TILES=1
+
 # Conda setup
 source /shared/EL9/explorer/anaconda3/2024.06/etc/profile.d/conda.sh
 conda activate cellpainting
