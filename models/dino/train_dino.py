@@ -227,18 +227,11 @@ def main():
                 g1 = tiles[aB, torch.randint(0, N, (B,), device=device)]
                 g2 = tiles[aB, torch.randint(0, N, (B,), device=device)]
 
-                # 6 LOCAL VIEWS: random 96×96 patch from a randomly sampled tile,
-                # resized to 224 — identical interpolation to the original path.
-                # The 96 patch is always within a foreground tile (equivalent to
-                # the paper's per-crop foreground check, but guaranteed rather
-                # than probabilistic).
-                a6B        = aB.unsqueeze(0).expand(6, -1).reshape(-1)   # (6B,) image indices
-                tile_idx   = torch.randint(0, N, (6 * B,), device=device)
-                local_base = tiles[a6B, tile_idx]                         # (6B, 5, 224, 224)
-                y0 = torch.randint(0, 224 - 96 + 1, (6 * B,), device=device)
-                x0 = torch.randint(0, 224 - 96 + 1, (6 * B,), device=device)
-                lp = local_base.unfold(2, 96, 1).unfold(3, 96, 1)        # (6B, 5, 129, 129, 96, 96)
-                local_crops = lp[torch.arange(6 * B, device=device), :, y0, x0].contiguous()
+                # 6 LOCAL VIEWS: directly sample precomputed tiles
+                a6B = aB.unsqueeze(0).expand(6, -1).reshape(-1)
+                tile_idx = torch.randint(0, tiles.shape[1], (6 * B,), device=device)
+                local_crops = tiles[a6B, tile_idx]  # (6B, 5, 224, 224)
+
             else:
                 # --- ORIGINAL PATH (full-image online foreground cropping) ---
                 images     = batch["image"].to(device, non_blocking=True)
