@@ -6,8 +6,6 @@ from pathlib import Path
 import os
 import pandas as pd
 
-from datasets.sampler import MoASampler
-
 class CellPaintingDataset(Dataset):
     def __init__(self, processed_dir, tile_size=224, random_crop=True, k_per_class=1, return_full_image=False, use_tiles=False):
         metadata_path = os.path.join(
@@ -22,10 +20,6 @@ class CellPaintingDataset(Dataset):
         self.k_per_class = k_per_class
         self.return_full_image = return_full_image
         self.use_tiles = use_tiles
-        # self.sampler = MoASampler(
-        #     processed_dir=processed_dir,
-        #     metadata_path=metadata_path
-        # )
 
     def __len__(self):
         return len(self.files)
