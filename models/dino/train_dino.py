@@ -76,6 +76,14 @@ def main():
         worker_init_fn=worker_init_fn
     )
 
+    def gpu_mem(msg):
+        if torch.cuda.is_available():
+            print(
+                msg,
+                torch.cuda.memory_allocated() / 1024 ** 3,
+                torch.cuda.memory_reserved() / 1024 ** 3
+            )
+
     def augment(x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
 
@@ -219,7 +227,10 @@ def main():
             if use_tiles:
                 # --- TILE PATH ---
                 # tiles: (B, N, 5, 224, 224) — precomputed foreground-aware crops
+                gpu_mem("before loading tiles")
                 tiles = batch["tiles"].to(device, non_blocking=True)
+                gpu_mem("after loading tiles")
+                print("tiles:", tiles.shape)
                 B, N  = tiles.shape[:2]
                 aB    = torch.arange(B, device=device)
 
@@ -255,13 +266,19 @@ def main():
 
             # ENCODING
             with torch.no_grad():
+                gpu_mem("before teacher")
                 t_both = teacher_head(teacher_enc(torch.cat([g1_t, g2_t], dim=0)))
+                gpu_mem("after teacher")
                 t1, t2 = t_both.chunk(2, dim=0)
 
+            gpu_mem("before student globals")
             s_enc = student_enc(torch.cat([g1_s, g2_s], dim=0))
+            gpu_mem("after student globals")
             s_globals = student_head(s_enc)
             s_global, s_global_2 = s_globals.chunk(2, dim=0)
+            gpu_mem("before student locals")
             s_local = list(student_head(student_enc(torch.cat(locals_, dim=0))).chunk(len(locals_), dim=0))
+            gpu_mem("after student locals")
 
             with torch.no_grad():
                 all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
