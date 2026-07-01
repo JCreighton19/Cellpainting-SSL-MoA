@@ -108,8 +108,7 @@ EXIT_CODE=${PIPESTATUS[0]}
 # RESUBMIT LOGIC
 # ----------------------------
 if [ $EXIT_CODE -ne 0 ]; then
-    echo "Job interrupted (exit $EXIT_CODE) — resubmitting..."
-    sbatch "$0"
+    echo "Exit code: $EXIT_CODE"
 else
     echo "Training complete — not resubmitting."
 fi
