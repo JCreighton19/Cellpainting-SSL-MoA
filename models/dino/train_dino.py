@@ -14,7 +14,7 @@ from datasets.dataset import CellPaintingDataset
 from models.dino.dino_loss import DINOLoss
 from models.dino.dino import CellPaintingViT, DINOHead
 from models.config import CONFIG
-from utils.foreground_crop import foreground_crop
+from utils.foreground_crop import foreground_crop_multi
 
 
 def main():
@@ -246,10 +246,10 @@ def main():
                 thresholds = batch["otsu_threshold"].to(device, non_blocking=True)
                 B          = images.shape[0]
 
-                g1 = foreground_crop(images, 224, thresholds)
-                g2 = foreground_crop(images, 224, thresholds)
-                local_crops = torch.cat(
-                    [foreground_crop(images, 96, thresholds) for _ in range(6)], dim=0
+                g1, g2, local_crops = foreground_crop_multi(
+                    images,
+                    crop_sizes={"global": 224, "local": 96, "n_local": 6},
+                    otsu_thresholds=thresholds
                 )
 
             with torch.autocast(device_type="cuda", enabled=use_amp):

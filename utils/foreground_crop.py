@@ -59,3 +59,22 @@ def foreground_crop_single(image, crop_size, otsu_threshold, max_attempts=10):
             break  # accepted — same criterion as batch version
 
     return image[:, y0_out:y0_out + ts, x0_out:x0_out + ts], y0_out, x0_out
+
+def foreground_crop_multi(images, crop_sizes, otsu_thresholds):
+    """
+    Minimal wrapper that replaces repeated calls to foreground_crop
+    with a single vectorized pass per crop size.
+    """
+
+    g1 = foreground_crop(images, crop_sizes["global"], otsu_thresholds)
+    g2 = foreground_crop(images, crop_sizes["global"], otsu_thresholds)
+
+    locals_ = []
+    for _ in range(crop_sizes["n_local"]):
+        locals_.append(
+            foreground_crop(images, crop_sizes["local"], otsu_thresholds)
+        )
+
+    local_crops = torch.cat(locals_, dim=0)
+
+    return g1, g2, local_crops
