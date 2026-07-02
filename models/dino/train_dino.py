@@ -45,6 +45,8 @@ def main():
         else "cpu"
     )
     print("Using device:", device)
+    if device == "cuda":
+        torch.backends.cudnn.benchmark = True
 
     # Dataset
     data_dir  = os.path.join(os.environ["CP_OUTPUT_ROOT"], "data/tiles_qc")
@@ -129,6 +131,8 @@ def main():
         lr = CONFIG["lr"],
         weight_decay=CONFIG["weight_decay"]
     )
+    use_amp = (device == "cuda")
+    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
     _total_steps   = CONFIG["n_epochs"] * len(loader)
     _warmup_steps  = 20 * len(loader)
@@ -187,6 +191,8 @@ def main():
                 print(f"Skipping center restore: shape {ckpt['center'].shape} != {dino_loss.center.shape}")
         if "scheduler" in ckpt:
             scheduler.load_state_dict(ckpt["scheduler"])
+        if "scaler" in ckpt:
+            scaler.load_state_dict(ckpt["scaler"])
         start_epoch = ckpt["epoch"] + 1
         print(f"Resuming from epoch {start_epoch}")
 
@@ -246,50 +252,51 @@ def main():
                     [foreground_crop(images, 96, thresholds) for _ in range(6)], dim=0
                 )
 
-            g1_t = augment(g1)
-            g2_t = augment(g2)
-            g1_s = augment(g1)
-            g2_s = augment(g2)
+            with torch.autocast(device_type="cuda", enabled=use_amp):
+                g_t = augment(torch.cat([g1, g2], dim=0))
+                g1_t, g2_t = g_t.chunk(2, dim=0)
+                g_s = augment(torch.cat([g1, g2], dim=0))
+                g1_s, g2_s = g_s.chunk(2, dim=0)
 
-            # 6 LOCAL VIEWS (student): resize 96→224 for ViT, then augment
-            local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
-            locals_ = [augment(c) for c in local_resized.chunk(6, dim=0)]
+                # 6 LOCAL VIEWS (student): resize 96→224 for ViT, then augment
+                local_resized = F.interpolate(local_crops, size=224, mode='bilinear', align_corners=False)
+                locals_ = list(augment(local_resized).chunk(6, dim=0))
 
-            # ENCODING
-            with torch.no_grad():
-                t_both = teacher_head(teacher_enc(torch.cat([g1_t, g2_t], dim=0)))
-                t1, t2 = t_both.chunk(2, dim=0)
+                # ENCODING
+                with torch.no_grad():
+                    t_both = teacher_head(teacher_enc(torch.cat([g1_t, g2_t], dim=0)))
+                    t1, t2 = t_both.chunk(2, dim=0)
 
-            s_enc = student_enc(torch.cat([g1_s, g2_s], dim=0))
-            s_globals = student_head(s_enc)
-            s_global, s_global_2 = s_globals.chunk(2, dim=0)
-            s_local = list(student_head(student_enc(torch.cat(locals_, dim=0))).chunk(len(locals_), dim=0))
+                s_enc = student_enc(torch.cat([g1_s, g2_s], dim=0))
+                s_globals = student_head(s_enc)
+                s_global, s_global_2 = s_globals.chunk(2, dim=0)
+                s_local = list(student_head(student_enc(torch.cat(locals_, dim=0))).chunk(len(locals_), dim=0))
 
-            with torch.no_grad():
-                all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
-                embed_std = all_s.std(dim=0).mean().item()
-                encoder_std = s_enc.detach().std(dim=0).mean().item()
+                with torch.no_grad():
+                    all_s = torch.cat([s_global, s_global_2] + s_local, dim=0)
+                    embed_std = all_s.std(dim=0).mean().item()
+                    encoder_std = s_enc.detach().std(dim=0).mean().item()
 
-                cos_sim = 0.5 * (
-                    F.cosine_similarity(s_global.detach(), t2, dim=1).mean() +
-                    F.cosine_similarity(s_global_2.detach(), t1, dim=1).mean()
-                ).item()
+                    cos_sim = 0.5 * (
+                        F.cosine_similarity(s_global.detach(), t2, dim=1).mean() +
+                        F.cosine_similarity(s_global_2.detach(), t1, dim=1).mean()
+                    ).item()
 
-            cos_sims.append(cos_sim)
-            embed_stds.append(embed_std)
-            encoder_stds.append(encoder_std)
+                cos_sims.append(cos_sim)
+                embed_stds.append(embed_std)
+                encoder_stds.append(encoder_std)
 
-            loss = 0
-            # cross-global losses
-            loss += dino_loss(s_global,   t2, epoch=epoch)
-            loss += dino_loss(s_global_2, t1, epoch=epoch)
+                loss = 0
+                # cross-global losses
+                loss += dino_loss(s_global,   t2, epoch=epoch)
+                loss += dino_loss(s_global_2, t1, epoch=epoch)
 
-            # local losses
-            for sl in s_local:
-                loss += dino_loss(sl, t1, epoch=epoch)
-                loss += dino_loss(sl, t2, epoch=epoch)
+                # local losses
+                for sl in s_local:
+                    loss += dino_loss(sl, t1, epoch=epoch)
+                    loss += dino_loss(sl, t2, epoch=epoch)
 
-            loss = loss / (2 + 2 * len(locals_))
+                loss = loss / (2 + 2 * len(locals_))
 
             if step % 100 == 0:
                 print(f"{step}/{len(loader)} steps |"
@@ -301,16 +308,18 @@ def main():
 
             total_loss += loss.item()
             loss = loss / accum_steps
-            loss.backward()
+            scaler.scale(loss).backward()
 
             if (step + 1) % accum_steps == 0:
+                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(
                     list(student_enc.parameters()) +
                     list(student_head.parameters()),
                     3.0
                 )
 
-                optimizer.step()
+                scaler.step(optimizer)
+                scaler.update()
                 scheduler.step()
                 global_opt_step += 1
                 wd = CONFIG["weight_decay"] + (
@@ -327,7 +336,7 @@ def main():
                 effective_center_momentum = 0.95
 
                 with torch.no_grad():
-                    teacher_batch = torch.cat([t1, t2], dim=0)
+                    teacher_batch = torch.cat([t1, t2], dim=0).float()
 
                     # TEACHER ENTROPY METRICS
                     teacher_logits = (teacher_batch - dino_loss.center) / dino_loss.teacher_temp
@@ -368,6 +377,7 @@ def main():
             "teacher_head": teacher_head.state_dict(),
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
+            "scaler": scaler.state_dict(),
             "center": dino_loss.center,
             "epoch": epoch,
             "loss": avg_loss
