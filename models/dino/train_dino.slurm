@@ -2,7 +2,7 @@
 #SBATCH --job-name=dino-cp
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/%x_%j.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/%x_%j.err
-#SBATCH --time=08:00:00
+#SBATCH --time=01:00:00
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
@@ -29,7 +29,7 @@ export HF_HOME=/scratch/creighton.jo/hf_cache
 export TORCH_HOME=/scratch/creighton.jo/torch_cache
 
 # Use pre-generated foreground tiles (optional toggle)
-export CP_USE_TILES=1
+export CP_USE_TILES=0
 
 # Explicit run mode control:
 #   resume = continue last run (default)
