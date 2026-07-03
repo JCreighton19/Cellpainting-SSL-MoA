@@ -27,6 +27,7 @@ export CP_DATA_ROOT=$DATA
 export CP_OUTPUT_ROOT=$OUT
 export HF_HOME=/scratch/creighton.jo/hf_cache
 export TORCH_HOME=/scratch/creighton.jo/torch_cache
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # Use pre-generated foreground tiles (optional toggle)
 export CP_USE_TILES=0
