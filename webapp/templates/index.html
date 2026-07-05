@@ -1,94 +1,70 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="row justify-content-center mb-3">
-  <div class="col-lg-9 text-center">
-    <h1 class="h3 mb-2">Cell Painting Phenotype Explorer</h1>
-    <p class="text-muted">
-      A research tool for navigating a learned map of cell phenotype space, built from microscopy
-      images of cells exposed to hundreds of drug-like compounds.
-    </p>
-  </div>
-</div>
+<div class="app-layout">
 
-<div class="row justify-content-center mb-4">
-  <div class="col-lg-9">
-    <div class="row row-cols-2 row-cols-md-4 g-3 text-center mb-4">
-      <div class="col"><div class="border rounded p-3"><div class="h4 mb-0">{{ "{:,}".format(stats.n_wells) }}</div><div class="small text-muted">wells imaged</div></div></div>
-      <div class="col"><div class="border rounded p-3"><div class="h4 mb-0">{{ "{:,}".format(stats.n_compounds) }}</div><div class="small text-muted">compounds</div></div></div>
-      <div class="col"><div class="border rounded p-3"><div class="h4 mb-0">{{ "{:,}".format(stats.n_moas) }}</div><div class="small text-muted">annotated mechanisms (MoAs)</div></div></div>
-      <div class="col"><div class="border rounded p-3"><div class="h4 mb-0">{{ stats.n_plates }}</div><div class="small text-muted">assay plates</div></div></div>
-    </div>
+  <aside class="sidebar-left">
+    <div class="sidebar-section">
+      <label for="search-input" class="form-label small text-muted mb-1">Search</label>
+      <div class="d-flex gap-1">
+        <input type="text" id="search-input" list="search-suggestions" class="form-control form-control-sm" placeholder="compound, MoA, plate, well…" autocomplete="off">
+        <button id="search-btn" type="button" class="btn btn-sm btn-primary">Go</button>
+      </div>
+      <datalist id="search-suggestions">
+        {% for p in plates %}<option value="{{ p }}">{% endfor %}
+        {% for m in moas %}<option value="{{ m }}">{% endfor %}
+        {% for c in compounds %}<option value="{{ c }}">{% endfor %}
+      </datalist>
+      <div id="search-message" class="small text-muted mt-1"></div>
 
-    <div class="row g-3 small">
-      <div class="col-md-4">
-        <strong>What Cell Painting measures.</strong>
-        Cell Painting is a microscopy assay that stains cells with multiple fluorescent dyes marking
-        different structures — nucleus, endoplasmic reticulum, RNA, the cytoskeleton/Golgi/membrane,
-        and mitochondria. Imaging all of these together captures a detailed snapshot of a cell's
-        morphology after treatment with a compound.
-      </div>
-      <div class="col-md-4">
-        <strong>What the model learned.</strong>
-        A self-supervised vision model (DINO) was trained on these images without any MoA labels.
-        It learned to compress each image into a 384-number vector — an embedding — such that images
-        showing visually similar cell morphology end up with similar vectors.
-      </div>
-      <div class="col-md-4">
-        <strong>How to read similarity.</strong>
-        "Similarity" here means cosine similarity between embeddings — a measure of shared visual
-        phenotype, not a direct measure of shared mechanism. Compounds with similar phenotypes
-        sometimes share a biological pathway, but similarity is a hypothesis to investigate, not a
-        confirmed mechanism.
+      <div class="mt-2">
+        {% for ex in examples %}
+          <button type="button" class="btn btn-sm btn-outline-secondary example-chip mb-1" data-q="{{ ex }}">{{ ex }}</button>
+        {% endfor %}
       </div>
     </div>
-  </div>
-</div>
 
-<div class="row justify-content-center mb-4">
-  <div class="col-lg-8 text-center">
-    <form action="{{ url_for('search') }}" method="get" class="d-flex gap-2 mt-3">
-      <input type="text" name="q" list="search-suggestions" class="form-control form-control-lg" placeholder="e.g. HDAC inhibitor, a compound name, or a mechanism of action" autofocus autocomplete="off">
-      <button type="submit" class="btn btn-primary btn-lg">Search</button>
-    </form>
-    <datalist id="search-suggestions">
-      {% for p in plates %}<option value="{{ p }}">{% endfor %}
-      {% for m in moas %}<option value="{{ m }}">{% endfor %}
-      {% for c in compounds %}<option value="{{ c }}">{% endfor %}
-    </datalist>
-
-    {% if error %}
-      <div class="alert alert-warning mt-3 mb-0">{{ error }}</div>
-    {% endif %}
-
-    <div class="mt-3">
-      <span class="text-muted small me-2">Try:</span>
-      {% for ex in examples %}
-        <a class="badge bg-light text-dark border me-1 text-decoration-none" href="{{ url_for('search', q=ex) }}">{{ ex }}</a>
-      {% endfor %}
+    <div class="sidebar-section">
+      <h2 class="h6 text-uppercase text-muted">Dataset overview</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><td>Wells imaged</td><td class="text-end">{{ "{:,}".format(stats.n_wells) }}</td></tr>
+          <tr><td>Compounds</td><td class="text-end">{{ "{:,}".format(stats.n_compounds) }}</td></tr>
+          <tr><td>Annotated MoAs</td><td class="text-end">{{ "{:,}".format(stats.n_moas) }}</td></tr>
+          <tr><td>Assay plates</td><td class="text-end">{{ stats.n_plates }}</td></tr>
+        </tbody>
+      </table>
     </div>
-  </div>
-</div>
 
-<div class="row">
-  <div class="col-12">
-    <h2 class="h5">Phenotype map (2D UMAP)</h2>
-    <p class="text-muted small mb-2">
-      Each point is one well. Points are positioned so that wells the model embedded similarly sit
-      close together — proximity reflects similar cell morphology, not a confirmed shared mechanism,
-      and clustering should be read as a pattern worth investigating rather than a causal claim.
-      Click a point to open its detail page.
+    <div class="sidebar-section">
+      <h2 class="h6 text-uppercase text-muted">Color by</h2>
+      <div class="btn-group btn-group-sm w-100" role="group">
+        <button type="button" id="color-by-moa" class="btn btn-outline-secondary active">MoA</button>
+        <button type="button" id="color-by-plate" class="btn btn-outline-secondary">Plate</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="center-panel">
+    <div id="umap-plot" class="umap-plot"></div>
+    <p class="text-muted small map-caption">
+      Each point represents one biological sample (a well). Nearby points correspond to
+      phenotypically similar perturbations in the learned embedding space. Distances suggest
+      similarity but should not be interpreted as causal biological relationships.
+      Only the {{ stats.n_moas_in_legend }} most frequent mechanisms get their own color
+      (covering {{ "%.0f"|format(stats.pct_top10_coverage * 100) }}% of wells) — another
+      {{ "%.0f"|format(stats.pct_other_annotated * 100) }}% of wells <em>do</em> have an annotated
+      mechanism but are grouped as "other" for legend readability; only
+      {{ "%.0f"|format(stats.pct_unannotated * 100) }}% have no annotation at all.
     </p>
-    <div id="umap-plot" style="width: 100%; height: 640px;"></div>
-    <p class="text-muted small mt-2 mb-0">
-      Only the {{ stats.n_moas_in_legend }} most frequent mechanisms are given their own color, covering
-      {{ "%.0f"|format(stats.pct_top10_coverage * 100) }}% of wells. That is a legend-readability limit,
-      not a data gap: another {{ "%.0f"|format(stats.pct_other_annotated * 100) }}% of wells <em>do</em>
-      have an annotated mechanism (one of {{ stats.n_moas }} total) but are grouped as "other annotated MoA"
-      so the legend stays readable. Only {{ "%.0f"|format(stats.pct_unannotated * 100) }}% of wells have no
-      MoA annotation at all.
-    </p>
-  </div>
+  </section>
+
+  <aside class="sidebar-right">
+    <div id="sidebar-content">
+      <p class="text-muted small">Click a point on the map, or search, to explore a phenotype.</p>
+    </div>
+  </aside>
+
 </div>
 
 {% endblock %}

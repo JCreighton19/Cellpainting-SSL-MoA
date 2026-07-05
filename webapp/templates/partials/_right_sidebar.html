@@ -1,0 +1,74 @@
+<div class="thumbnail-placeholder border rounded d-flex align-items-center justify-content-center mb-3">
+  {% if well.thumbnail_path %}
+    <img src="{{ url_for('static', filename=well.thumbnail_path) }}" alt="{{ well.pert_iname or well.well_id }}">
+  {% else %}
+    <span class="text-muted small text-center px-3">
+      Representative image not available yet<br>(raw images are cluster-hosted)
+    </span>
+  {% endif %}
+</div>
+
+<h2 class="h5 mb-1">
+  {% if well.is_control %}
+    Vehicle control well
+  {% else %}
+    {{ well.pert_iname or "Unannotated compound" }}
+  {% endif %}
+</h2>
+
+{% if well.moa %}
+  <p class="mb-2"><span class="badge bg-primary">{{ well.moa }}</span></p>
+{% else %}
+  <p class="text-muted small mb-2">No annotated mechanism of action</p>
+{% endif %}
+
+{% for entry in moa_info %}
+  {% if entry.description %}
+    <p class="small mb-1">{{ entry.description }}</p>
+    {% if entry.sources %}
+      <p class="small text-muted mb-3">
+        <a href="{{ entry.sources[0].url }}" target="_blank" rel="noopener">{{ entry.sources[0].title }}</a>
+      </p>
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+<div class="insight-box rounded p-2 mb-3">
+  <h3 class="h6 text-uppercase text-muted mb-1">Biological insight</h3>
+  <p class="small mb-0">{{ insight }}</p>
+</div>
+
+<h3 class="h6 text-uppercase text-muted mb-2">Nearest neighbors</h3>
+{% for n in neighbors %}
+<div class="neighbor-card border rounded p-2 mb-2 d-flex gap-2">
+  <div class="thumbnail-sm rounded flex-shrink-0 d-flex align-items-center justify-content-center overflow-hidden">
+    {% if n.thumbnail_path %}
+      <img src="{{ url_for('static', filename=n.thumbnail_path) }}" alt="{{ n.pert_iname or n.well_id }}">
+    {% else %}
+      <span class="text-muted" style="font-size: 0.6rem;">no image</span>
+    {% endif %}
+  </div>
+  <div class="flex-grow-1 small">
+    <div class="fw-semibold">{{ n.pert_iname or "Unannotated compound" }}</div>
+    <div>
+      {{ n.moa or "unannotated" }}
+      {% if n.same_moa %}<span class="badge bg-success ms-1">same MoA</span>{% endif %}
+    </div>
+    <div class="text-muted">similarity {{ "%.3f"|format(n.similarity) }}</div>
+    <div class="fst-italic text-muted">{{ n.reason }}</div>
+  </div>
+</div>
+{% endfor %}
+
+<details class="mt-3">
+  <summary class="text-muted small">Technical details</summary>
+  <table class="table table-sm mt-2">
+    <tbody>
+      <tr><th scope="row">Well ID</th><td>{{ well.well_id }}</td></tr>
+      <tr><th scope="row">Plate</th><td>{{ well.plate }}</td></tr>
+      <tr><th scope="row">Well</th><td>{{ well.well }}</td></tr>
+      <tr><th scope="row">Compound ID</th><td>{{ well.broad_sample or "—" }}</td></tr>
+      <tr><th scope="row">Control well</th><td>{{ "yes (" ~ well.control_type ~ ")" if well.is_control else "no" }}</td></tr>
+    </tbody>
+  </table>
+</details>

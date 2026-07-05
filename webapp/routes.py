@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
 
-from flask import abort, jsonify, redirect, render_template, request, url_for
+from flask import abort, jsonify, render_template, request
 
 from similarity import generate_insight
 
-# A few curated searches shown on the home page. Picked from the moa/broad_sample
+# A few curated searches shown in the left sidebar. Picked from the moa/broad_sample
 # columns actually present in wells.parquet.
 EXAMPLE_QUERIES = [
     "HDAC inhibitor",
@@ -15,6 +15,7 @@ EXAMPLE_QUERIES = [
 ]
 
 MAX_DISAMBIGUATION_WELLS = 30
+DEFAULT_K = 5  # top-5 neighbors, shown in the right sidebar
 
 MOA_DESCRIPTIONS_PATH = Path(__file__).resolve().parent / "moa_descriptions.json"
 with open(MOA_DESCRIPTIONS_PATH) as _f:
@@ -69,6 +70,7 @@ def _compound_matches(df):
             "compound_name": row["compound_name"],
             "dominant_moa": row["dominant_moa"],
             "n_wells": int(row["n_wells"]),
+            "representative_well_id": row["well_ids"][0],
         }
         for _, row in df.iterrows()
     ]
@@ -78,8 +80,6 @@ def _well_matches(df):
     return [
         {
             "well_id": row["well_id"],
-            "plate": row["plate"],
-            "well": row["well"],
             "broad_sample": row["broad_sample"],
             "pert_iname": row["pert_iname"],
             "moa": row["moa"],
@@ -98,7 +98,7 @@ def resolve_query(store, query: str):
       {"kind": "none"}
 
     Priority: exact well_id -> exact compound_id/name -> exact MoA (compound-level,
-    redirects straight through if unambiguous, else disambiguates) -> exact
+    resolves straight through if unambiguous, else disambiguates) -> exact
     plate -> substring match across compounds and wells, grouped.
     Plain substring matching throughout — no ranking/scoring.
     """
@@ -164,9 +164,9 @@ def resolve_query(store, query: str):
     }
 
 
-def register_routes(app, store, sim_index, compound_sim_index):
+def register_routes(app, store, sim_index):
     def _search_context():
-        # Powers the home page's <datalist> search suggestions.
+        # Powers the left sidebar's <datalist> search suggestions.
         return {
             "plates": sorted(store.wells["plate"].dropna().unique().tolist()),
             "moas": sorted(store.compounds["dominant_moa"].dropna().unique().tolist()),
@@ -174,7 +174,7 @@ def register_routes(app, store, sim_index, compound_sim_index):
         }
 
     def _dataset_stats():
-        # Powers the home page's Dataset Overview section and the map's explanatory text.
+        # Powers the left sidebar's Dataset Overview section and the map's caption.
         wells = store.wells
         n_wells = len(wells)
         unannotated = int(wells["moa"].isna().sum())
@@ -194,52 +194,43 @@ def register_routes(app, store, sim_index, compound_sim_index):
 
     @app.route("/")
     def home():
+        # The entire application lives on this one page — search, map, and
+        # detail panel all update in place via the JSON/partial APIs below.
         return render_template(
-            "index.html", examples=EXAMPLE_QUERIES, error=None, stats=_dataset_stats(), **_search_context()
+            "index.html", examples=EXAMPLE_QUERIES, stats=_dataset_stats(), **_search_context()
         )
 
-    @app.route("/search")
-    def search():
+    @app.route("/api/search")
+    def api_search():
         q = request.args.get("q", "")
         result = resolve_query(store, q)
 
         if result["kind"] == "well":
-            return redirect(url_for("well_detail", well_id=result["well_id"]))
+            return jsonify({"kind": "well", "well_id": result["well_id"]})
+
         if result["kind"] == "compound":
-            return redirect(url_for("compound_detail", compound_id=result["compound_id"]))
+            compound, _ = store.get_compound(result["compound_id"])
+            return jsonify({"kind": "well", "well_id": compound["well_ids"][0]})
+
         if result["kind"] == "disambiguate":
-            return render_template(
-                "search_results.html",
-                query=q,
-                compounds=result["compounds"],
-                wells=result["wells"],
-                wells_truncated=result["wells_truncated"],
-            )
-        return render_template(
-            "index.html",
-            examples=EXAMPLE_QUERIES,
-            error=f"No match found for “{q}”." if q.strip() else "Enter a search term.",
-            stats=_dataset_stats(),
-            **_search_context(),
-        )
+            matches = [
+                {"label": c["compound_name"] or c["compound_id"], "moa": c["dominant_moa"], "well_id": c["representative_well_id"]}
+                for c in result["compounds"]
+            ] + [
+                {"label": w["pert_iname"] or "Unannotated compound", "moa": w["moa"], "well_id": w["well_id"]}
+                for w in result["wells"]
+            ]
+            return jsonify({"kind": "disambiguate", "query": q, "matches": matches, "truncated": result["wells_truncated"]})
 
-    @app.route("/moa")
-    def moa_detail():
-        name = request.args.get("name", "").strip()
-        if not name:
-            abort(404)
-        entries = describe_moa(name)
-        compounds = store.compounds[store.compounds["dominant_moa"] == name]
-        compound_list = _compound_matches(compounds)
-        return render_template("moa_detail.html", moa_name=name, entries=entries, compounds=compound_list)
+        return jsonify({"kind": "none", "query": q})
 
-    @app.route("/well/<well_id>")
-    def well_detail(well_id):
+    @app.route("/api/well/<well_id>")
+    def api_well(well_id):
         well, row_idx = store.get_well(well_id)
         if well is None:
             abort(404)
 
-        k = request.args.get("k", default=10, type=int)
+        k = request.args.get("k", default=DEFAULT_K, type=int)
         neighbor_idxs, scores = sim_index.search(row_idx, k=k)
         neighbors = []
         for i, score in zip(neighbor_idxs, scores):
@@ -247,9 +238,6 @@ def register_routes(app, store, sim_index, compound_sim_index):
             same_moa = bool(n["moa"] == well["moa"]) if well["moa"] else False
             neighbors.append({
                 "well_id": n["well_id"],
-                "plate": n["plate"],
-                "well": n["well"],
-                "broad_sample": n["broad_sample"],
                 "pert_iname": n["pert_iname"],
                 "moa": n["moa"],
                 "thumbnail_path": n["thumbnail_path"],
@@ -265,39 +253,12 @@ def register_routes(app, store, sim_index, compound_sim_index):
             similarities=[n["similarity"] for n in neighbors],
         )
 
-        return render_template("well_detail.html", well=well, neighbors=neighbors, k=k, insight=insight)
+        moa_info = describe_moa(well["moa"])
 
-    @app.route("/compound/<compound_id>")
-    def compound_detail(compound_id):
-        compound, row_idx = store.get_compound(compound_id)
-        if compound is None:
-            abort(404)
-
-        k = request.args.get("k", default=10, type=int)
-        neighbor_idxs, scores = compound_sim_index.search(row_idx, k=k)
-        neighbors = []
-        for i, score in zip(neighbor_idxs, scores):
-            n = store.compounds.iloc[int(i)]
-            same_moa = bool(n["dominant_moa"] == compound["dominant_moa"]) if compound["dominant_moa"] else False
-            neighbors.append({
-                "compound_id": n["compound_id"],
-                "compound_name": n["compound_name"],
-                "dominant_moa": n["dominant_moa"],
-                "n_wells": int(n["n_wells"]),
-                "thumbnail_path": n["thumbnail_path"],
-                "similarity": float(score),
-                "same_moa": same_moa,
-                "reason": _neighbor_reason(compound["dominant_moa"], n["dominant_moa"], same_moa),
-            })
-
-        insight = generate_insight(
-            entity_label="compound",
-            query_moa=compound["dominant_moa"],
-            neighbor_moas=[n["dominant_moa"] for n in neighbors],
-            similarities=[n["similarity"] for n in neighbors],
+        return render_template(
+            "partials/_right_sidebar.html",
+            well=well, neighbors=neighbors, insight=insight, moa_info=moa_info,
         )
-
-        return render_template("compound_detail.html", compound=compound, neighbors=neighbors, k=k, insight=insight)
 
     @app.route("/api/umap")
     def api_umap():

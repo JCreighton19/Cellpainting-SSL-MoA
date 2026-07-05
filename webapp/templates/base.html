@@ -7,22 +7,64 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
-<body>
-  <nav class="navbar navbar-dark bg-dark">
-    <div class="container">
-      <a class="navbar-brand" href="{{ url_for('home') }}">Cell Painting Phenotype Explorer</a>
-      <span class="badge bg-secondary">Phase 1 prototype</span>
+<body class="app-body">
+  <nav class="navbar navbar-dark bg-dark app-navbar">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0">Cell Painting Phenotype Explorer</span>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-secondary d-none d-md-inline">postprocessed DINO embeddings</span>
+        <button id="help-btn" type="button" class="btn btn-sm btn-outline-light rounded-circle" title="About this tool" aria-label="About this tool">?</button>
+      </div>
     </div>
   </nav>
 
-  <main class="container py-4">
+  <main class="app-main">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="text-center text-muted small py-4">
+  <dialog id="help-dialog">
+    <h2 class="h5">About this tool</h2>
+
+    <h3 class="h6 mt-3">What is Cell Painting?</h3>
+    <p class="small">
+      Cell Painting is a microscopy assay that stains cells with multiple fluorescent dyes marking
+      different structures — nucleus, endoplasmic reticulum, RNA, the cytoskeleton/Golgi/membrane,
+      and mitochondria. Imaging all of these together captures a detailed snapshot of a cell's
+      morphology after treatment with a compound.
+    </p>
+
+    <h3 class="h6 mt-3">What does this visualization represent?</h3>
+    <p class="small">
+      Each point is one well, positioned by a self-supervised model (DINO) trained on these images
+      without any mechanism-of-action labels. The model compresses each image into a 384-number
+      embedding, and this map is a 2D projection (UMAP) of that embedding space — wells the model
+      encoded similarly appear close together.
+    </p>
+
+    <h3 class="h6 mt-3">How should I interpret distance and similarity?</h3>
+    <p class="small mb-0">
+      Proximity reflects similar cell morphology, not a confirmed shared biological mechanism.
+      Compounds with similar phenotypes sometimes share a pathway, but treat clustering and
+      similarity scores as a hypothesis worth investigating, not a proven biological relationship.
+    </p>
+
+    <div class="text-end mt-3">
+      <button id="help-close" type="button" class="btn btn-sm btn-primary">Close</button>
+    </div>
+  </dialog>
+
+  <footer class="app-footer text-center text-muted small">
     Self-supervised DINO embeddings over JUMP Cell Painting wells &middot; postprocessed (MAD + sphering) &middot; cosine similarity search
   </footer>
 
+  <script>
+    document.getElementById("help-btn").addEventListener("click", () => {
+      document.getElementById("help-dialog").showModal();
+    });
+    document.getElementById("help-close").addEventListener("click", () => {
+      document.getElementById("help-dialog").close();
+    });
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

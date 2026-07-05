@@ -1,5 +1,110 @@
+html, body {
+  height: 100%;
+}
+
 body {
   background-color: #f7f8fa;
+}
+
+/* ---- App shell: navbar + full-height 3-column workspace + thin footer ---- */
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-navbar {
+  flex: 0 0 auto;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-height: 0; /* let children scroll instead of pushing the page taller */
+}
+
+.app-footer {
+  flex: 0 0 auto;
+  padding: 0.35rem 0;
+  background-color: #fff;
+  border-top: 1px solid #e9ecef;
+}
+
+.app-layout {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar-left,
+.sidebar-right {
+  flex: 0 0 20%;
+  max-width: 320px;
+  min-width: 220px;
+  overflow-y: auto;
+  padding: 1rem;
+  background-color: #fff;
+}
+
+.sidebar-left {
+  border-right: 1px solid #e9ecef;
+}
+
+.sidebar-right {
+  border-left: 1px solid #e9ecef;
+}
+
+.sidebar-section {
+  margin-bottom: 1.5rem;
+}
+
+.center-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.umap-plot {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.map-caption {
+  flex: 0 0 auto;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.example-chip {
+  margin-right: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .app-body { height: auto; overflow: visible; }
+  .app-main { overflow: visible; }
+  .app-layout { flex-direction: column; height: auto; }
+  .sidebar-left, .sidebar-right {
+    max-width: none;
+    border: none;
+    border-top: 1px solid #e9ecef;
+  }
+  .umap-plot { height: 60vh; }
+}
+
+/* ---- Help dialog ---- */
+
+#help-dialog {
+  max-width: 480px;
+  width: 90%;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 1.25rem 1.5rem;
+}
+
+#help-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .thumbnail-placeholder {
