@@ -32,7 +32,7 @@ function buildMoaTraces(data) {
   const counts = {};
   data.moa.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
   const topMoas = Object.keys(counts)
-    .filter((m) => m !== "unannotated")
+    .filter((m) => m !== "Unannotated")
     .sort((a, b) => counts[b] - counts[a])
     .slice(0, TOP_N_MOAS);
 
@@ -45,7 +45,7 @@ function buildMoaTraces(data) {
     const moa = data.moa[i];
     let key;
     if (topMoas.includes(moa)) key = moa;
-    else if (moa === "unannotated") key = "unannotated";
+    else if (moa === "Unannotated") key = "unannotated";
     else key = "other-annotated";
     const g = groups[key];
     g.x.push(data.x[i]);
@@ -112,14 +112,29 @@ function defaultLayout() {
     xaxis: { title: "UMAP 1" },
     yaxis: { title: "UMAP 2" },
     legend: { orientation: "h", y: -0.15 },
+    dragmode: "pan",
+    hovermode: "closest",
   };
 }
+
+// Mouse wheel zooms, left-drag pans, hover always on; the toolbar is trimmed
+// to just "Reset axes" so normal navigation never needs it.
+const PLOT_CONFIG = {
+  responsive: true,
+  scrollZoom: true,
+  displaylogo: false,
+  modeBarButtonsToRemove: [
+    "zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
+    "autoScale2d", "hoverClosestCartesian", "hoverCompareCartesian",
+    "toggleSpikelines", "toImage",
+  ],
+};
 
 function render(colorBy) {
   const traces = colorBy === "plate" ? buildPlateTraces(umapData) : buildMoaTraces(umapData);
   highlightTraceIndex = traces.length;
   traces.push(buildHighlightTrace());
-  Plotly.react(plotEl, traces, plotEl.layout || defaultLayout(), { responsive: true });
+  Plotly.react(plotEl, traces, plotEl.layout || defaultLayout(), PLOT_CONFIG);
   if (selectedWellId) updateHighlightPosition(selectedWellId);
 }
 
@@ -205,6 +220,36 @@ function performSearch(query) {
     });
 }
 
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 560;
+
+// Draggable divider: `side` is which edge of `target` the handle sits on,
+// so dragging computes width as the distance from that edge to the cursor.
+function makeResizable(handle, target, side) {
+  let dragging = false;
+
+  handle.addEventListener("mousedown", (e) => {
+    dragging = true;
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const rect = target.getBoundingClientRect();
+    let width = side === "left" ? e.clientX - rect.left : rect.right - e.clientX;
+    width = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, width));
+    target.style.flex = `0 0 ${width}px`;
+    if (plotEl) Plotly.Plots.resize(plotEl);
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = "";
+  });
+}
+
 function initMap() {
   plotEl = document.getElementById("umap-plot");
   if (!plotEl) return;
@@ -236,6 +281,9 @@ function initMap() {
       performSearch(btn.dataset.q);
     });
   });
+
+  makeResizable(document.getElementById("resize-handle-left"), document.getElementById("sidebar-left"), "left");
+  makeResizable(document.getElementById("resize-handle-right"), document.getElementById("sidebar-right"), "right");
 }
 
 document.addEventListener("DOMContentLoaded", initMap);

@@ -3,7 +3,7 @@
 
 <div class="app-layout">
 
-  <aside class="sidebar-left">
+  <aside class="sidebar-left" id="sidebar-left">
     <div class="sidebar-section">
       <label for="search-input" class="form-label small text-muted mb-1">Search</label>
       <div class="d-flex gap-1">
@@ -42,24 +42,19 @@
         <button type="button" id="color-by-moa" class="btn btn-outline-secondary active">MoA</button>
         <button type="button" id="color-by-plate" class="btn btn-outline-secondary">Plate</button>
       </div>
+      <button type="button" id="viz-info-btn" class="btn btn-link btn-sm px-0 mt-2">ⓘ About this visualization</button>
     </div>
   </aside>
 
+  <div class="resize-handle" id="resize-handle-left"></div>
+
   <section class="center-panel">
     <div id="umap-plot" class="umap-plot"></div>
-    <p class="text-muted small map-caption">
-      Each point represents one biological sample (a well). Nearby points correspond to
-      phenotypically similar perturbations in the learned embedding space. Distances suggest
-      similarity but should not be interpreted as causal biological relationships.
-      Only the {{ stats.n_moas_in_legend }} most frequent mechanisms get their own color
-      (covering {{ "%.0f"|format(stats.pct_top10_coverage * 100) }}% of wells) — another
-      {{ "%.0f"|format(stats.pct_other_annotated * 100) }}% of wells <em>do</em> have an annotated
-      mechanism but are grouped as "other" for legend readability; only
-      {{ "%.0f"|format(stats.pct_unannotated * 100) }}% have no annotation at all.
-    </p>
   </section>
 
-  <aside class="sidebar-right">
+  <div class="resize-handle" id="resize-handle-right"></div>
+
+  <aside class="sidebar-right" id="sidebar-right">
     <div id="sidebar-content">
       <p class="text-muted small">Click a point on the map, or search, to explore a phenotype.</p>
     </div>
@@ -67,9 +62,53 @@
 
 </div>
 
+<dialog id="viz-info-dialog">
+  <h2 class="h5">About this visualization</h2>
+
+  <h3 class="h6 mt-3">What does each point represent?</h3>
+  <p class="small">
+    Each point is one well. Its position comes from a 2D projection (UMAP) of the 384-number
+    embedding a self-supervised model (DINO) produced for that well's cell images.
+  </p>
+
+  <h3 class="h6 mt-3">What does distance mean?</h3>
+  <p class="small">
+    Nearby points correspond to phenotypically similar perturbations in the learned embedding
+    space. Distances suggest similarity but should not be interpreted as causal biological
+    relationships.
+  </p>
+
+  <h3 class="h6 mt-3">Why are only some mechanisms colored?</h3>
+  <p class="small">
+    Only the {{ stats.n_moas_in_legend }} most frequent mechanisms get their own color (covering
+    {{ "%.0f"|format(stats.pct_top10_coverage * 100) }}% of wells) — another
+    {{ "%.0f"|format(stats.pct_other_annotated * 100) }}% of wells <em>do</em> have an annotated
+    mechanism but are grouped as "other" purely for legend readability; only
+    {{ "%.0f"|format(stats.pct_unannotated * 100) }}% have no annotation at all.
+  </p>
+
+  <h3 class="h6 mt-3">Embeddings and similarity</h3>
+  <p class="small mb-0">
+    Similarity between two wells is the cosine similarity of their postprocessed DINO embeddings —
+    a measure of shared visual phenotype, not a direct measure of shared biological mechanism.
+  </p>
+
+  <div class="text-end mt-3">
+    <button id="viz-info-close" type="button" class="btn btn-sm btn-primary">Close</button>
+  </div>
+</dialog>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+  document.getElementById("viz-info-btn").addEventListener("click", () => {
+    document.getElementById("viz-info-dialog").showModal();
+  });
+  document.getElementById("viz-info-close").addEventListener("click", () => {
+    document.getElementById("viz-info-dialog").close();
+  });
+</script>
 {% endblock %}

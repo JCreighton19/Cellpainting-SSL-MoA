@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import abort, jsonify, render_template, request
 
-from similarity import generate_insight
+from similarity import compute_neighborhood_stats, generate_interpretation, title_case
 
 # A few curated searches shown in the left sidebar. Picked from the moa/broad_sample
 # columns actually present in wells.parquet.
@@ -25,42 +25,21 @@ with open(MOA_DESCRIPTIONS_PATH) as _f:
 def describe_moa(moa_name: str):
     """Looks up curated educational text for a MoA label.
 
-    Combined labels in the data ("A | B") are split on " | " and each part is
-    resolved independently, so the dictionary only needs atomic MoA entries.
-    Returns a list of dicts (one per atomic part), each with description/
-    pathway/typically_affects/sources, or None-filled fields as a fallback
-    when no curated entry exists for that part yet.
+    Returns a single dict (not a list) — the sidebar shows exactly one concise
+    description per point. Combined labels in the data ("A | B") are resolved
+    by trying each atomic part in order and using the first one with a
+    curated entry, since the dictionary only stores atomic MoA entries.
+    Falls back to a None-filled placeholder (keyed on the first part) if no
+    part is curated yet.
     """
     if not moa_name:
-        return []
+        return None
     parts = [p.strip() for p in moa_name.split("|")]
-    result = []
     for part in parts:
         entry = _MOA_DESCRIPTIONS.get(part)
         if entry:
-            result.append({"name": part, **entry})
-        else:
-            result.append({
-                "name": part,
-                "description": None,
-                "pathway": None,
-                "typically_affects": None,
-                "sources": [],
-            })
-    return result
-
-
-def _neighbor_reason(query_moa, neighbor_moa, same_moa):
-    """One-line, cautiously-worded explanation of why a neighbor showed up."""
-    if same_moa:
-        return "Shares the same annotated mechanism of action."
-    if query_moa and neighbor_moa:
-        return "Similar phenotype despite a different annotated mechanism of action."
-    if query_moa and not neighbor_moa:
-        return "Similar phenotype; this neighbor has no annotated mechanism of action."
-    if neighbor_moa and not query_moa:
-        return "Similar phenotype; this one has no annotated mechanism to compare against."
-    return "Similar phenotype; neither has an annotated mechanism of action."
+            return {"name": part, **entry}
+    return {"name": parts[0], "description": None, "pathway": None, "typically_affects": None, "sources": []}
 
 
 def _compound_matches(df):
@@ -214,10 +193,18 @@ def register_routes(app, store, sim_index):
 
         if result["kind"] == "disambiguate":
             matches = [
-                {"label": c["compound_name"] or c["compound_id"], "moa": c["dominant_moa"], "well_id": c["representative_well_id"]}
+                {
+                    "label": title_case(c["compound_name"]) or c["compound_id"],
+                    "moa": title_case(c["dominant_moa"]),
+                    "well_id": c["representative_well_id"],
+                }
                 for c in result["compounds"]
             ] + [
-                {"label": w["pert_iname"] or "Unannotated compound", "moa": w["moa"], "well_id": w["well_id"]}
+                {
+                    "label": title_case(w["pert_iname"]) or "Unannotated compound",
+                    "moa": title_case(w["moa"]),
+                    "well_id": w["well_id"],
+                }
                 for w in result["wells"]
             ]
             return jsonify({"kind": "disambiguate", "query": q, "matches": matches, "truncated": result["wells_truncated"]})
@@ -238,26 +225,38 @@ def register_routes(app, store, sim_index):
             same_moa = bool(n["moa"] == well["moa"]) if well["moa"] else False
             neighbors.append({
                 "well_id": n["well_id"],
+                "broad_sample": n["broad_sample"],
                 "pert_iname": n["pert_iname"],
                 "moa": n["moa"],
-                "thumbnail_path": n["thumbnail_path"],
                 "similarity": float(score),
                 "same_moa": same_moa,
-                "reason": _neighbor_reason(well["moa"], n["moa"], same_moa),
             })
 
-        insight = generate_insight(
-            entity_label="well",
+        stats = compute_neighborhood_stats(
             query_moa=well["moa"],
             neighbor_moas=[n["moa"] for n in neighbors],
             similarities=[n["similarity"] for n in neighbors],
         )
-
+        interpretation = generate_interpretation("well", well["moa"], stats)
         moa_info = describe_moa(well["moa"])
+
+        # Representative Neighbors: collapse replicate wells of the same
+        # compound into one entry (first = highest similarity, since
+        # `neighbors` is already sorted by descending score).
+        seen, representative_neighbors = set(), []
+        for n in neighbors:
+            key = n["broad_sample"] or n["well_id"]
+            if key not in seen:
+                seen.add(key)
+                representative_neighbors.append(n)
 
         return render_template(
             "partials/_right_sidebar.html",
-            well=well, neighbors=neighbors, insight=insight, moa_info=moa_info,
+            well=well,
+            neighbors=representative_neighbors,
+            stats=stats,
+            interpretation=interpretation,
+            moa_info=moa_info,
         )
 
     @app.route("/api/umap")
@@ -267,7 +266,7 @@ def register_routes(app, store, sim_index):
             "well_id": df["well_id"].tolist(),
             "x": df["umap_x"].tolist(),
             "y": df["umap_y"].tolist(),
-            "moa": df["moa"].fillna("unannotated").tolist(),
+            "moa": df["moa"].fillna("unannotated").apply(title_case).tolist(),
             "broad_sample": df["broad_sample"].fillna("unknown").tolist(),
             "plate": df["plate"].tolist(),
         }

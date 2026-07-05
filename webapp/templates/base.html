@@ -33,19 +33,12 @@
       morphology after treatment with a compound.
     </p>
 
-    <h3 class="h6 mt-3">What does this visualization represent?</h3>
-    <p class="small">
-      Each point is one well, positioned by a self-supervised model (DINO) trained on these images
-      without any mechanism-of-action labels. The model compresses each image into a 384-number
-      embedding, and this map is a 2D projection (UMAP) of that embedding space — wells the model
-      encoded similarly appear close together.
-    </p>
-
-    <h3 class="h6 mt-3">How should I interpret distance and similarity?</h3>
+    <h3 class="h6 mt-3">What did the model learn?</h3>
     <p class="small mb-0">
-      Proximity reflects similar cell morphology, not a confirmed shared biological mechanism.
-      Compounds with similar phenotypes sometimes share a pathway, but treat clustering and
-      similarity scores as a hypothesis worth investigating, not a proven biological relationship.
+      A self-supervised vision model (DINO) was trained on these images without any
+      mechanism-of-action labels, learning to compress each image into a 384-number embedding.
+      For details on how the map itself is built and how to read distance and similarity, see
+      "ⓘ About this visualization" in the left sidebar.
     </p>
 
     <div class="text-end mt-3">

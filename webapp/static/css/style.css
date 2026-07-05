@@ -39,11 +39,22 @@ body {
 .sidebar-left,
 .sidebar-right {
   flex: 0 0 20%;
-  max-width: 320px;
   min-width: 220px;
   overflow-y: auto;
   padding: 1rem;
   background-color: #fff;
+}
+
+.resize-handle {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background-color: #e9ecef;
+  transition: background-color 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: #adb5bd;
 }
 
 .sidebar-left {
@@ -71,12 +82,6 @@ body {
   min-height: 0;
 }
 
-.map-caption {
-  flex: 0 0 auto;
-  margin-top: 0.5rem;
-  margin-bottom: 0;
-}
-
 .example-chip {
   margin-right: 0.25rem;
 }
@@ -93,9 +98,10 @@ body {
   .umap-plot { height: 60vh; }
 }
 
-/* ---- Help dialog ---- */
+/* ---- Dialogs (help + about-this-visualization) ---- */
 
-#help-dialog {
+#help-dialog,
+#viz-info-dialog {
   max-width: 480px;
   width: 90%;
   border: none;
@@ -103,7 +109,8 @@ body {
   padding: 1.25rem 1.5rem;
 }
 
-#help-dialog::backdrop {
+#help-dialog::backdrop,
+#viz-info-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
@@ -140,5 +147,9 @@ body {
 }
 
 .neighbor-card {
+  background-color: #fff;
+}
+
+.neighbor-card-compact {
   background-color: #fff;
 }

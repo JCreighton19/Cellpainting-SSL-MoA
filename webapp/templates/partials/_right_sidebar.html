@@ -8,55 +8,79 @@
   {% endif %}
 </div>
 
+<!-- SECTION 1: what am I looking at -->
 <h2 class="h5 mb-1">
   {% if well.is_control %}
     Vehicle control well
   {% else %}
-    {{ well.pert_iname or "Unannotated compound" }}
+    {{ well.pert_iname|titlecase or "Unannotated compound" }}
   {% endif %}
 </h2>
 
 {% if well.moa %}
-  <p class="mb-2"><span class="badge bg-primary">{{ well.moa }}</span></p>
+  <p class="mb-2"><span class="badge bg-primary">{{ well.moa|titlecase }}</span></p>
 {% else %}
   <p class="text-muted small mb-2">No annotated mechanism of action</p>
 {% endif %}
 
-{% for entry in moa_info %}
-  {% if entry.description %}
-    <p class="small mb-1">{{ entry.description }}</p>
-    {% if entry.sources %}
-      <p class="small text-muted mb-3">
-        <a href="{{ entry.sources[0].url }}" target="_blank" rel="noopener">{{ entry.sources[0].title }}</a>
-      </p>
-    {% endif %}
+{% if moa_info and moa_info.description %}
+  <p class="small mb-1">{{ moa_info.description }}</p>
+  {% if moa_info.sources %}
+    <p class="small text-muted mb-3">
+      <a href="{{ moa_info.sources[0].url }}" target="_blank" rel="noopener">{{ moa_info.sources[0].title }}</a>
+    </p>
   {% endif %}
-{% endfor %}
+{% endif %}
 
-<div class="insight-box rounded p-2 mb-3">
-  <h3 class="h6 text-uppercase text-muted mb-1">Biological insight</h3>
-  <p class="small mb-0">{{ insight }}</p>
+<hr>
+
+<!-- SECTION 2: evidence -->
+<h3 class="h6 text-uppercase text-muted mb-2">Neighborhood summary</h3>
+{% if stats %}
+<dl class="row small mb-0">
+  <dt class="col-7">Mean similarity</dt>
+  <dd class="col-5 text-end">{{ "%.2f"|format(stats.mean_similarity) }}</dd>
+
+  <dt class="col-7">Neighbors sharing this MoA</dt>
+  <dd class="col-5 text-end">
+    {% if stats.has_query_moa %}{{ stats.shared_count }} / {{ stats.k }}{% else %}&mdash;{% endif %}
+  </dd>
+
+  <dt class="col-7">Dominant neighboring MoA</dt>
+  <dd class="col-5 text-end">{{ stats.dominant_moa|titlecase }}</dd>
+
+  <dt class="col-7">Neighborhood consistency</dt>
+  <dd class="col-5 text-end">{{ stats.consistency }}</dd>
+</dl>
+{% else %}
+<p class="text-muted small mb-0">No neighbors were found to compare against.</p>
+{% endif %}
+
+<hr>
+
+<!-- SECTION 3: interpretation, only after the evidence above -->
+<h3 class="h6 text-uppercase text-muted mb-2">Interpretation</h3>
+<div class="insight-box rounded p-2 mb-0">
+  <p class="small mb-0">{{ interpretation }}</p>
 </div>
 
-<h3 class="h6 text-uppercase text-muted mb-2">Nearest neighbors</h3>
+<hr>
+
+<!-- SECTION 4: representative neighbors, summarized before enumerated -->
+<h3 class="h6 text-uppercase text-muted mb-1">Representative neighbors</h3>
+{% if stats %}
+<p class="small text-muted mb-2">
+  {{ stats.dominant_count }} / {{ stats.k }} neighbors are {{ stats.dominant_moa|titlecase }}.
+</p>
+{% endif %}
 {% for n in neighbors %}
-<div class="neighbor-card border rounded p-2 mb-2 d-flex gap-2">
-  <div class="thumbnail-sm rounded flex-shrink-0 d-flex align-items-center justify-content-center overflow-hidden">
-    {% if n.thumbnail_path %}
-      <img src="{{ url_for('static', filename=n.thumbnail_path) }}" alt="{{ n.pert_iname or n.well_id }}">
-    {% else %}
-      <span class="text-muted" style="font-size: 0.6rem;">no image</span>
-    {% endif %}
+<div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small">
+  <div>
+    <span class="fw-semibold">{{ n.pert_iname|titlecase or "Unannotated compound" }}</span>
+    <span class="text-muted">&middot; {{ n.moa|titlecase or "Unannotated" }}</span>
+    {% if n.same_moa %}<span class="badge bg-success ms-1">same MoA</span>{% endif %}
   </div>
-  <div class="flex-grow-1 small">
-    <div class="fw-semibold">{{ n.pert_iname or "Unannotated compound" }}</div>
-    <div>
-      {{ n.moa or "unannotated" }}
-      {% if n.same_moa %}<span class="badge bg-success ms-1">same MoA</span>{% endif %}
-    </div>
-    <div class="text-muted">similarity {{ "%.3f"|format(n.similarity) }}</div>
-    <div class="fst-italic text-muted">{{ n.reason }}</div>
-  </div>
+  <div class="text-muted text-nowrap ms-2">{{ "%.2f"|format(n.similarity) }}</div>
 </div>
 {% endfor %}
 
@@ -64,7 +88,6 @@
   <summary class="text-muted small">Technical details</summary>
   <table class="table table-sm mt-2">
     <tbody>
-      <tr><th scope="row">Well ID</th><td>{{ well.well_id }}</td></tr>
       <tr><th scope="row">Plate</th><td>{{ well.plate }}</td></tr>
       <tr><th scope="row">Well</th><td>{{ well.well }}</td></tr>
       <tr><th scope="row">Compound ID</th><td>{{ well.broad_sample or "—" }}</td></tr>
