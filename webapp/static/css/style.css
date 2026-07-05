@@ -1,0 +1,39 @@
+body {
+  background-color: #f7f8fa;
+}
+
+.thumbnail-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background-color: #eceef1;
+}
+
+.thumbnail-placeholder img,
+.thumbnail-sm img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-sm {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  background-color: #eceef1;
+}
+
+.table th {
+  color: #6c757d;
+  font-weight: 500;
+  width: 40%;
+}
+
+.insight-box {
+  background-color: #eef6ff;
+  border: 1px solid #cfe4fb;
+  border-left: 4px solid #0d6efd;
+}
+
+.neighbor-card {
+  background-color: #fff;
+}

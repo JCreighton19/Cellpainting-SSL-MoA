@@ -1,0 +1,282 @@
+{
+  "_readme": "Curated MoA descriptions for Phase 2.5's educational MoA cards. Keys must match the 'moa' strings found in app_data/wells.parquet and app_data/compounds.parquet exactly (case-sensitive). Combined labels in the data (e.g. 'A | B') are looked up by splitting on ' | ' and resolving each part separately -- do not add combined keys here. Add new entries as plain {description, pathway, typically_affects, sources} objects; MoAs with no entry fall back to a generic message in the app. Descriptions are written from general pharmacology references (mainly Wikipedia and NCBI/PMC), each cited in 'sources'.",
+
+  "control vehicle": {
+    "description": "This is not a drug treatment -- it is the vehicle (solvent) control, typically DMSO (dimethyl sulfoxide), added at the same volume as the test compounds but with no active ingredient. It establishes the baseline, unperturbed phenotype that every other well is compared against. Differences between a compound's wells and control wells suggest a biological effect; differences among control wells instead reflect technical or batch variation.",
+    "pathway": "None -- this is the assay's negative-control reference condition, not a drug mechanism.",
+    "typically_affects": "Nothing pharmacologically; defines the unperturbed baseline for comparison.",
+    "sources": [
+      {"title": "Dimethyl sulfoxide - Wikipedia", "url": "https://en.wikipedia.org/wiki/Dimethyl_sulfoxide"}
+    ]
+  },
+
+  "calcium channel blocker": {
+    "description": "Calcium channel blockers prevent calcium ions from entering cells through voltage-gated calcium channels in smooth muscle, cardiac muscle, and other excitable cells. Because intracellular calcium triggers muscle contraction via proteins like calmodulin and troponin, blocking its entry relaxes smooth muscle and reduces the force and rate of heart contractions. Clinically these drugs treat high blood pressure, angina, and abnormal heart rhythms.",
+    "pathway": "Voltage-gated calcium channel signaling in excitable cells.",
+    "typically_affects": "Muscle contraction, vascular tone, and cardiac electrical activity.",
+    "sources": [
+      {"title": "Calcium channel blocker - Wikipedia", "url": "https://en.wikipedia.org/wiki/Calcium_channel_blocker"}
+    ]
+  },
+
+  "CDK inhibitor": {
+    "description": "Cyclin-dependent kinase (CDK) inhibitors block the CDK enzymes that, together with cyclin proteins, drive cells through the phases of the division cycle. Inhibiting CDK4/6 in particular halts the transition from G1 to S phase, stopping cells from replicating their DNA. Several CDK4/6 inhibitors (e.g. palbociclib) are approved cancer therapies used to slow tumor cell proliferation.",
+    "pathway": "Cell-cycle regulation via the CDK-cyclin-Rb pathway (G1 to S transition).",
+    "typically_affects": "Cell proliferation and cell-cycle progression.",
+    "sources": [
+      {"title": "CDK inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/CDK_inhibitor"}
+    ]
+  },
+
+  "HSP inhibitor": {
+    "description": "Heat shock proteins (most often HSP90 in this class) are molecular chaperones that fold and stabilize a large set of 'client' proteins many cancer cells depend on for growth and survival. HSP inhibitors bind the chaperone's ATP-binding pocket and block its activity, causing client proteins to misfold and be degraded. This can selectively stress cancer cells that over-rely on chaperone support to stabilize mutated or overexpressed signaling proteins.",
+    "pathway": "Protein folding / chaperone quality control (HSP ATPase cycle).",
+    "typically_affects": "Stability of signaling and oncogenic client proteins; broad proteostasis stress.",
+    "sources": [
+      {"title": "Hsp90 inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Hsp90_inhibitor"}
+    ]
+  },
+
+  "SRC inhibitor": {
+    "description": "Src is a non-receptor tyrosine kinase that relays signals from cell-surface receptors to control growth, adhesion, and migration. Src inhibitors block its kinase activity -- some lock the protein in an inactive closed conformation, others compete at its ATP-binding site -- reducing downstream signaling that many cancers rely on for invasion and survival. Src family kinases were among the first oncogene targets identified in cancer research.",
+    "pathway": "Non-receptor tyrosine kinase signaling downstream of growth-factor and adhesion receptors.",
+    "typically_affects": "Cell growth, adhesion, and migration signaling.",
+    "sources": [
+      {"title": "Src inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Src_inhibitor"}
+    ]
+  },
+
+  "sodium channel blocker": {
+    "description": "Sodium channel blockers impair the flow of sodium ions through voltage-gated sodium channels, which drive the rising phase of electrical action potentials in neurons and heart muscle. By slowing this depolarization, they reduce the excitability of nerve and cardiac tissue. This mechanism underlies local anesthetics, several anticonvulsants, and Class I antiarrhythmic heart medications.",
+    "pathway": "Voltage-gated sodium channel-mediated action potentials.",
+    "typically_affects": "Neuronal and cardiac electrical excitability.",
+    "sources": [
+      {"title": "Sodium channel blocker - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sodium_channel_blocker"}
+    ]
+  },
+
+  "sphingosine 1-phosphate receptor agonist": {
+    "description": "Sphingosine-1-phosphate (S1P) receptors are G-protein-coupled receptors that respond to the lipid signaling molecule S1P to regulate cell proliferation, migration, and -- notably -- the trafficking of immune cells out of lymph nodes. Drugs acting on these receptors can trap lymphocytes inside lymph nodes, which is the basis for their use as immune-modulating therapies, for example in multiple sclerosis.",
+    "pathway": "S1P-GPCR signaling controlling lymphocyte trafficking and vascular/cell biology.",
+    "typically_affects": "Immune cell trafficking, vascular and cell-migration behavior.",
+    "sources": [
+      {"title": "Sphingosine-1-phosphate receptor modulator - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sphingosine-1-phosphate_receptor_modulator"}
+    ]
+  },
+
+  "phosphodiesterase inhibitor": {
+    "description": "Phosphodiesterase (PDE) enzymes break down the intracellular second messengers cAMP and cGMP, which relay signals from many hormone and neurotransmitter receptors. PDE inhibitors block this breakdown, letting cAMP or cGMP accumulate and prolonging the signaling they mediate. Because different PDE subtypes are enriched in different tissues, PDE inhibitors have varied uses -- from relaxing smooth muscle (e.g. PDE5 inhibitors) to modulating cardiac and inflammatory signaling.",
+    "pathway": "Cyclic nucleotide (cAMP/cGMP) second-messenger signaling.",
+    "typically_affects": "Smooth muscle tone, cardiac contractility, and inflammatory signaling, depending on the PDE subtype.",
+    "sources": [
+      {"title": "Phosphodiesterase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Phosphodiesterase_inhibitor"}
+    ]
+  },
+
+  "HDAC inhibitor": {
+    "description": "Histone deacetylase (HDAC) enzymes remove acetyl groups from histone proteins, compacting chromatin and silencing gene transcription. HDAC inhibitors block this activity, leading to histone hyperacetylation, a more open chromatin state, and increased expression of genes that were previously repressed -- including genes controlling cell growth, differentiation, and programmed cell death. They are used and investigated as cancer therapies and, at lower doses, have a long history as mood stabilizers and anti-epileptics.",
+    "pathway": "Chromatin regulation via histone acetylation/deacetylation.",
+    "typically_affects": "Gene expression broadly; often cell-cycle arrest, differentiation, or apoptosis in cancer cells.",
+    "sources": [
+      {"title": "Histone deacetylase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Histone_deacetylase_inhibitor"}
+    ]
+  },
+
+  "PPAR receptor antagonist": {
+    "description": "Peroxisome proliferator-activated receptors (PPAR-alpha, -delta, -gamma) are nuclear receptors that act as transcription factors controlling genes involved in lipid and glucose metabolism, energy balance, and inflammation. PPAR antagonists block these receptors rather than activating them; blocking PPAR-gamma in particular has shown antiproliferative effects on certain cancer and blood cell lines in research settings. PPAR agonists (the opposite mechanism) are far better known clinically, e.g. as diabetes and lipid-lowering drugs.",
+    "pathway": "Nuclear receptor transcriptional regulation of lipid/glucose metabolism genes.",
+    "typically_affects": "Lipid and glucose metabolism, cell differentiation, and -- for some antagonists -- cancer cell proliferation.",
+    "sources": [
+      {"title": "Peroxisome proliferator-activated receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Peroxisome_proliferator-activated_receptor"}
+    ]
+  },
+
+  "histone lysine methyltransferase inhibitor": {
+    "description": "Histone lysine methyltransferases add methyl groups to specific lysine residues on histone tails, a chemical mark that can activate or repress nearby genes depending on which residue is modified. EZH2, one of the best-studied members of this enzyme family, methylates histone H3 at lysine 27 to repress transcription and is frequently overactive in cancers. Inhibitors block the enzyme's catalytic domain, aiming to reverse this repression and restore normal expression of tumor-suppressor genes.",
+    "pathway": "Epigenetic regulation via histone lysine methylation (e.g. H3K27 methylation by EZH2).",
+    "typically_affects": "Gene expression through chromatin state; often tumor-suppressor gene silencing in cancer.",
+    "sources": [
+      {"title": "EZH2 - Wikipedia", "url": "https://en.wikipedia.org/wiki/EZH2"}
+    ]
+  },
+
+  "CDC inhibitor": {
+    "description": "'CDC inhibitor' in this dataset most often refers to compounds targeting the CDC25 family of phosphatases (CDC25A/B/C), which remove inhibitory phosphate marks from CDK enzymes to allow cell-cycle transitions to proceed. Blocking CDC25 keeps CDKs in their inactive, phosphorylated state, stalling the cell cycle at checkpoints such as the G1/S or G2/M transition. This is being explored therapeutically as a way to arrest the division of cancer cells.",
+    "pathway": "Cell-cycle checkpoint control via CDC25 phosphatase / CDK activation.",
+    "typically_affects": "Cell-cycle progression and checkpoint arrest.",
+    "sources": [
+      {"title": "Therapeutic Targeting of the CDC25 Phosphatases in Human Acute Myeloid Leukemia (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6270710/"}
+    ]
+  },
+
+  "potassium channel blocker": {
+    "description": "Potassium channel blockers impede the outward flow of potassium ions that normally repolarizes cells after an electrical impulse. By slowing repolarization, they prolong the action potential and refractory period in cardiac and neuronal tissue. This is the basis of Class III antiarrhythmic heart drugs, and of experimental treatments for conditions like multiple sclerosis where nerve conduction is impaired.",
+    "pathway": "Voltage-gated potassium channel-mediated membrane repolarization.",
+    "typically_affects": "Cardiac and neuronal action potential duration.",
+    "sources": [
+      {"title": "Potassium channel blocker - Wikipedia", "url": "https://en.wikipedia.org/wiki/Potassium_channel_blocker"}
+    ]
+  },
+
+  "GABA receptor antagonist": {
+    "description": "GABA is the brain's primary inhibitory neurotransmitter, and GABA-A receptors are chloride channels that open in response to GABA to dampen neuronal firing. GABA receptor antagonists block this inhibitory chloride current, removing the brain's 'brakes' and producing stimulant or convulsant effects. Because of this, they are mainly studied as tools for counteracting sedative overdoses rather than as standalone therapeutics.",
+    "pathway": "GABAergic inhibitory neurotransmission (GABA-A chloride channel signaling).",
+    "typically_affects": "Neuronal excitability and inhibitory tone in the nervous system.",
+    "sources": [
+      {"title": "GABA receptor antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/GABA_receptor_antagonist"}
+    ]
+  },
+
+  "glutamate receptor antagonist": {
+    "description": "Glutamate is the brain's main excitatory neurotransmitter, acting through receptor types including NMDA, AMPA, and kainate receptors. Glutamate receptor antagonists block these receptors -- for example, NMDA antagonists prevent glutamate from binding or block the channel through other sites -- reducing excitatory signaling. This can protect neurons from excitotoxicity, a form of damage caused by excessive glutamate stimulation.",
+    "pathway": "Glutamatergic excitatory neurotransmission (NMDA/AMPA/kainate receptor signaling).",
+    "typically_affects": "Neuronal excitability; protection against excitotoxic damage.",
+    "sources": [
+      {"title": "Excitatory amino acid receptor antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Excitatory_amino_acid_receptor_antagonist"}
+    ]
+  },
+
+  "glucocorticoid receptor agonist": {
+    "description": "Glucocorticoid receptors are cytoplasmic receptors that, once bound by a glucocorticoid hormone (or a synthetic mimic like dexamethasone), move to the nucleus and act as a transcription factor, turning target genes up or down. This broadly suppresses inflammatory gene expression and is the basis for corticosteroid anti-inflammatory and immunosuppressive drugs. Because the receptor sits upstream of a large gene-regulatory network, its activation affects metabolism, immune function, and stress response simultaneously.",
+    "pathway": "Nuclear hormone receptor signaling / glucocorticoid-responsive gene transcription.",
+    "typically_affects": "Inflammatory and immune gene expression; metabolic and stress-response genes.",
+    "sources": [
+      {"title": "Glucocorticoid receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Glucocorticoid_receptor"}
+    ]
+  },
+
+  "tubulin polymerization inhibitor": {
+    "description": "Tubulin polymerization inhibitors interfere with the assembly of tubulin subunits into microtubules, the structural filaments cells use to build their internal scaffold and separate chromosomes during mitosis. Compounds like colchicine and the vinca alkaloids bind tubulin at specific sites and prevent it from polymerizing, destabilizing the microtubule network. Because dividing cells depend heavily on microtubules to complete mitosis, this mechanism is widely exploited by cancer chemotherapies to halt proliferation.",
+    "pathway": "Microtubule dynamics (tubulin polymerization) in the cytoskeleton and mitotic spindle.",
+    "typically_affects": "Cell division (mitosis) and cytoskeletal structure.",
+    "sources": [
+      {"title": "Discovery and development of tubulin inhibitors - Wikipedia", "url": "https://en.wikipedia.org/wiki/Discovery_and_development_of_tubulin_inhibitors"}
+    ]
+  },
+
+  "cyclooxygenase inhibitor": {
+    "description": "Cyclooxygenase (COX) enzymes convert arachidonic acid into prostaglandins, lipid messengers that drive inflammation, pain, and fever. Cyclooxygenase inhibitors -- the mechanism behind NSAIDs such as aspirin and ibuprofen -- block COX-1 and/or COX-2 to reduce prostaglandin production. Selective COX-2 inhibitors were developed to retain the anti-inflammatory effect while sparing COX-1's role in protecting the stomach lining.",
+    "pathway": "Arachidonic acid metabolism / prostaglandin synthesis.",
+    "typically_affects": "Inflammation, pain signaling, and fever.",
+    "sources": [
+      {"title": "Cyclooxygenase-2 inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cyclooxygenase-2_inhibitor"}
+    ]
+  },
+
+  "protein synthesis inhibitor": {
+    "description": "Protein synthesis inhibitors disrupt the ribosome's ability to translate messenger RNA into protein, typically by binding a ribosomal subunit and blocking a specific step such as tRNA binding, peptide bond formation, or ribosome translocation. Many antibiotics exploit structural differences between bacterial and human ribosomes to selectively kill bacteria while sparing human cells. Non-selective inhibitors, however, can also broadly suppress translation in the treated human cells themselves.",
+    "pathway": "Ribosomal protein translation.",
+    "typically_affects": "Cellular protein production broadly; bacterial protein synthesis for antibiotic classes.",
+    "sources": [
+      {"title": "Protein synthesis inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protein_synthesis_inhibitor"}
+    ]
+  },
+
+  "benzodiazepine receptor agonist": {
+    "description": "Benzodiazepines act at a specific site on GABA-A receptors, distinct from where GABA itself binds, functioning as positive allosteric modulators rather than direct activators. Binding here increases the receptor's affinity for GABA, enhancing the inhibitory chloride current GABA produces, without opening the channel on their own. This produces the sedative, anti-anxiety, and anticonvulsant effects benzodiazepine drugs are used for clinically.",
+    "pathway": "Allosteric modulation of GABA-A receptor chloride channels.",
+    "typically_affects": "Neuronal inhibition; sedation, anxiolysis, and seizure threshold.",
+    "sources": [
+      {"title": "GABAA receptor positive allosteric modulator - Wikipedia", "url": "https://en.wikipedia.org/wiki/GABAA_receptor_positive_allosteric_modulator"}
+    ]
+  },
+
+  "p21 activated kinase inhibitor": {
+    "description": "p21-activated kinases (PAKs) are effector enzymes of the small GTPases Cdc42 and Rac1, relaying signals that control cytoskeletal organization, cell shape, and cell survival. PAK inhibitors block this kinase activity, which can disrupt cancer cell migration and invasion pathways that depend on PAK signaling. Because PAKs have large, flexible ATP-binding sites, developing selective inhibitors has historically been difficult, and few have progressed far in clinical development.",
+    "pathway": "Rho-family GTPase (Cdc42/Rac) signaling to the cytoskeleton.",
+    "typically_affects": "Cell shape, migration, and cytoskeletal organization.",
+    "sources": [
+      {"title": "p21-activated kinases - Wikipedia", "url": "https://en.wikipedia.org/wiki/P21-activated_kinases"}
+    ]
+  },
+
+  "prostanoid receptor antagonist": {
+    "description": "Prostanoids (prostaglandins and thromboxane) are lipid signaling molecules derived from arachidonic acid that act on a family of dedicated G-protein-coupled receptors (e.g. EP1-4, DP, FP, IP, TP) to mediate inflammation, pain, vasodilation or constriction, and platelet activity. Prostanoid receptor antagonists block one or more of these receptor subtypes directly, rather than blocking prostanoid synthesis the way COX inhibitors do. Because each receptor subtype has a distinct physiological role, selective antagonists are being developed for specific conditions -- for example, thromboxane (TP) receptor antagonists for pulmonary hypertension.",
+    "pathway": "Prostanoid (prostaglandin/thromboxane) receptor signaling.",
+    "typically_affects": "Inflammation, vascular tone, and platelet activity, depending on receptor subtype.",
+    "sources": [
+      {"title": "Prostanoid receptors -- IUPHAR/BPS Guide to Pharmacology", "url": "https://www.guidetopharmacology.org/GRAC/FamilyIntroductionForward?familyId=58"}
+    ]
+  },
+
+  "adrenergic receptor antagonist": {
+    "description": "Adrenergic receptors respond to the hormones/neurotransmitters adrenaline and noradrenaline, and are divided into alpha (a1, a2) and beta (b1, b2, b3) subtypes with different tissue distributions and effects. Adrenergic receptor antagonists ('blockers') bind these receptors without activating them, preventing adrenaline/noradrenaline from doing so. Beta blockers are widely used for heart rhythm and blood pressure control, while alpha blockers are used for hypertension and benign prostatic hyperplasia.",
+    "pathway": "Adrenergic (sympathetic nervous system) receptor signaling.",
+    "typically_affects": "Heart rate, blood vessel tone, and smooth muscle contraction, depending on receptor subtype.",
+    "sources": [
+      {"title": "Adrenergic antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Adrenergic_antagonist"}
+    ]
+  },
+
+  "adrenergic receptor agonist": {
+    "description": "Adrenergic receptor agonists mimic adrenaline and noradrenaline, activating alpha or beta adrenergic receptors directly. Depending on the receptor subtype engaged, this triggers different intracellular signaling cascades -- a1 receptors increase protein kinase C activity, a2 receptors decrease cAMP/PKA signaling, and b receptors increase cAMP/PKA signaling. Physiologically, this reproduces 'fight-or-flight' effects such as increased heart rate, airway dilation, or blood vessel constriction, depending on which receptors are activated.",
+    "pathway": "Adrenergic (sympathetic nervous system) receptor signaling.",
+    "typically_affects": "Heart rate, airway and blood vessel tone, and other sympathetic ('fight-or-flight') responses.",
+    "sources": [
+      {"title": "Adrenergic agonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Adrenergic_agonist"}
+    ]
+  },
+
+  "ALK tyrosine kinase receptor inhibitor": {
+    "description": "Anaplastic lymphoma kinase (ALK) is a receptor tyrosine kinase that, when abnormally fused to other genes (as in certain lung cancers and lymphomas), becomes constitutively active and drives uncontrolled cell growth. ALK inhibitors bind the ATP pocket of the kinase domain, blocking its access to energy and shutting down its signaling. Drugs like crizotinib and alectinib target ALK-rearranged tumors specifically, sparing cells without the fusion.",
+    "pathway": "Receptor tyrosine kinase signaling (ALK fusion oncoprotein activity).",
+    "typically_affects": "Cell growth signaling in ALK-driven cancers.",
+    "sources": [
+      {"title": "ALK inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/ALK_inhibitor"}
+    ]
+  },
+
+  "calcium-activated potassium channel activator": {
+    "description": "BK channels ('big potassium' channels) are potassium channels activated by both membrane depolarization and rising intracellular calcium, forming a negative-feedback loop that links calcium signaling to membrane repolarization. Activators of these channels increase potassium outflow, which hyperpolarizes the cell and dampens excitability -- relevant to smooth muscle tone, neuronal firing, and hormone secretion. This mechanism is being explored for conditions like hypertension and overactive bladder, where reducing smooth muscle excitability is beneficial.",
+    "pathway": "Calcium-activated potassium (BK) channel signaling.",
+    "typically_affects": "Smooth muscle tone, neuronal excitability, and hormone secretion.",
+    "sources": [
+      {"title": "BK channel - Wikipedia", "url": "https://en.wikipedia.org/wiki/BK_channel"}
+    ]
+  },
+
+  "endothelin receptor antagonist": {
+    "description": "Endothelin is a potent vasoconstrictor peptide that signals through two receptor subtypes: ETA (mainly on smooth muscle, promoting vasoconstriction and proliferation) and ETB (on smooth muscle and vascular endothelium). Endothelin receptor antagonists competitively block one or both subtypes, preventing endothelin from binding and triggering its signaling cascade. This produces vasodilation and reduced cell proliferation, and is used clinically to treat pulmonary arterial hypertension.",
+    "pathway": "Endothelin receptor (ETA/ETB) signaling.",
+    "typically_affects": "Vascular tone and smooth muscle cell proliferation.",
+    "sources": [
+      {"title": "Endothelin receptor antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Endothelin_receptor_antagonist"}
+    ]
+  },
+
+  "acetylcholine receptor agonist": {
+    "description": "Acetylcholine receptors come in two structurally distinct families: ligand-gated ion channel nicotinic receptors and G-protein-coupled muscarinic receptors. Acetylcholine receptor agonists activate one or both receptor types, mimicking the neurotransmitter acetylcholine to open ion channels (nicotinic) or trigger second-messenger signaling (muscarinic). This drives cholinergic effects throughout the nervous system and at the neuromuscular junction, including muscle contraction and altered neuronal firing.",
+    "pathway": "Cholinergic neurotransmission (nicotinic and muscarinic receptor signaling).",
+    "typically_affects": "Neuromuscular signaling and autonomic nervous system activity.",
+    "sources": [
+      {"title": "Nicotinic agonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Nicotinic_agonist"}
+    ]
+  },
+
+  "HMGCR inhibitor": {
+    "description": "HMG-CoA reductase catalyzes the rate-limiting step of cholesterol biosynthesis in the liver. HMGCR inhibitors (statins) occupy the enzyme's substrate-binding pocket, competitively blocking this step and lowering the cell's internal cholesterol supply. In the liver, this triggers increased uptake of LDL cholesterol from the blood, which is why statins are widely prescribed to lower blood cholesterol and cardiovascular risk.",
+    "pathway": "Mevalonate pathway / cholesterol biosynthesis.",
+    "typically_affects": "Cholesterol synthesis and lipid metabolism.",
+    "sources": [
+      {"title": "Statin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Statin"}
+    ]
+  },
+
+  "p38 MAPK inhibitor": {
+    "description": "p38 mitogen-activated protein kinase (MAPK) is activated by cellular stress and inflammatory signals, and in turn phosphorylates downstream targets that regulate inflammatory cytokine production and stress responses. p38 inhibitors typically compete at the kinase's ATP-binding pocket, blocking its ability to phosphorylate these substrates. Early inhibitors showed promise for inflammatory disease but also toxicity issues, since p38 signaling is involved in many normal cellular stress responses as well.",
+    "pathway": "Stress-activated MAPK signaling (p38 pathway).",
+    "typically_affects": "Inflammatory cytokine production and cellular stress responses.",
+    "sources": [
+      {"title": "p38 mitogen-activated protein kinases - Wikipedia", "url": "https://en.wikipedia.org/wiki/P38_mitogen-activated_protein_kinases"}
+    ]
+  },
+
+  "histamine receptor antagonist": {
+    "description": "Histamine acts on four receptor subtypes (H1-H4); H1 receptor antagonists -- commonly called antihistamines -- occupy the H1 receptor and act as inverse agonists, reducing its baseline signaling rather than simply blocking histamine. This dampens the classic allergic response: capillary permeability, smooth muscle contraction in the airways and gut, and the itch/flare reaction to allergens. H1 antihistamines are the standard treatment for allergy symptoms such as those from pollen or dust exposure.",
+    "pathway": "Histamine H1 receptor signaling.",
+    "typically_affects": "Allergic and inflammatory responses (vascular permeability, smooth muscle contraction, itch).",
+    "sources": [
+      {"title": "H1 antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/H1_antagonist"}
+    ]
+  }
+}

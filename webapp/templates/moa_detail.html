@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ moa_name }} — Cell Painting Phenotype Explorer{% endblock %}
+{% block content %}
+
+<a href="javascript:history.back()" class="small">&larr; back</a>
+
+<h1 class="h4 mt-3">{{ moa_name }}</h1>
+<p class="text-muted small">Mechanism of action &middot; {{ compounds|length }} compound{{ "s" if compounds|length != 1 }} in this dataset annotated with this mechanism</p>
+
+{% for entry in entries %}
+<div class="border rounded p-3 mb-3">
+  {% if entries|length > 1 %}<h2 class="h6 text-uppercase text-muted">{{ entry.name }}</h2>{% endif %}
+  {% if entry.description %}
+    <p>{{ entry.description }}</p>
+    <dl class="row small mb-2">
+      <dt class="col-sm-3">Biological process</dt>
+      <dd class="col-sm-9">{{ entry.pathway }}</dd>
+      <dt class="col-sm-3">Typically affects</dt>
+      <dd class="col-sm-9">{{ entry.typically_affects }}</dd>
+    </dl>
+    {% if entry.sources %}
+      <p class="small text-muted mb-0">
+        Source{{ "s" if entry.sources|length != 1 }}:
+        {% for s in entry.sources %}
+          <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>{{ ", " if not loop.last }}
+        {% endfor %}
+      </p>
+    {% endif %}
+  {% else %}
+    <p class="text-muted mb-0">No curated description is available yet for this mechanism. This is a known gap — the curated dictionary currently covers the dataset's most common mechanisms and can be expanded over time.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if compounds %}
+<h2 class="h6 text-uppercase text-muted mt-4">Compounds with this mechanism in this dataset</h2>
+<div class="list-group mb-4">
+  {% for c in compounds %}
+    <a href="{{ url_for('compound_detail', compound_id=c.compound_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+      <span>{{ c.compound_name or c.compound_id }}</span>
+      <span class="badge bg-light text-dark border">{{ c.n_wells }} wells</span>
+    </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
