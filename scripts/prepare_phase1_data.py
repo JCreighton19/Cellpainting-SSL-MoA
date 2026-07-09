@@ -19,9 +19,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 from utils.postprocessing import postprocess  # noqa: E402
 
-DEFAULT_EMB = REPO_ROOT / "embeddings" / "062626_1725" / "embeddings_epoch_68.npy"
+DEFAULT_EMB = REPO_ROOT / "embeddings" / "070226_135708" / "embeddings_epoch_200.npy"
 DEFAULT_META = REPO_ROOT / "data" / "processed" / "master_metadata_qc.parquet"
 DEFAULT_OUT = REPO_ROOT / "app_data"
+# Populated by scripts/generate_web_thumbnails.py; only referenced (not generated) here.
+THUMBNAILS_DIR = REPO_ROOT / "webapp" / "static" / "thumbnails"
 
 
 def l2_normalize(X, eps=1e-8):
@@ -56,6 +58,7 @@ def main():
         bs = grp["broad_sample"].dropna()
         mo = grp["moa"].dropna()
         pi = grp["pert_iname"].dropna()  # human-readable compound name, e.g. "dexamethasone"
+        thumb_path = THUMBNAILS_DIR / f"{plate}_{well}.webp"
         rows.append({
             "well_id": f"{plate}_{well}",
             "plate": plate,
@@ -66,16 +69,16 @@ def main():
             "is_control": bool(grp["is_control"].max()),
             "control_type": grp["control_type"].dropna().iloc[0] if grp["control_type"].notna().any() else None,
             "n_tiles": len(grp),
-            "thumbnail_path": None,  # Phase 1: raw images live on the cluster, not rendered yet
+            "thumbnail_path": f"thumbnails/{plate}_{well}.webp" if thumb_path.exists() else None,
         })
     well_embs = np.stack(well_embs).astype(np.float32)
     wells = pd.DataFrame(rows)
     print(f"Wells: {len(wells):,}  (mean {wells['n_tiles'].mean():.1f} tiles/well)")
 
-    print("Applying MAD + sphering postprocessing (fit on negative-control wells) ...")
+    print("Applying per-plate MAD + global sphering postprocessing (fit on negative-control wells) ...")
     ctrl_mask = (wells["control_type"] == "negcon").values
     print(f"  {ctrl_mask.sum()} negative-control wells used for fit")
-    well_embs_post = postprocess(well_embs, ctrl_mask)
+    well_embs_post = postprocess(well_embs, ctrl_mask, wells["plate"].values)
     well_embs_post = l2_normalize(well_embs_post).astype(np.float32)
 
     print("Fitting 2D UMAP on well embeddings ...")

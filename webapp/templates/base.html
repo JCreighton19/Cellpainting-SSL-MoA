@@ -4,6 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Cell Painting Phenotype Explorer{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="Interactive UMAP explorer for self-supervised DINO embeddings of Cell Painting microscopy images — see phenotypic similarity emerge without mechanism-of-action labels.">
+  <!-- TODO: add a real Open Graph preview image (~1200x630px) at webapp/static/og-preview.png -->
+  <meta property="og:image" content="{{ url_for('static', filename='og-preview.png', _external=True) }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
@@ -12,7 +22,6 @@
     <div class="container-fluid">
       <span class="navbar-brand mb-0">Cell Painting Phenotype Explorer</span>
       <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-secondary d-none d-md-inline">postprocessed DINO embeddings</span>
         <button id="help-btn" type="button" class="btn btn-sm btn-outline-light rounded-circle" title="About this tool" aria-label="About this tool">?</button>
       </div>
     </div>
@@ -34,21 +43,30 @@
     </p>
 
     <h3 class="h6 mt-3">What did the model learn?</h3>
-    <p class="small mb-0">
+    <p class="small">
       A self-supervised vision model (DINO) was trained on these images without any
       mechanism-of-action labels, learning to compress each image into a 384-number embedding.
       For details on how the map itself is built and how to read distance and similarity, see
       "ⓘ About this visualization" in the left sidebar.
     </p>
 
+    <h3 class="h6 mt-3">Technical details</h3>
+    <p class="small mb-0">
+      Embeddings were created from JUMP Cell Painting wells and
+      postprocessed with MAD and sphering. Similarity is determined via a
+      simple cosine similarity search.
+    </p>
+
+    <h3 class="h6 mt-3">Acknowledgements</h3>
+    <p class="small mb-0">
+        <!-- TODO: add acknowledgements -->
+      Lorem ipsum
+    </p>
+
     <div class="text-end mt-3">
       <button id="help-close" type="button" class="btn btn-sm btn-primary">Close</button>
     </div>
   </dialog>
-
-  <footer class="app-footer text-center text-muted small">
-    Self-supervised DINO embeddings over JUMP Cell Painting wells &middot; postprocessed (MAD + sphering) &middot; cosine similarity search
-  </footer>
 
   <script>
     document.getElementById("help-btn").addEventListener("click", () => {

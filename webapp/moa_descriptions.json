@@ -278,5 +278,1436 @@
     "sources": [
       {"title": "H1 antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/H1_antagonist"}
     ]
+  },
+
+  "11-beta hydroxysteroid dehydrogenase inhibitor": {
+    "description": "11-beta hydroxysteroid dehydrogenase type 1 (11b-HSD1) converts inactive cortisone into active cortisol inside tissues such as liver and fat, amplifying local glucocorticoid signaling beyond what circulating cortisol alone would produce. Inhibitors block this local activation without touching adrenal cortisol output, and are studied for metabolic syndrome, type 2 diabetes, and obesity by reducing hepatic glucose output and adipose glucocorticoid signaling.",
+    "pathway": "Local (intracrine) glucocorticoid activation via 11b-HSD1.",
+    "typically_affects": "Hepatic glucose production and adipose tissue glucocorticoid signaling.",
+    "sources": [
+      {"title": "11beta-Hydroxysteroid dehydrogenase - Wikipedia", "url": "https://en.wikipedia.org/wiki/11%CE%B2-Hydroxysteroid_dehydrogenase"}
+    ]
+  },
+
+  "AKT inhibitor": {
+    "description": "AKT (protein kinase B) is a central node of the PI3K-AKT-mTOR pathway, phosphorylating downstream substrates that promote cell survival, growth, and metabolism. AKT inhibitors block its kinase activity at the ATP-binding site or an allosteric pocket, shutting down this pro-survival signaling in tumors where the pathway is hyperactive -- one of the most frequently altered pathways in human cancer.",
+    "pathway": "PI3K-AKT-mTOR signaling.",
+    "typically_affects": "Cell survival, growth, and metabolic signaling.",
+    "sources": [
+      {"title": "Protein kinase B - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protein_kinase_B"}
+    ]
+  },
+
+  "ATM kinase inhibitor": {
+    "description": "ATM (ataxia-telangiectasia mutated) is a master kinase activated by DNA double-strand breaks, phosphorylating downstream effectors such as p53 and CHK2 to trigger cell-cycle arrest and DNA repair. ATM inhibitors block this damage-response signaling, which can sensitize cancer cells to radiotherapy or DNA-damaging chemotherapy by preventing them from pausing to repair damage. Loss-of-function ATM mutations cause the inherited disorder ataxia-telangiectasia.",
+    "pathway": "DNA damage response (double-strand break signaling).",
+    "typically_affects": "Cell-cycle checkpoint arrest and DNA repair in response to genotoxic stress.",
+    "sources": [
+      {"title": "Ataxia-telangiectasia mutated - Wikipedia", "url": "https://en.wikipedia.org/wiki/Ataxia%E2%80%93telangiectasia_mutated"}
+    ]
+  },
+
+  "ATP channel blocker": {
+    "description": "This label refers to ATP-sensitive potassium (KATP) channels, which couple a cell's metabolic state (its ATP/ADP ratio) to its electrical excitability. In pancreatic beta cells, blocking KATP channels -- as sulfonylurea drugs do -- depolarizes the membrane, opens voltage-gated calcium channels, and triggers insulin secretion, which is why these blockers are used to treat type 2 diabetes.",
+    "pathway": "ATP-sensitive potassium (KATP) channel signaling.",
+    "typically_affects": "Insulin secretion from pancreatic beta cells; smooth muscle and neuronal excitability elsewhere.",
+    "sources": [
+      {"title": "ATP-sensitive potassium channel - Wikipedia", "url": "https://en.wikipedia.org/wiki/ATP-sensitive_potassium_channel"}
+    ]
+  },
+
+  "Aurora kinase inhibitor": {
+    "description": "Aurora kinases (A, B, C) are essential regulators of mitosis, controlling centrosome maturation, spindle assembly, and chromosome segregation. Inhibitors block their kinase activity, causing mitotic errors such as failed cytokinesis and chromosome missegregation that can trigger death in rapidly dividing cancer cells.",
+    "pathway": "Mitotic kinase signaling (spindle assembly and chromosome segregation).",
+    "typically_affects": "Cell division and mitotic fidelity.",
+    "sources": [
+      {"title": "Aurora kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Aurora_kinase"}
+    ]
+  },
+
+  "BAX activator": {
+    "description": "BAX is a pro-apoptotic protein normally held inactive in the cytosol; upon activation it inserts into the mitochondrial outer membrane, oligomerizes, and permeabilizes it, releasing cytochrome c and triggering apoptosis. Small-molecule BAX activators bind its N-terminal 'trigger site' to directly force this conformational change, offering a way to kill cancer cells that have blocked apoptosis through other means such as BCL-2 overexpression.",
+    "pathway": "Mitochondrial (intrinsic) apoptosis pathway.",
+    "typically_affects": "Programmed cell death via mitochondrial outer membrane permeabilization.",
+    "sources": [
+      {"title": "BAX - Wikipedia", "url": "https://en.wikipedia.org/wiki/BAX"}
+    ]
+  },
+
+  "Bcr-Abl kinase inhibitor": {
+    "description": "The BCR-ABL fusion protein, created by the 'Philadelphia chromosome' translocation, is a constitutively active tyrosine kinase that drives chronic myeloid leukemia. BCR-ABL inhibitors like imatinib occupy the kinase's ATP-binding pocket, shutting down its signaling and inducing remission in most patients -- one of the first and most successful examples of targeted cancer therapy.",
+    "pathway": "Constitutive tyrosine kinase signaling from the BCR-ABL fusion oncoprotein.",
+    "typically_affects": "Proliferation and survival of BCR-ABL-driven leukemia cells.",
+    "sources": [
+      {"title": "Bcr-Abl tyrosine-kinase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Bcr-Abl_tyrosine-kinase_inhibitor"}
+    ]
+  },
+
+  "Bruton's tyrosine kinase (BTK) inhibitor": {
+    "description": "BTK is a signaling enzyme downstream of the B-cell receptor that is required for B-cell development, survival, and proliferation. BTK inhibitors such as ibrutinib covalently bind a cysteine in its active site, blocking B-cell receptor signaling, and are used to treat B-cell malignancies such as chronic lymphocytic leukemia. Loss-of-function BTK mutations cause the inherited immunodeficiency X-linked agammaglobulinemia.",
+    "pathway": "B-cell receptor signaling.",
+    "typically_affects": "B-lymphocyte survival and proliferation.",
+    "sources": [
+      {"title": "Bruton's tyrosine kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Bruton%27s_tyrosine_kinase"}
+    ]
+  },
+
+  "CHK inhibitor": {
+    "description": "Checkpoint kinases CHK1 and CHK2 act downstream of ATR/ATM in the DNA damage response, enforcing cell-cycle arrest -- particularly at the G2/M checkpoint -- to allow time for DNA repair. CHK inhibitors override this checkpoint, forcing damaged cells to keep dividing with unrepaired DNA, a strategy used to sensitize cancer cells to DNA-damaging chemotherapy or radiation.",
+    "pathway": "DNA damage checkpoint signaling (ATR/ATM-CHK1/2 axis).",
+    "typically_affects": "Cell-cycle checkpoint arrest in response to DNA damage.",
+    "sources": [
+      {"title": "CHEK1 - Wikipedia", "url": "https://en.wikipedia.org/wiki/CHEK1"}
+    ]
+  },
+
+  "CLK inhibitor": {
+    "description": "CDC2-like kinases (CLKs) phosphorylate SR proteins, a family of splicing factors, controlling how pre-mRNA is spliced into different exon combinations. CLK inhibitors block this phosphorylation, disrupting normal alternative splicing patterns -- an approach being explored to selectively kill cancer cells that depend on specific splicing programs. This is a less mature drug class studied mainly in research and early oncology programs rather than approved therapeutics.",
+    "pathway": "Pre-mRNA alternative splicing regulation (SR protein phosphorylation).",
+    "typically_affects": "RNA splicing patterns and, downstream, cell growth/survival in splicing-dependent cancers.",
+    "sources": [
+      {"title": "Inhibitors of CLK Protein Kinases Suppress Cell Growth and Induce Apoptosis by Modulating Pre-mRNA Splicing (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4291223/"}
+    ]
+  },
+
+  "DNA alkylating agent": {
+    "description": "Alkylating agents attach reactive alkyl groups directly onto DNA bases, commonly guanine, forming adducts and cross-links that distort the double helix and block DNA replication and transcription. Because rapidly dividing cells are especially vulnerable to this damage, alkylating agents such as cyclophosphamide are among the oldest and most widely used classes of cancer chemotherapy.",
+    "pathway": "Direct covalent DNA damage (base alkylation/cross-linking).",
+    "typically_affects": "DNA replication and transcription; triggers apoptosis in dividing cells.",
+    "sources": [
+      {"title": "Alkylating antineoplastic agent - Wikipedia", "url": "https://en.wikipedia.org/wiki/Alkylating_antineoplastic_agent"}
+    ]
+  },
+
+  "DNA directed RNA polymerase inhibitor": {
+    "description": "RNA polymerase reads a DNA template to synthesize RNA, the essential first step of gene expression. Inhibitors of this enzyme block transcription broadly; because bacterial and human RNA polymerases differ structurally, selective inhibitors like rifampicin can shut down bacterial transcription (as an antibiotic) while sparing human cells.",
+    "pathway": "DNA-templated RNA synthesis (transcription).",
+    "typically_affects": "Gene transcription broadly; bacterial transcription for antibiotic-class inhibitors.",
+    "sources": [
+      {"title": "RNA polymerase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/RNA_polymerase_inhibitor"}
+    ]
+  },
+
+  "DNA methyltransferase inhibitor": {
+    "description": "DNA methyltransferases (DNMTs) add methyl groups to cytosine bases in DNA, an epigenetic mark that typically silences nearby genes. Inhibitors like azacitidine and decitabine get incorporated into DNA in place of cytosine and trap DNMT enzymes, depleting methylation and reactivating silenced tumor-suppressor genes -- a mechanism used in myelodysplastic syndrome and leukemia treatment.",
+    "pathway": "Epigenetic regulation via DNA (cytosine) methylation.",
+    "typically_affects": "Gene expression through DNA methylation-dependent silencing.",
+    "sources": [
+      {"title": "DNA methyltransferase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/DNA_methyltransferase_inhibitor"}
+    ]
+  },
+
+  "DNA polymerase inhibitor": {
+    "description": "DNA polymerases synthesize new DNA strands during replication and repair by extending a primer using a template strand. Inhibitors block this process either by occupying the enzyme's active site directly or, more commonly, by acting as chain-terminating nucleoside analogs that get incorporated into the growing strand and stop further extension -- the basis for many antiviral and anticancer nucleoside drugs.",
+    "pathway": "DNA replication (polymerase-catalyzed strand synthesis).",
+    "typically_affects": "DNA replication in dividing cells or replicating viruses.",
+    "sources": [
+      {"title": "DNA polymerase - Wikipedia", "url": "https://en.wikipedia.org/wiki/DNA_polymerase"}
+    ]
+  },
+
+  "DNA synthesis inhibitor": {
+    "description": "This is a broad category covering any compound that blocks the production of new DNA, whether by inhibiting the enzymes of replication directly, starving cells of nucleotide building blocks, or damaging the DNA template itself. Because DNA synthesis is required for cell division, these agents are widely used as anticancer chemotherapy and, for pathogen-selective versions, as antimicrobials.",
+    "pathway": "DNA replication, broadly.",
+    "typically_affects": "Cell proliferation (S-phase of the cell cycle).",
+    "sources": [
+      {"title": "Antimetabolite - Wikipedia", "url": "https://en.wikipedia.org/wiki/Antimetabolite"}
+    ]
+  },
+
+  "DYRK inhibitor": {
+    "description": "Dual-specificity tyrosine-phosphorylation-regulated kinases (DYRKs), especially DYRK1A, phosphorylate substrates involved in cell differentiation, proliferation, and neuronal development. DYRK1A lies in the Down syndrome critical region of chromosome 21, and its overexpression is implicated in the neurodevelopmental and neurodegenerative features of Down syndrome and Alzheimer's disease, making DYRK inhibitors a research target for both.",
+    "pathway": "DYRK1A-dependent phosphorylation signaling.",
+    "typically_affects": "Cell differentiation, proliferation, and neuronal development/function.",
+    "sources": [
+      {"title": "DYRK1A - Wikipedia", "url": "https://en.wikipedia.org/wiki/DYRK1A"}
+    ]
+  },
+
+  "EGFR inhibitor": {
+    "description": "The epidermal growth factor receptor (EGFR) is a receptor tyrosine kinase that, when bound by growth factors like EGF, dimerizes and autophosphorylates to activate downstream RAS-MAPK and PI3K-AKT proliferation pathways. EGFR inhibitors -- small-molecule kinase inhibitors like gefitinib or antibodies like cetuximab -- block this activation and are widely used against EGFR-mutant or EGFR-overexpressing cancers such as non-small-cell lung cancer.",
+    "pathway": "EGFR-RAS-MAPK / PI3K-AKT growth signaling.",
+    "typically_affects": "Cell proliferation and survival signaling.",
+    "sources": [
+      {"title": "EGFR inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/EGFR_inhibitor"}
+    ]
+  },
+
+  "FAAH inhibitor": {
+    "description": "Fatty acid amide hydrolase (FAAH) breaks down anandamide, an endogenous cannabinoid ('endocannabinoid') that activates the same receptors as THC. FAAH inhibitors block this breakdown, raising anandamide levels and prolonging its analgesic and mood-related effects -- an approach explored for pain and anxiety that, unlike direct cannabinoid agonists, doesn't directly activate the receptor itself.",
+    "pathway": "Endocannabinoid signaling (anandamide metabolism).",
+    "typically_affects": "Pain, mood, and anxiety-related endocannabinoid signaling.",
+    "sources": [
+      {"title": "Fatty acid amide hydrolase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Fatty_acid_amide_hydrolase"}
+    ]
+  },
+
+  "FGFR inhibitor": {
+    "description": "Fibroblast growth factor receptors (FGFR1-4) are receptor tyrosine kinases that drive cell proliferation, angiogenesis, and tissue development in response to FGF ligands. FGFR gene amplifications, mutations, and fusions occur in several cancers, and FGFR inhibitors block the receptor's kinase activity to shut down this growth signaling.",
+    "pathway": "FGF-FGFR receptor tyrosine kinase signaling.",
+    "typically_affects": "Cell proliferation and angiogenesis.",
+    "sources": [
+      {"title": "Fibroblast growth factor receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Fibroblast_growth_factor_receptor"}
+    ]
+  },
+
+  "FLT3 inhibitor": {
+    "description": "FMS-like tyrosine kinase 3 (FLT3) is a receptor tyrosine kinase normally expressed on blood stem/progenitor cells; activating FLT3 mutations, especially internal tandem duplications, are common drivers of acute myeloid leukemia (AML). FLT3 inhibitors block this constitutively active signaling, reducing leukemic cell proliferation in FLT3-mutant AML.",
+    "pathway": "FLT3 receptor tyrosine kinase signaling.",
+    "typically_affects": "Proliferation of hematopoietic and leukemic cells.",
+    "sources": [
+      {"title": "FLT3 - Wikipedia", "url": "https://en.wikipedia.org/wiki/FLT3"}
+    ]
+  },
+
+  "FOXM1 inhibitor": {
+    "description": "FOXM1 is a transcription factor that drives expression of genes required for cell-cycle progression, particularly the G2/M transition, and is frequently overactive in cancer, where it's associated with proliferation, chemoresistance, and poor prognosis. Because FOXM1 lacks an easily druggable enzymatic pocket, most inhibitors work indirectly, blocking its DNA binding or promoting its degradation rather than occupying a classic active site.",
+    "pathway": "Cell-cycle transcriptional regulation (FOXM1-driven gene expression).",
+    "typically_affects": "Cell-cycle progression and, in cancer, chemoresistance.",
+    "sources": [
+      {"title": "Regulation of the master regulator FOXM1 in cancer (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6134757/"}
+    ]
+  },
+
+  "G protein signaling inhibitor": {
+    "description": "G proteins relay signals from G-protein-coupled receptors (GPCRs) to intracellular effectors like adenylyl cyclase and phospholipase C, controlling an enormous range of physiological responses. Inhibitors of G-protein signaling block this relay at the level of the G protein itself, rather than the receptor, dampening downstream second-messenger signaling regardless of which GPCR activated it.",
+    "pathway": "Heterotrimeric G-protein signal transduction downstream of GPCRs.",
+    "typically_affects": "Second-messenger signaling (cAMP, calcium, etc.) broadly across G-protein-coupled pathways.",
+    "sources": [
+      {"title": "G protein - Wikipedia", "url": "https://en.wikipedia.org/wiki/G_protein"}
+    ]
+  },
+
+  "ICAM1 expression inhibitor": {
+    "description": "Intercellular adhesion molecule 1 (ICAM-1) is displayed on the surface of activated endothelial cells during inflammation, where it binds integrins on circulating leukocytes to anchor them before they migrate into tissue. Compounds that inhibit ICAM-1 expression reduce this adhesion step, dampening leukocyte recruitment and the resulting inflammatory response.",
+    "pathway": "Endothelial-leukocyte adhesion signaling in inflammation.",
+    "typically_affects": "Leukocyte adhesion and migration into inflamed tissue.",
+    "sources": [
+      {"title": "Intercellular adhesion molecule - Wikipedia", "url": "https://en.wikipedia.org/wiki/Intercellular_adhesion_molecule"}
+    ]
+  },
+
+  "IGF-1 inhibitor": {
+    "description": "Insulin-like growth factor 1 (IGF-1) signals through the IGF-1 receptor, a receptor tyrosine kinase that activates PI3K-AKT and RAS-MAPK pathways to promote cell growth and survival, closely related to insulin signaling. IGF-1 pathway inhibitors block this receptor or its ligand, an approach studied in cancers that rely on IGF-1 signaling for growth, and in some growth-related endocrine disorders.",
+    "pathway": "IGF-1/IGF-1 receptor signaling (PI3K-AKT, RAS-MAPK).",
+    "typically_affects": "Cell growth and survival signaling.",
+    "sources": [
+      {"title": "Insulin-like growth factor 1 receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Insulin-like_growth_factor_1_receptor"}
+    ]
+  },
+
+  "JAK inhibitor": {
+    "description": "Janus kinases (JAK1-3, TYK2) are enzymes that associate with cytokine receptors and, upon activation, phosphorylate STAT transcription factors to switch on cytokine-responsive genes (the JAK-STAT pathway). JAK inhibitors ('jakinibs') block this signaling and are used clinically to treat autoimmune and inflammatory diseases like rheumatoid arthritis by dampening cytokine-driven immune activation.",
+    "pathway": "JAK-STAT cytokine signaling.",
+    "typically_affects": "Immune cell activation and cytokine-driven gene expression.",
+    "sources": [
+      {"title": "Janus kinase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Janus_kinase_inhibitor"}
+    ]
+  },
+
+  "JNK inhibitor": {
+    "description": "c-Jun N-terminal kinases (JNKs) are stress-activated MAP kinases that respond to cytokines, UV radiation, and other cellular stress by phosphorylating transcription factors like c-Jun, influencing inflammation, apoptosis, and stress responses. JNK inhibitors block this stress-signaling cascade, an approach studied for inflammatory diseases and for protecting cells from stress-induced apoptosis.",
+    "pathway": "Stress-activated MAPK signaling (JNK pathway).",
+    "typically_affects": "Inflammatory signaling and stress-induced apoptosis.",
+    "sources": [
+      {"title": "c-Jun N-terminal kinases - Wikipedia", "url": "https://en.wikipedia.org/wiki/C-Jun_N-terminal_kinases"}
+    ]
+  },
+
+  "KIT inhibitor": {
+    "description": "KIT (CD117) is a receptor tyrosine kinase for stem cell factor, important for the development of blood cells, mast cells, melanocytes, and the interstitial cells of Cajal in the gut. Activating KIT mutations drive gastrointestinal stromal tumors (GISTs) and some leukemias/mastocytosis, and KIT inhibitors like imatinib block this signaling to treat these conditions.",
+    "pathway": "KIT (stem cell factor receptor) tyrosine kinase signaling.",
+    "typically_affects": "Proliferation of KIT-driven tumor cells; mast cell and hematopoietic signaling.",
+    "sources": [
+      {"title": "KIT (gene) - Wikipedia", "url": "https://en.wikipedia.org/wiki/KIT_(gene)"}
+    ]
+  },
+
+  "LDL oxidation inhibitor": {
+    "description": "Oxidized LDL cholesterol, rather than native LDL, is thought to be a key driver of atherosclerosis, since it's taken up unchecked by macrophages to form the foam cells that build arterial plaques. LDL oxidation inhibitors, often antioxidants, block this oxidative modification, an approach investigated for slowing atherosclerotic plaque formation.",
+    "pathway": "Lipid peroxidation / oxidative modification of LDL particles.",
+    "typically_affects": "Atherosclerotic plaque formation via macrophage foam-cell uptake of oxidized LDL.",
+    "sources": [
+      {"title": "Oxidized low-density lipoprotein - Wikipedia", "url": "https://en.wikipedia.org/wiki/Oxidized_low-density_lipoprotein"}
+    ]
+  },
+
+  "MEK inhibitor": {
+    "description": "MEK1/2 are kinases that sit directly downstream of RAF in the RAS-RAF-MEK-ERK (MAPK) pathway, phosphorylating and activating ERK to drive cell proliferation. MEK inhibitors like trametinib block this step and are used, often alongside RAF inhibitors, in cancers with hyperactive MAPK signaling such as BRAF-mutant melanoma.",
+    "pathway": "RAS-RAF-MEK-ERK (MAPK) signaling.",
+    "typically_affects": "Cell proliferation signaling.",
+    "sources": [
+      {"title": "MEK inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/MEK_inhibitor"}
+    ]
+  },
+
+  "MER tyrosine kinase inhibitor": {
+    "description": "MER (MERTK) is a receptor tyrosine kinase of the TAM family (TYRO3, AXL, MERTK) that helps macrophages clear apoptotic cells and can promote an immunosuppressive tumor microenvironment when co-opted by cancer cells. MERTK inhibitors block this signaling, an approach studied both to boost anti-tumor immunity and to directly slow proliferation of MERTK-dependent cancer cells.",
+    "pathway": "TAM family (MERTK) receptor tyrosine kinase signaling.",
+    "typically_affects": "Efferocytosis (apoptotic cell clearance) and tumor immune evasion signaling.",
+    "sources": [
+      {"title": "MERTK - Wikipedia", "url": "https://en.wikipedia.org/wiki/MERTK"}
+    ]
+  },
+
+  "NFkB pathway inhibitor": {
+    "description": "NF-kB is a transcription factor family that, once released from its inhibitory partner IkB, moves to the nucleus and switches on genes for inflammatory cytokines, cell survival, and immune responses. NF-kB pathway inhibitors block this activation at various steps, such as IkB kinase inhibition, reducing inflammatory gene expression -- relevant to inflammatory disease and to cancers that rely on NF-kB for survival.",
+    "pathway": "NF-kB transcriptional signaling.",
+    "typically_affects": "Inflammatory gene expression and cell survival signaling.",
+    "sources": [
+      {"title": "NF-\u03baB - Wikipedia", "url": "https://en.wikipedia.org/wiki/NF-%CE%BAB"}
+    ]
+  },
+
+  "PDGFR tyrosine kinase receptor inhibitor": {
+    "description": "Platelet-derived growth factor receptors (PDGFR-alpha/beta) are receptor tyrosine kinases that drive proliferation of connective tissue cells, smooth muscle, and, in disease, certain cancers and fibrotic tissue. PDGFR inhibitors block this signaling and are used in GIST and certain leukemias with PDGFR fusions, and are being explored for fibrotic diseases.",
+    "pathway": "PDGF-PDGFR receptor tyrosine kinase signaling.",
+    "typically_affects": "Proliferation of mesenchymal cells; fibrosis and certain cancers.",
+    "sources": [
+      {"title": "Platelet-derived growth factor receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Platelet-derived_growth_factor_receptor"}
+    ]
+  },
+
+  "PI3K inhibitor": {
+    "description": "Phosphoinositide 3-kinase (PI3K) phosphorylates membrane lipids to generate PIP3, recruiting and activating AKT and other effectors that drive cell growth, survival, and metabolism. PI3K is one of the most commonly mutated/activated pathways in cancer, and PI3K inhibitors block this lipid kinase activity to shut down downstream AKT-mTOR signaling.",
+    "pathway": "PI3K-AKT-mTOR signaling.",
+    "typically_affects": "Cell growth, survival, and metabolic signaling.",
+    "sources": [
+      {"title": "Phosphoinositide 3-kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Phosphoinositide_3-kinase"}
+    ]
+  },
+
+  "PKC activator": {
+    "description": "Protein kinase C (PKC) isoforms are activated physiologically by diacylglycerol and calcium downstream of phospholipase C, phosphorylating substrates that regulate cell growth, differentiation, and apoptosis. PKC activators such as phorbol esters and bryostatins mimic this activation directly, and are studied both as cancer-promoting research tools and, in some contexts, as potential therapeutics for conditions like Alzheimer's disease or HIV latency reversal.",
+    "pathway": "Phospholipase C-diacylglycerol-PKC signaling.",
+    "typically_affects": "Cell growth, differentiation, and apoptosis signaling.",
+    "sources": [
+      {"title": "Protein kinase C - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protein_kinase_C"}
+    ]
+  },
+
+  "PKC inhibitor": {
+    "description": "PKC inhibitors block the same protein kinase C family, typically at its ATP-binding site, reducing downstream signaling that many cancers and inflammatory conditions rely on for growth and cytokine production. Because different PKC isoforms have different, sometimes opposing, roles in different tissues, isoform selectivity is a major consideration in PKC inhibitor development.",
+    "pathway": "Protein kinase C signaling.",
+    "typically_affects": "Cell growth, differentiation, and inflammatory signaling.",
+    "sources": [
+      {"title": "Protein kinase C - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protein_kinase_C"}
+    ]
+  },
+
+  "PLK inhibitor": {
+    "description": "Polo-like kinases, especially PLK1, coordinate multiple steps of mitosis, including centrosome maturation, spindle assembly, and the metaphase-to-anaphase transition. PLK inhibitors block this activity, arresting cells in mitosis and triggering death of rapidly dividing cancer cells that depend heavily on PLK1 for accurate division.",
+    "pathway": "Mitotic kinase signaling (PLK1-dependent cell-cycle progression).",
+    "typically_affects": "Cell division and mitotic progression.",
+    "sources": [
+      {"title": "PLK1 - Wikipedia", "url": "https://en.wikipedia.org/wiki/PLK1"}
+    ]
+  },
+
+  "PPAR receptor inverse agonist": {
+    "description": "PPAR inverse agonists bind the same nuclear peroxisome proliferator-activated receptors as PPAR antagonists, but actively suppress the receptor's baseline transcriptional activity below its unliganded level rather than simply blocking agonist binding. This matters because PPARs retain some constitutive activity even without a ligand, so inverse agonists produce a stronger, more directional shutdown of PPAR-driven metabolic and differentiation genes.",
+    "pathway": "Nuclear PPAR receptor transcriptional regulation.",
+    "typically_affects": "Lipid/glucose metabolism and adipocyte differentiation genes.",
+    "sources": [
+      {"title": "Peroxisome proliferator-activated receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Peroxisome_proliferator-activated_receptor"}
+    ]
+  },
+
+  "RAF inhibitor": {
+    "description": "RAF kinases (ARAF, BRAF, CRAF) sit at the top of the RAS-RAF-MEK-ERK (MAPK) cascade; the BRAF V600E mutation, found in a large fraction of melanomas, locks RAF in an active state and drives constant downstream signaling. RAF inhibitors like vemurafenib selectively block this mutant-active kinase, shutting down MAPK signaling in BRAF-mutant tumors.",
+    "pathway": "RAS-RAF-MEK-ERK (MAPK) signaling.",
+    "typically_affects": "Cell proliferation signaling, particularly in BRAF-mutant cancers.",
+    "sources": [
+      {"title": "B-Raf - Wikipedia", "url": "https://en.wikipedia.org/wiki/B-Raf"}
+    ]
+  },
+
+  "RAGE receptor antagonist": {
+    "description": "The receptor for advanced glycation end-products (RAGE) is activated by AGEs -- proteins/lipids damaged by chronic high blood sugar -- as well as other danger-associated molecules, triggering NF-kB-driven inflammatory signaling. RAGE antagonists block this receptor, an approach studied for diabetic complications and chronic inflammatory conditions where AGE-RAGE signaling drives tissue damage.",
+    "pathway": "AGE-RAGE inflammatory signaling.",
+    "typically_affects": "Chronic inflammatory signaling, notably in diabetic tissue damage.",
+    "sources": [
+      {"title": "Advanced glycation end-product - Wikipedia", "url": "https://en.wikipedia.org/wiki/Advanced_glycation_end-product"}
+    ]
+  },
+
+  "RET tyrosine kinase inhibitor": {
+    "description": "RET is a receptor tyrosine kinase for glial-derived neurotrophic factor family ligands, important for kidney and enteric nervous system development; activating RET mutations/fusions drive some thyroid cancers and non-small-cell lung cancers. RET inhibitors selectively block this kinase's activity in RET-altered tumors.",
+    "pathway": "RET receptor tyrosine kinase signaling.",
+    "typically_affects": "Proliferation of RET-driven tumor cells.",
+    "sources": [
+      {"title": "RET proto-oncogene - Wikipedia", "url": "https://en.wikipedia.org/wiki/RET_proto-oncogene"}
+    ]
+  },
+
+  "SIRT inhibitor": {
+    "description": "Sirtuins (SIRT1-7) are NAD+-dependent deacetylase enzymes that remove acetyl groups from histones and other proteins, linking cellular energy status to gene expression, DNA repair, and metabolism. SIRT inhibitors block this deacetylase activity and are studied mainly as anticancer and antiviral tool compounds, in contrast to the better-known SIRT activators explored for aging and metabolic disease.",
+    "pathway": "NAD+-dependent protein deacetylation (sirtuin signaling).",
+    "typically_affects": "Gene expression, DNA repair, and metabolic regulation via protein acetylation state.",
+    "sources": [
+      {"title": "Sirtuin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sirtuin"}
+    ]
+  },
+
+  "T-type calcium channel blocker": {
+    "description": "T-type ('transient') calcium channels open at more negative membrane potentials than the L-type channels targeted by conventional calcium channel blockers, and are important for pacemaker activity in the heart and rhythmic firing in neurons. T-type blockers dampen this low-threshold calcium influx, an approach used for certain arrhythmias and studied for epilepsy and pain.",
+    "pathway": "Low-voltage-activated (T-type) calcium channel signaling.",
+    "typically_affects": "Cardiac pacemaker activity and neuronal rhythmic firing.",
+    "sources": [
+      {"title": "T-type calcium channel - Wikipedia", "url": "https://en.wikipedia.org/wiki/T-type_calcium_channel"}
+    ]
+  },
+
+  "TGF beta receptor inhibitor": {
+    "description": "Transforming growth factor beta (TGF-beta) signals through a receptor serine/threonine kinase complex that activates SMAD transcription factors, regulating cell growth arrest, differentiation, and -- notably -- fibrosis and immune suppression. TGF-beta receptor inhibitors block this signaling, studied both to reduce pathological fibrosis and to counteract the immunosuppressive tumor microenvironment in cancer.",
+    "pathway": "TGF-beta/SMAD signaling.",
+    "typically_affects": "Cell growth arrest, fibrosis, and immune regulation.",
+    "sources": [
+      {"title": "TGF beta receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/TGF_beta_receptor"}
+    ]
+  },
+
+  "VEGFR inhibitor": {
+    "description": "Vascular endothelial growth factor receptors (VEGFR1-3) on endothelial cells drive angiogenesis, the formation of new blood vessels, in response to VEGF ligands. VEGFR inhibitors block this signaling to starve tumors of their blood supply (anti-angiogenic cancer therapy) and are also used to treat wet age-related macular degeneration by curbing abnormal vessel growth in the eye.",
+    "pathway": "VEGF-VEGFR angiogenic signaling.",
+    "typically_affects": "Blood vessel formation (angiogenesis).",
+    "sources": [
+      {"title": "Vascular endothelial growth factor receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Vascular_endothelial_growth_factor_receptor"}
+    ]
+  },
+
+  "acetylcholine receptor antagonist": {
+    "description": "Acetylcholine receptor antagonists block either the ligand-gated ion channel nicotinic receptors or the G-protein-coupled muscarinic receptors, preventing acetylcholine from triggering its normal excitatory or modulatory effects. Depending on which receptor family and subtype is targeted, these drugs relax smooth muscle (e.g. anticholinergics for overactive bladder or COPD), block neuromuscular transmission during surgery, or reduce parasympathetic tone.",
+    "pathway": "Cholinergic neurotransmission (nicotinic and/or muscarinic receptor blockade).",
+    "typically_affects": "Neuromuscular transmission and autonomic (parasympathetic) nervous system activity.",
+    "sources": [
+      {"title": "Anticholinergic - Wikipedia", "url": "https://en.wikipedia.org/wiki/Anticholinergic"}
+    ]
+  },
+
+  "adenosine deaminase inhibitor": {
+    "description": "Adenosine deaminase (ADA) breaks down adenosine and deoxyadenosine as part of purine metabolism; inhibiting it, as pentostatin does, causes toxic accumulation of deoxyadenosine nucleotides that is particularly damaging to lymphocytes, which rely heavily on this salvage pathway. This selective lymphotoxicity is exploited to treat certain leukemias, while inherited ADA deficiency causes a severe combined immunodeficiency (SCID).",
+    "pathway": "Purine salvage metabolism (adenosine deamination).",
+    "typically_affects": "Lymphocyte survival and proliferation.",
+    "sources": [
+      {"title": "Adenosine deaminase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Adenosine_deaminase"}
+    ]
+  },
+
+  "adenosine receptor agonist": {
+    "description": "Adenosine receptors (A1, A2A, A2B, A3) are G-protein-coupled receptors activated by the nucleoside adenosine, a signal that generally rises during cellular stress or high energy demand and acts to dampen activity and increase blood flow. Adenosine receptor agonists mimic this signal -- A1 agonists slow heart rate and are used to terminate certain arrhythmias, while other subtypes affect vasodilation, inflammation, and sleep drive.",
+    "pathway": "Adenosine (purinergic) receptor signaling.",
+    "typically_affects": "Cardiac conduction, vascular tone, inflammation, and sleep drive, depending on receptor subtype.",
+    "sources": [
+      {"title": "Adenosine receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Adenosine_receptor"}
+    ]
+  },
+
+  "adenosine receptor antagonist": {
+    "description": "Adenosine receptor antagonists block the same receptor family, preventing adenosine's normally inhibitory effects. Caffeine is the best-known example, antagonizing A1 and A2A receptors in the brain to counteract adenosine's sleep-promoting, arousal-dampening signal, producing the alertness-boosting effect of coffee.",
+    "pathway": "Adenosine (purinergic) receptor signaling.",
+    "typically_affects": "Arousal, sleep drive, and cardiovascular tone, depending on receptor subtype.",
+    "sources": [
+      {"title": "Adenosine receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Adenosine_receptor"}
+    ]
+  },
+
+  "adenosine reuptake inhibitor": {
+    "description": "Adenosine's extracellular signaling is terminated in part by reuptake through nucleoside transporters back into cells. Adenosine reuptake inhibitors like dipyridamole block this transporter, raising extracellular adenosine levels and prolonging its effects, including vasodilation and inhibition of platelet aggregation -- the basis for dipyridamole's use as an antiplatelet/vasodilator drug.",
+    "pathway": "Adenosine reuptake via nucleoside transporters.",
+    "typically_affects": "Vascular tone and platelet aggregation.",
+    "sources": [
+      {"title": "Dipyridamole - Wikipedia", "url": "https://en.wikipedia.org/wiki/Dipyridamole"}
+    ]
+  },
+
+  "alcohol dehydrogenase inhibitor": {
+    "description": "Alcohol dehydrogenase is the first enzyme in ethanol metabolism, converting it to the toxic intermediate acetaldehyde. Inhibitors like fomepizole block this enzyme and are used as an antidote for methanol or ethylene glycol poisoning, since the same enzyme would otherwise convert those alcohols into far more toxic metabolites.",
+    "pathway": "Alcohol metabolism (ethanol/methanol oxidation).",
+    "typically_affects": "Metabolism of ingested alcohols into toxic aldehyde metabolites.",
+    "sources": [
+      {"title": "Alcohol dehydrogenase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Alcohol_dehydrogenase"}
+    ]
+  },
+
+  "aldehyde dehydrogenase activator": {
+    "description": "Aldehyde dehydrogenase (ALDH2) detoxifies acetaldehyde from alcohol metabolism and other reactive aldehydes generated during oxidative stress, such as those produced during a heart attack. ALDH2 activators like Alda-1 boost this detoxification, an approach studied for reducing tissue damage from ischemia and for a common East Asian ALDH2 gene variant that impairs enzyme activity.",
+    "pathway": "Aldehyde detoxification (ALDH2-mediated metabolism).",
+    "typically_affects": "Clearance of toxic aldehydes from alcohol metabolism and oxidative/ischemic stress.",
+    "sources": [
+      {"title": "Aldehyde dehydrogenase 2 - Wikipedia", "url": "https://en.wikipedia.org/wiki/Aldehyde_dehydrogenase_2"}
+    ]
+  },
+
+  "aldehyde dehydrogenase inhibitor": {
+    "description": "Aldehyde dehydrogenase inhibitors block the same enzyme, most famously in disulfiram, used to treat alcohol use disorder: by preventing acetaldehyde breakdown, disulfiram causes an unpleasant buildup of acetaldehyde -- flushing, nausea -- whenever the patient drinks alcohol, creating a conditioned aversion.",
+    "pathway": "Aldehyde detoxification (ALDH-mediated metabolism).",
+    "typically_affects": "Acetaldehyde clearance following alcohol consumption.",
+    "sources": [
+      {"title": "Disulfiram - Wikipedia", "url": "https://en.wikipedia.org/wiki/Disulfiram"}
+    ]
+  },
+
+  "aldose reductase inhibitor": {
+    "description": "Aldose reductase converts excess glucose to sorbitol in cells (the polyol pathway), and under chronic hyperglycemia this sorbitol accumulates and contributes to diabetic nerve, eye, and kidney damage. Aldose reductase inhibitors like epalrestat block this conversion, an approach used and studied to slow diabetic neuropathy and retinopathy.",
+    "pathway": "Polyol pathway (glucose-to-sorbitol conversion).",
+    "typically_affects": "Diabetic complications in nerve, eye, and kidney tissue.",
+    "sources": [
+      {"title": "Aldose reductase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Aldose_reductase"}
+    ]
+  },
+
+  "angiogenesis inhibitor": {
+    "description": "Angiogenesis inhibitors block the formation of new blood vessels by interfering with signaling pathways like VEGF, either directly or through other anti-angiogenic mechanisms. Tumors require new blood vessel growth to grow beyond a small size, so angiogenesis inhibitors are widely used in oncology to starve tumors of nutrients and oxygen, and in ophthalmology to treat vision-threatening abnormal vessel growth.",
+    "pathway": "Angiogenic signaling (commonly VEGF-dependent).",
+    "typically_affects": "New blood vessel formation.",
+    "sources": [
+      {"title": "Angiogenesis inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Angiogenesis_inhibitor"}
+    ]
+  },
+
+  "antioxidant": {
+    "description": "Antioxidants neutralize reactive oxygen species (free radicals) generated by normal metabolism and external stressors, preventing them from damaging DNA, proteins, and lipids. In this dataset, 'antioxidant' is a broad mechanistic label covering compounds that act through this general radical-scavenging or redox-buffering mechanism, rather than a single specific molecular target.",
+    "pathway": "Reactive oxygen species (ROS) scavenging / redox buffering.",
+    "typically_affects": "Oxidative stress and its downstream damage to DNA, lipids, and proteins.",
+    "sources": [
+      {"title": "Antioxidant - Wikipedia", "url": "https://en.wikipedia.org/wiki/Antioxidant"}
+    ]
+  },
+
+  "astrocyte modulating agent": {
+    "description": "Astrocytes are the most abundant glial cell type in the brain, maintaining the blood-brain barrier, supplying neurons with metabolic support, and regulating neurotransmitter levels at synapses via the many receptors and transporters on their surface. 'Astrocyte modulating agent' is a broad label for compounds that act on this astrocyte signaling machinery rather than directly on neurons -- relevant to neurodegenerative and neuropsychiatric research, though the exact molecular target varies by compound.",
+    "pathway": "Astrocyte GPCR / gliotransmission signaling.",
+    "typically_affects": "Neuron-glia communication, blood-brain barrier maintenance, and neuronal metabolic support.",
+    "sources": [
+      {"title": "Astrocyte - Wikipedia", "url": "https://en.wikipedia.org/wiki/Astrocyte"}
+    ]
+  },
+
+  "bacterial 30S ribosomal subunit inhibitor": {
+    "description": "The bacterial ribosome's small (30S) subunit is where mRNA is decoded and aminoacyl-tRNAs are selected during translation. Antibiotics like aminoglycosides bind irreversibly here and cause misreading of the genetic code, while tetracyclines bind reversibly and block tRNA from docking altogether -- both classes exploit structural differences between bacterial and human ribosomes for selective antibacterial activity.",
+    "pathway": "Bacterial ribosomal protein synthesis (30S subunit).",
+    "typically_affects": "Bacterial protein synthesis (translation fidelity and initiation).",
+    "sources": [
+      {"title": "30S ribosomal protein - Wikipedia", "url": "https://en.wikipedia.org/wiki/30S_ribosomal_protein"}
+    ]
+  },
+
+  "bacterial cell wall synthesis inhibitor": {
+    "description": "Bacterial cell walls are built from peptidoglycan, a mesh polymer that gives the cell structural integrity and osmotic protection. Cell wall synthesis inhibitors -- most famously beta-lactam antibiotics like penicillin -- block the enzymes that cross-link peptidoglycan strands, causing the wall to weaken and the bacterium to rupture under its own internal pressure.",
+    "pathway": "Bacterial peptidoglycan (cell wall) biosynthesis.",
+    "typically_affects": "Bacterial cell wall integrity and structural stability.",
+    "sources": [
+      {"title": "Cell wall - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cell_wall"}
+    ]
+  },
+
+  "bone morphogenic protein inhibitor": {
+    "description": "Bone morphogenetic proteins (BMPs) are TGF-beta superfamily signaling molecules that, via SMAD transcription factors, regulate bone and cartilage formation as well as broader developmental patterning. BMP inhibitors block this signaling -- of interest both for conditions of excessive bone/vascular calcification, such as fibrodysplasia ossificans progressiva, and for research into stem cell differentiation.",
+    "pathway": "BMP/SMAD signaling (TGF-beta superfamily).",
+    "typically_affects": "Bone and cartilage formation; developmental cell differentiation.",
+    "sources": [
+      {"title": "Bone morphogenetic protein - Wikipedia", "url": "https://en.wikipedia.org/wiki/Bone_morphogenetic_protein"}
+    ]
+  },
+
+  "bromodomain inhibitor": {
+    "description": "Bromodomain-containing proteins, especially the BET family (BRD2/3/4/T), 'read' acetylated histone marks and recruit transcriptional machinery to activate nearby genes, including oncogenes like MYC. BET/bromodomain inhibitors such as JQ1 competitively displace these reader proteins from acetylated chromatin, shutting down the oncogenic transcription they support.",
+    "pathway": "Epigenetic 'reader' signaling (BET protein-acetylated histone binding).",
+    "typically_affects": "Transcription of BET-dependent genes, notably oncogenes such as MYC.",
+    "sources": [
+      {"title": "BET inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/BET_inhibitor"}
+    ]
+  },
+
+  "c-Met inhibitor": {
+    "description": "c-Met is the receptor tyrosine kinase for hepatocyte growth factor (HGF), driving cell proliferation, motility, and invasion during normal development and wound healing. c-Met gene amplification or mutation drives a subset of cancers, and c-Met inhibitors block this signaling to slow tumor growth and metastasis in MET-altered tumors.",
+    "pathway": "HGF-c-Met receptor tyrosine kinase signaling.",
+    "typically_affects": "Cell proliferation, motility, and invasion.",
+    "sources": [
+      {"title": "MET (gene) - Wikipedia", "url": "https://en.wikipedia.org/wiki/MET_(gene)"}
+    ]
+  },
+
+  "cannabinoid receptor agonist": {
+    "description": "Cannabinoid receptors CB1 (mainly in the brain) and CB2 (mainly on immune cells) are G-protein-coupled receptors normally activated by endocannabinoids like anandamide, as well as plant-derived THC. Cannabinoid receptor agonists mimic this signaling, producing effects on pain, appetite, mood, and inflammation depending on which receptor subtype and tissue is engaged.",
+    "pathway": "Endocannabinoid (CB1/CB2) receptor signaling.",
+    "typically_affects": "Pain perception, appetite, mood, and immune/inflammatory signaling.",
+    "sources": [
+      {"title": "Cannabinoid receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cannabinoid_receptor"}
+    ]
+  },
+
+  "carbonic anhydrase inhibitor": {
+    "description": "Carbonic anhydrase catalyzes the interconversion of carbon dioxide and water into bicarbonate and protons, a reaction central to pH regulation, fluid secretion, and CO2 transport throughout the body. Carbonic anhydrase inhibitors like acetazolamide block this reaction and are used as diuretics, for glaucoma (by reducing aqueous humor production), and for altitude sickness.",
+    "pathway": "CO2/bicarbonate buffering (carbonic anhydrase catalysis).",
+    "typically_affects": "Fluid secretion (kidney, eye) and acid-base/CO2 balance.",
+    "sources": [
+      {"title": "Carbonic anhydrase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Carbonic_anhydrase_inhibitor"}
+    ]
+  },
+
+  "caspase activator": {
+    "description": "Caspases are proteases that execute apoptosis by cleaving hundreds of cellular substrates once activated in a proteolytic cascade triggered by death receptors or mitochondrial damage. Caspase activators promote this cascade directly, an approach studied for killing cancer cells that have otherwise evaded apoptosis.",
+    "pathway": "Apoptotic caspase cascade.",
+    "typically_affects": "Programmed cell death (apoptosis execution).",
+    "sources": [
+      {"title": "Caspase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Caspase"}
+    ]
+  },
+
+  "caspase inhibitor": {
+    "description": "Caspase inhibitors block the same protease cascade, preventing cells from completing apoptosis. This is studied therapeutically in conditions where excessive cell death drives disease -- for example limiting neuron loss after stroke or liver cell death in acute liver failure -- though broadly blocking apoptosis also carries a cancer risk if used too indiscriminately.",
+    "pathway": "Apoptotic caspase cascade.",
+    "typically_affects": "Programmed cell death (apoptosis execution).",
+    "sources": [
+      {"title": "Caspase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Caspase_inhibitor"}
+    ]
+  },
+
+  "catechol O methyltransferase inhibitor": {
+    "description": "Catechol-O-methyltransferase (COMT) breaks down catecholamine neurotransmitters, including dopamine, norepinephrine, and levodopa, the dopamine precursor used to treat Parkinson's disease. COMT inhibitors like entacapone block this breakdown, prolonging levodopa's availability to the brain and smoothing out its therapeutic effect in Parkinson's disease.",
+    "pathway": "Catecholamine metabolism (COMT-mediated methylation).",
+    "typically_affects": "Dopamine and levodopa availability in the brain.",
+    "sources": [
+      {"title": "Catechol-O-methyltransferase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Catechol-O-methyltransferase"}
+    ]
+  },
+
+  "chelating agent": {
+    "description": "Chelating agents bind metal ions such as lead, iron, or copper tightly through multiple coordination bonds, forming a stable, water-soluble complex that the body can excrete. This mechanism is the basis for treating heavy-metal poisoning and metal-overload disorders, such as deferoxamine for iron overload or EDTA for lead poisoning.",
+    "pathway": "Metal ion coordination/sequestration.",
+    "typically_affects": "Systemic levels of free (unbound) metal ions.",
+    "sources": [
+      {"title": "Chelation therapy - Wikipedia", "url": "https://en.wikipedia.org/wiki/Chelation_therapy"}
+    ]
+  },
+
+  "chloride channel blocker": {
+    "description": "Chloride channels regulate the flow of chloride ions across cell membranes, contributing to membrane potential, cell volume regulation, and, in epithelial tissue, fluid secretion. Chloride channel blockers interfere with this flow -- relevant, for example, to smooth muscle excitability and to research on cystic fibrosis-related chloride transport.",
+    "pathway": "Chloride channel-mediated ion transport.",
+    "typically_affects": "Membrane excitability, cell volume, and epithelial fluid secretion.",
+    "sources": [
+      {"title": "Chloride channel - Wikipedia", "url": "https://en.wikipedia.org/wiki/Chloride_channel"}
+    ]
+  },
+
+  "coagulation factor inhibitor": {
+    "description": "The coagulation cascade is a chain of sequentially activated clotting factors (proteases) that ultimately converts fibrinogen into the fibrin mesh of a blood clot. Coagulation factor inhibitors block one of these factors directly -- for example, factor Xa inhibitors like rivaroxaban -- preventing clot formation and are used as anticoagulants to treat or prevent thrombosis.",
+    "pathway": "Blood coagulation cascade.",
+    "typically_affects": "Blood clot formation.",
+    "sources": [
+      {"title": "Anticoagulant - Wikipedia", "url": "https://en.wikipedia.org/wiki/Anticoagulant"}
+    ]
+  },
+
+  "cyclin D inhibitor": {
+    "description": "Cyclin D partners with CDK4/6 to phosphorylate the retinoblastoma protein (Rb), releasing E2F transcription factors and driving the G1-to-S phase transition of the cell cycle. Cyclin D inhibitors block this complex's activity, functionally overlapping with CDK4/6 inhibitors, halting cell-cycle progression -- a mechanism exploited in hormone-receptor-positive breast cancer treatment.",
+    "pathway": "Cyclin D-CDK4/6-Rb cell-cycle signaling.",
+    "typically_affects": "G1-to-S cell-cycle transition.",
+    "sources": [
+      {"title": "Cyclin D - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cyclin_D"}
+    ]
+  },
+
+  "cytochrome C release inhibitor": {
+    "description": "Cytochrome c is normally sequestered inside mitochondria as part of the electron transport chain; its release into the cytosol, through pores formed by BAX/BAK, is the key trigger of the intrinsic (mitochondrial) apoptosis pathway, activating caspases via the apoptosome. Cytochrome c release inhibitors block this step, protecting cells from mitochondrial apoptosis -- of interest in conditions with excessive cell death, such as neurodegeneration or ischemic injury.",
+    "pathway": "Mitochondrial (intrinsic) apoptosis pathway.",
+    "typically_affects": "Programmed cell death via mitochondrial outer membrane permeabilization.",
+    "sources": [
+      {"title": "Cytochrome c - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cytochrome_c"}
+    ]
+  },
+
+  "cytokine production inhibitor": {
+    "description": "Cytokines are signaling proteins -- interleukins, TNF, interferons -- secreted by immune cells to coordinate inflammation and immune responses. Cytokine production inhibitors block the intracellular signaling or transcriptional machinery needed to synthesize these proteins, dampening inflammation broadly rather than neutralizing a single already-secreted cytokine.",
+    "pathway": "Immune cell cytokine synthesis/secretion signaling.",
+    "typically_affects": "Inflammatory and immune signaling broadly.",
+    "sources": [
+      {"title": "Cytokine - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cytokine"}
+    ]
+  },
+
+  "dehydrogenase inhibitor": {
+    "description": "Dehydrogenases are a large enzyme class that catalyze oxidation reactions by removing hydrogen, typically transferring it to a cofactor like NAD+ or FAD, participating in pathways from glycolysis to steroid synthesis to drug metabolism. 'Dehydrogenase inhibitor' is a broad mechanistic label in this dataset covering compounds that block one of these many enzymes, rather than a single specific target.",
+    "pathway": "Enzymatic oxidation-reduction (dehydrogenase-catalyzed) reactions.",
+    "typically_affects": "Varies by specific dehydrogenase target; broadly, cellular metabolism.",
+    "sources": [
+      {"title": "Dehydrogenase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Dehydrogenase"}
+    ]
+  },
+
+  "dihydroorotate dehydrogenase inhibitor": {
+    "description": "Dihydroorotate dehydrogenase (DHODH) catalyzes a rate-limiting step in de novo pyrimidine synthesis, which rapidly dividing cells, including activated lymphocytes, depend on heavily to make new DNA and RNA. DHODH inhibitors like leflunomide block this step, suppressing lymphocyte proliferation -- the basis for their use as disease-modifying antirheumatic drugs in autoimmune disease.",
+    "pathway": "De novo pyrimidine biosynthesis.",
+    "typically_affects": "Proliferation of rapidly dividing cells, notably activated lymphocytes.",
+    "sources": [
+      {"title": "Dihydroorotate dehydrogenase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Dihydroorotate_dehydrogenase"}
+    ]
+  },
+
+  "discoidin domain receptor inhibitor": {
+    "description": "Discoidin domain receptors (DDR1, DDR2) are unusual receptor tyrosine kinases activated not by soluble growth factors but by binding directly to collagen in the extracellular matrix. DDR inhibitors block this collagen-sensing signaling, which is implicated in fibrosis, atherosclerosis, and cancer cell invasion through collagen-rich tissue.",
+    "pathway": "Collagen-activated receptor tyrosine kinase (DDR) signaling.",
+    "typically_affects": "Cell-extracellular matrix interaction; fibrosis and tumor invasion.",
+    "sources": [
+      {"title": "Inhibitors of Discoidin Domain Receptor (DDR) Kinases for Cancer and Inflammation (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8615839/"}
+    ]
+  },
+
+  "dopamine receptor antagonist": {
+    "description": "Dopamine receptors (D1-D5) are G-protein-coupled receptors that mediate dopamine's roles in reward, movement control, and, in the mesolimbic pathway, psychosis. Dopamine receptor antagonists, the core mechanism of antipsychotic drugs, block D2-family receptors to reduce psychotic symptoms, though this same blockade in motor circuits can cause Parkinson-like side effects.",
+    "pathway": "Dopaminergic (D1-D5 receptor) signaling.",
+    "typically_affects": "Reward, motor control, and psychosis-related brain circuits.",
+    "sources": [
+      {"title": "Dopamine receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Dopamine_receptor"}
+    ]
+  },
+
+  "elastase inhibitor": {
+    "description": "Elastase enzymes break down elastin, the protein that gives lung and connective tissue its elasticity; unchecked elastase activity, such as from neutrophils during inflammation, degrades lung tissue and contributes to emphysema. Elastase inhibitors, including the natural inhibitor alpha-1 antitrypsin, block this degradation to protect tissue elasticity.",
+    "pathway": "Elastin degradation (neutrophil elastase activity).",
+    "typically_affects": "Lung and connective tissue elasticity.",
+    "sources": [
+      {"title": "Elastase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Elastase"}
+    ]
+  },
+
+  "enkephalinase inhibitor": {
+    "description": "'Enkephalinase' is an older name for neprilysin (NEP), a membrane enzyme that degrades the body's own opioid-like peptides (enkephalins) as well as natriuretic peptides. Enkephalinase inhibitors like racecadotril block this breakdown in the gut, prolonging enkephalin activity there to reduce intestinal fluid secretion -- the basis for their use as antidiarrheal drugs.",
+    "pathway": "Enkephalin (endogenous opioid peptide) metabolism via neprilysin.",
+    "typically_affects": "Intestinal fluid secretion; local opioid peptide signaling.",
+    "sources": [
+      {"title": "A Comprehensive Review of the Pharmacodynamics, Pharmacokinetics, and Clinical Effects of Racecadotril (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3362754/"}
+    ]
+  },
+
+  "estrogen receptor antagonist": {
+    "description": "Estrogen receptors are nuclear hormone receptors that, once bound by estrogen, drive transcription of genes involved in reproductive tissue growth, including estrogen-sensitive breast cancers. Estrogen receptor antagonists such as tamoxifen and fulvestrant block or degrade this receptor, slowing growth of hormone-receptor-positive breast cancer, and are also used for other estrogen-dependent conditions.",
+    "pathway": "Estrogen receptor-mediated transcription.",
+    "typically_affects": "Growth of estrogen-sensitive reproductive tissue, including breast cancer.",
+    "sources": [
+      {"title": "Antiestrogen - Wikipedia", "url": "https://en.wikipedia.org/wiki/Antiestrogen"}
+    ]
+  },
+
+  "farnesyltransferase inhibitor": {
+    "description": "Farnesyltransferase attaches a lipid 'farnesyl' anchor to certain proteins, including RAS, which is required for RAS to localize to the cell membrane and signal properly. Farnesyltransferase inhibitors block this modification, an approach originally developed to indirectly target RAS-driven cancers, and are used in the rare disease Hutchinson-Gilford progeria syndrome.",
+    "pathway": "Protein prenylation (farnesylation), notably of RAS.",
+    "typically_affects": "Membrane localization and signaling of farnesylated proteins.",
+    "sources": [
+      {"title": "Farnesyltransferase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Farnesyltransferase"}
+    ]
+  },
+
+  "focal adhesion kinase inhibitor": {
+    "description": "Focal adhesion kinase (FAK) is a non-receptor tyrosine kinase that relays signals from integrins, the cell-matrix adhesion receptors, coordinating cell migration, invasion, and survival. FAK inhibitors block this signaling, an approach studied to reduce cancer cell migration and metastasis, as well as fibrosis.",
+    "pathway": "Integrin-FAK adhesion signaling.",
+    "typically_affects": "Cell migration, invasion, and adhesion-dependent survival.",
+    "sources": [
+      {"title": "Focal adhesion kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Focal_adhesion_kinase"}
+    ]
+  },
+
+  "free fatty acid receptor agonist": {
+    "description": "Free fatty acid receptor 1 (FFAR1/GPR40) is a G-protein-coupled receptor on pancreatic beta cells activated by circulating long-chain fatty acids, amplifying glucose-stimulated insulin secretion. FFAR1 agonists mimic this signal to boost insulin release only when glucose is already elevated, a 'glucose-dependent' safety feature that reduces the hypoglycemia risk seen with older insulin secretagogues.",
+    "pathway": "FFAR1 (GPR40) G-protein-coupled receptor signaling.",
+    "typically_affects": "Glucose-stimulated insulin secretion from pancreatic beta cells.",
+    "sources": [
+      {"title": "Free fatty acid receptors as therapeutic targets for the treatment of diabetes (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4222138/"}
+    ]
+  },
+
+  "glucosidase inhibitor": {
+    "description": "Alpha-glucosidase enzymes in the intestinal brush border break complex carbohydrates down into absorbable simple sugars. Glucosidase inhibitors like acarbose block this final digestive step, slowing carbohydrate absorption and blunting the post-meal blood sugar spike in type 2 diabetes.",
+    "pathway": "Intestinal carbohydrate digestion (alpha-glucosidase activity).",
+    "typically_affects": "Post-meal (postprandial) blood glucose rise.",
+    "sources": [
+      {"title": "Alpha-glucosidase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Alpha-glucosidase_inhibitor"}
+    ]
+  },
+
+  "glutamate receptor agonist": {
+    "description": "Glutamate receptor agonists activate the brain's principal excitatory neurotransmitter receptors -- NMDA, AMPA, kainate, and metabotropic subtypes -- driving or enhancing excitatory neurotransmission. These are used mainly as research tools to probe excitatory signaling, since directly boosting glutamate signaling carries excitotoxicity risk.",
+    "pathway": "Glutamatergic excitatory neurotransmission.",
+    "typically_affects": "Neuronal excitability and synaptic signaling.",
+    "sources": [
+      {"title": "Glutamate receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Glutamate_receptor"}
+    ]
+  },
+
+  "growth factor receptor inhibitor": {
+    "description": "This is a broad label covering inhibitors of any receptor tyrosine kinase activated by a growth factor -- EGFR, VEGFR, PDGFR, FGFR, and others -- all of which share a common downstream logic: ligand binding drives receptor dimerization and autophosphorylation, activating RAS-MAPK and PI3K-AKT signaling that promotes cell growth and proliferation. Because many cancers depend on one or more of these receptors, growth factor receptor inhibitors are a major class of targeted cancer therapy.",
+    "pathway": "Receptor tyrosine kinase signaling (RAS-MAPK, PI3K-AKT).",
+    "typically_affects": "Cell growth and proliferation signaling.",
+    "sources": [
+      {"title": "Receptor tyrosine kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Receptor_tyrosine_kinase"}
+    ]
+  },
+
+  "growth hormone secretagogue receptor agonist": {
+    "description": "The growth hormone secretagogue receptor (GHSR), also called the ghrelin receptor, is activated by the 'hunger hormone' ghrelin to stimulate growth hormone release, appetite, and food intake. GHSR agonists mimic ghrelin's signal and are used or studied to treat conditions of poor appetite or growth hormone deficiency, such as cachexia.",
+    "pathway": "Ghrelin-GHSR signaling.",
+    "typically_affects": "Growth hormone release and appetite/food intake.",
+    "sources": [
+      {"title": "Growth hormone secretagogue receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Growth_hormone_secretagogue_receptor"}
+    ]
+  },
+
+  "growth hormone secretagogue receptor inverse agonist": {
+    "description": "GHSR inverse agonists suppress the receptor's constitutive, ligand-independent baseline activity below its resting level, going further than a simple antagonist that only blocks ghrelin from binding. This stronger suppression of ghrelin signaling is being explored for conditions like obesity, Prader-Willi syndrome, and alcohol use disorder, where dampening appetite/reward signaling is beneficial.",
+    "pathway": "Ghrelin-GHSR signaling.",
+    "typically_affects": "Appetite, reward-related eating behavior, and growth hormone release.",
+    "sources": [
+      {"title": "Small molecule ghrelin receptor inverse agonists and antagonists (PubMed)", "url": "https://pubmed.ncbi.nlm.nih.gov/25036503/"}
+    ]
+  },
+
+  "guanylate cyclase stimulant": {
+    "description": "Soluble guanylate cyclase (sGC) produces the second messenger cGMP in response to nitric oxide (NO), driving smooth muscle relaxation and vasodilation. sGC stimulators like riociguat work with the heme-containing form of the enzyme, sensitizing it to low levels of endogenous NO and directly stimulating it independent of NO, making them useful in conditions like pulmonary hypertension where NO signaling is impaired.",
+    "pathway": "Nitric oxide-soluble guanylate cyclase-cGMP signaling.",
+    "typically_affects": "Vascular smooth muscle tone (vasodilation).",
+    "sources": [
+      {"title": "Activation mechanism of human soluble guanylate cyclase by stimulators and activators (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8448884/"}
+    ]
+  },
+
+  "guanylyl cyclase activator": {
+    "description": "Guanylyl cyclase activators like cinaciguat act on the same soluble guanylate cyclase enzyme but bind its heme-free form directly, activating cGMP production independent of nitric oxide entirely -- distinct from stimulators, which still require some heme/NO cooperation. This NO-independent mechanism is being explored for severe vasodilation needs, particularly when the endogenous NO system is significantly impaired.",
+    "pathway": "Soluble guanylate cyclase-cGMP signaling (NO-independent).",
+    "typically_affects": "Vascular smooth muscle tone (vasodilation).",
+    "sources": [
+      {"title": "Activation mechanism of human soluble guanylate cyclase by stimulators and activators (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8448884/"}
+    ]
+  },
+
+  "hemoglobin modulator": {
+    "description": "Hemoglobin modulators bind hemoglobin directly and shift its oxygen-binding affinity, altering how readily it picks up oxygen in the lungs and releases it in tissue. Voxelotor, the best-known example, increases hemoglobin's oxygen affinity and stabilizes its oxygenated shape, preventing the sickle hemoglobin polymerization that causes sickle cell disease.",
+    "pathway": "Allosteric hemoglobin oxygen-binding regulation.",
+    "typically_affects": "Hemoglobin's oxygen affinity and, in sickle hemoglobin, polymerization behavior.",
+    "sources": [
+      {"title": "Voxelotor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Voxelotor"}
+    ]
+  },
+
+  "hemoglobin oxygen release stimulant": {
+    "description": "This label describes hemoglobin modulators that shift oxygen affinity in the opposite direction from voxelotor-like drugs, reducing hemoglobin's oxygen affinity so that more oxygen is released into hypoxic tissue. ITPP (myo-inositol trispyrophosphate) is the prototype, acting as a membrane-permeant allosteric effector that shifts the oxygen dissociation curve to increase oxygen delivery, studied in cancer and cardiovascular research.",
+    "pathway": "Allosteric hemoglobin oxygen-binding regulation.",
+    "typically_affects": "Oxygen delivery to hypoxic tissue.",
+    "sources": [
+      {"title": "myo-Inositol trispyrophosphate: a novel allosteric effector of hemoglobin (PubMed)", "url": "https://pubmed.ncbi.nlm.nih.gov/21086482/"}
+    ]
+  },
+
+  "hemozoin biocrystallization inhibitor": {
+    "description": "Malaria parasites digest host hemoglobin for nutrients, which releases toxic free heme; they detoxify it by crystallizing it into inert hemozoin. Hemozoin biocrystallization inhibitors, the mechanism of chloroquine and related quinoline antimalarials, bind free heme and block this crystallization, letting toxic heme accumulate and kill the parasite.",
+    "pathway": "Heme detoxification in the malaria parasite (hemozoin formation).",
+    "typically_affects": "Survival of the intraerythrocytic malaria parasite.",
+    "sources": [
+      {"title": "Hemozoin biocrystallization in Plasmodium falciparum and the antimalarial activity of crystallization inhibitors (PubMed)", "url": "https://pubmed.ncbi.nlm.nih.gov/17111179/"}
+    ]
+  },
+
+  "hepatocyte growth factor receptor inhibitor": {
+    "description": "The hepatocyte growth factor receptor (HGFR) is another name for c-Met, the receptor tyrosine kinase activated by hepatocyte growth factor (HGF) to drive cell proliferation, motility, and tissue regeneration. Inhibitors of this receptor are used interchangeably with 'c-Met inhibitors' in the literature and are studied in HGF/MET-driven cancers.",
+    "pathway": "HGF-c-Met (HGFR) receptor tyrosine kinase signaling.",
+    "typically_affects": "Cell proliferation, motility, and invasion.",
+    "sources": [
+      {"title": "Hepatocyte growth factor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Hepatocyte_growth_factor"}
+    ]
+  },
+
+  "histamine receptor agonist": {
+    "description": "Histamine receptor agonists activate one of the four histamine receptor subtypes (H1-H4), mimicking the effects of histamine released from mast cells and other tissues. Depending on the subtype engaged, this can drive allergic-type symptoms (H1), gastric acid secretion (H2), or modulate neurotransmitter release and immune cell function (H3/H4) -- these are used mainly as research tools rather than approved drugs.",
+    "pathway": "Histamine (H1-H4) receptor signaling.",
+    "typically_affects": "Allergic responses, gastric acid secretion, and neuro-immune signaling, by subtype.",
+    "sources": [
+      {"title": "Histamine receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Histamine_receptor"}
+    ]
+  },
+
+  "histamine receptor modulator": {
+    "description": "'Histamine receptor modulator' is a broader label covering compounds that alter histamine receptor signaling without being cleanly classified as a simple agonist or antagonist -- for example, partial agonists or allosteric modulators of one of the H1-H4 subtypes. These affect the same downstream processes as histamine agonists/antagonists (allergic response, gastric acid secretion, neuro-immune signaling) but through more nuanced receptor pharmacology.",
+    "pathway": "Histamine (H1-H4) receptor signaling.",
+    "typically_affects": "Allergic, gastric, and neuro-immune signaling, by subtype.",
+    "sources": [
+      {"title": "Histamine receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Histamine_receptor"}
+    ]
+  },
+
+  "hypoxia inducible factor inhibitor": {
+    "description": "Hypoxia-inducible factors (HIFs) are transcription factors that accumulate when oxygen is low and switch on genes for angiogenesis, red blood cell production, and metabolic adaptation to hypoxia. HIF inhibitors block this transcriptional program, an approach studied in oncology since many solid tumors rely on HIF signaling to survive and grow in their low-oxygen core.",
+    "pathway": "Hypoxia-inducible transcriptional signaling (HIF pathway).",
+    "typically_affects": "Angiogenesis, red blood cell production, and metabolic adaptation to low oxygen.",
+    "sources": [
+      {"title": "Hypoxia-inducible factors - Wikipedia", "url": "https://en.wikipedia.org/wiki/Hypoxia-inducible_factors"}
+    ]
+  },
+
+  "indicator dye": {
+    "description": "This is not a drug mechanism -- it's a technical label for dye compounds, such as pH or redox indicators, included in the screening library as chemical/assay reagents rather than for a specific biological target. Their 'activity' in an assay reflects a color or fluorescence change from the dye's own chemistry, not a pharmacological effect on cells.",
+    "pathway": "None -- this is an assay/detection reagent, not a drug mechanism.",
+    "typically_affects": "Nothing pharmacologically; used as a chemical indicator in assays.",
+    "sources": [
+      {"title": "The Drug Repurposing Hub: a next-generation drug library and information resource (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5568558/"}
+    ]
+  },
+
+  "inhaled anaesthetic": {
+    "description": "Inhaled general anesthetics such as isoflurane and sevoflurane induce reversible loss of consciousness through broad effects on multiple neuronal ion channels and receptors, including potentiating inhibitory GABA-A and glycine receptors while dampening excitatory NMDA and nicotinic receptors. This multi-target action produces the combination of unconsciousness, amnesia, and immobility required for surgical anesthesia.",
+    "pathway": "Broad modulation of neuronal ion channels (GABA-A, NMDA, and others).",
+    "typically_affects": "Consciousness, memory formation, and pain response during surgery.",
+    "sources": [
+      {"title": "General anaesthetic - Wikipedia", "url": "https://en.wikipedia.org/wiki/General_anaesthetic"}
+    ]
+  },
+
+  "insulin growth factor receptor inhibitor": {
+    "description": "This targets the same IGF-1 receptor described under 'IGF-1 inhibitor': a receptor tyrosine kinase activated by insulin-like growth factors to drive PI3K-AKT and RAS-MAPK growth signaling. Inhibitors block the receptor's kinase activity, an approach studied in cancers that depend on this growth axis.",
+    "pathway": "IGF-1 receptor signaling (PI3K-AKT, RAS-MAPK).",
+    "typically_affects": "Cell growth and survival signaling.",
+    "sources": [
+      {"title": "Insulin-like growth factor 1 receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Insulin-like_growth_factor_1_receptor"}
+    ]
+  },
+
+  "insulin secretagogue": {
+    "description": "Insulin secretagogues stimulate pancreatic beta cells to release insulin independent of the normal glucose-sensing trigger; sulfonylureas, the classic example, do this by closing KATP channels to depolarize the cell and open voltage-gated calcium channels. Because this bypasses glucose-dependence, insulin secretagogues carry a higher hypoglycemia risk than newer glucose-dependent diabetes drugs.",
+    "pathway": "KATP channel-dependent insulin secretion.",
+    "typically_affects": "Insulin secretion from pancreatic beta cells.",
+    "sources": [
+      {"title": "Sulfonylurea - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sulfonylurea"}
+    ]
+  },
+
+  "integrin antagonist": {
+    "description": "Integrins are cell-surface adhesion receptors that link cells to the extracellular matrix or to other cells, such as platelets binding fibrinogen, and also relay 'outside-in' signals affecting cell shape, migration, and survival. Integrin antagonists block this binding -- GPIIb/IIIa antagonists prevent platelet aggregation for antiplatelet therapy, while others are studied to block leukocyte adhesion in autoimmune disease or tumor cell adhesion in metastasis.",
+    "pathway": "Integrin-mediated cell adhesion signaling.",
+    "typically_affects": "Platelet aggregation, leukocyte adhesion, or tumor cell adhesion, by integrin subtype.",
+    "sources": [
+      {"title": "Integrin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Integrin"}
+    ]
+  },
+
+  "interleukin inhibitor": {
+    "description": "Interleukins are a large family of cytokines that immune cells use to communicate and coordinate inflammatory and immune responses. Interleukin inhibitors block a specific interleukin or its receptor, such as IL-6, IL-17, or IL-1 inhibitors, reducing that cytokine's downstream inflammatory signaling -- a major mechanism behind modern biologic drugs for autoimmune and inflammatory diseases.",
+    "pathway": "Interleukin-receptor cytokine signaling.",
+    "typically_affects": "Inflammatory and immune signaling, specific to the targeted interleukin.",
+    "sources": [
+      {"title": "Interleukin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Interleukin"}
+    ]
+  },
+
+  "leukocyte elastase inhibitor": {
+    "description": "Leukocyte (neutrophil) elastase is the specific elastase released by neutrophils during inflammation to help them migrate through tissue and kill pathogens, but excess activity degrades lung elastin and drives emphysema. Leukocyte elastase inhibitors, including the natural inhibitor alpha-1 antitrypsin, block this enzyme to protect lung tissue from neutrophil-driven damage.",
+    "pathway": "Neutrophil elastase activity in inflammation.",
+    "typically_affects": "Lung tissue elasticity and neutrophil-mediated tissue remodeling.",
+    "sources": [
+      {"title": "Neutrophil elastase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Neutrophil_elastase"}
+    ]
+  },
+
+  "leukotriene receptor antagonist": {
+    "description": "Leukotrienes are lipid inflammatory mediators, derived from arachidonic acid via the lipoxygenase pathway (a parallel route to the COX/prostaglandin pathway), that drive bronchoconstriction, mucus secretion, and airway inflammation in asthma. Leukotriene receptor antagonists like montelukast block their receptors to reduce these asthmatic and allergic symptoms.",
+    "pathway": "Leukotriene (lipoxygenase pathway) signaling.",
+    "typically_affects": "Airway inflammation, bronchoconstriction, and allergic symptoms.",
+    "sources": [
+      {"title": "Leukotriene receptor antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Leukotriene_receptor_antagonist"}
+    ]
+  },
+
+  "lysophosphatidic acid receptor antagonist": {
+    "description": "Lysophosphatidic acid (LPA) is a lipid signaling molecule that activates a family of G-protein-coupled receptors (LPA1-6) to drive cell proliferation, migration, and, notably, fibrotic scarring. LPA receptor antagonists block this signaling, an approach being studied to treat pulmonary and other organ fibrosis.",
+    "pathway": "Lysophosphatidic acid (LPA) receptor signaling.",
+    "typically_affects": "Cell proliferation, migration, and fibrotic tissue remodeling.",
+    "sources": [
+      {"title": "Lysophosphatidic acid receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Lysophosphatidic_acid_receptor"}
+    ]
+  },
+
+  "lysophospholipid receptor antagonist": {
+    "description": "Lysophospholipid receptors are a broader receptor family that includes both the LPA receptors and the sphingosine-1-phosphate (S1P) receptors, all activated by lipid-derived signaling molecules to control cell migration, vascular biology, and immune cell trafficking. Antagonists of this receptor family block one or more of these lipid-GPCR signals, depending on which specific lysophospholipid receptor is targeted.",
+    "pathway": "Lysophospholipid (LPA/S1P family) receptor signaling.",
+    "typically_affects": "Cell migration, vascular biology, and immune cell trafficking.",
+    "sources": [
+      {"title": "Lysophospholipid receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Lysophospholipid_receptor"}
+    ]
+  },
+
+  "matrix metalloprotease inhibitor": {
+    "description": "Matrix metalloproteinases (MMPs) are zinc-dependent enzymes that degrade extracellular matrix proteins like collagen, a process essential for normal tissue remodeling but also exploited by cancer cells to invade surrounding tissue and metastasize. MMP inhibitors block this degradation, an approach studied, with mixed clinical success, to limit tumor invasion and, separately, to slow tissue destruction in arthritis.",
+    "pathway": "Extracellular matrix remodeling (MMP-mediated collagen degradation).",
+    "typically_affects": "Tissue remodeling and cancer cell invasion/metastasis.",
+    "sources": [
+      {"title": "Matrix metalloproteinase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Matrix_metalloproteinase_inhibitor"}
+    ]
+  },
+
+  "membrane permeability inhibitor": {
+    "description": "This is a broad mechanistic label for compounds that stabilize cell or organelle membranes against damage-induced permeability changes, rather than a single defined molecular target -- for example, protecting mitochondrial or plasma membrane integrity against stress-induced leakage. Because membrane permeabilization is a common step in both necrotic and apoptotic cell death, agents in this class are generally studied for their cell/tissue-protective, anti-injury effects.",
+    "pathway": "Cell/organelle membrane integrity.",
+    "typically_affects": "Cell membrane stability under stress; protection against necrotic or apoptotic membrane damage.",
+    "sources": [
+      {"title": "Cell membrane - Wikipedia", "url": "https://en.wikipedia.org/wiki/Cell_membrane"}
+    ]
+  },
+
+  "microtubule inhibitor": {
+    "description": "Microtubule inhibitor is a broad category covering any compound that disrupts normal microtubule dynamics, whether by blocking new polymerization (destabilizers, like vinca alkaloids) or by locking microtubules in place and preventing their normal disassembly (stabilizers, like taxanes). Because dividing cells rely on precisely controlled microtubule dynamics to build the mitotic spindle, both mechanisms halt cell division and are widely used in cancer chemotherapy.",
+    "pathway": "Microtubule dynamics in the cytoskeleton and mitotic spindle.",
+    "typically_affects": "Cell division (mitosis) and cytoskeletal structure.",
+    "sources": [
+      {"title": "Discovery and development of tubulin inhibitors - Wikipedia", "url": "https://en.wikipedia.org/wiki/Discovery_and_development_of_tubulin_inhibitors"}
+    ]
+  },
+
+  "microtubule stabilizing agent": {
+    "description": "Unlike tubulin polymerization inhibitors, microtubule stabilizing agents such as paclitaxel bind assembled microtubules and prevent them from disassembling, effectively freezing the microtubule network. This blocks the dynamic remodeling that mitotic spindles require to properly segregate chromosomes, arresting cells in mitosis and triggering death of rapidly dividing cancer cells.",
+    "pathway": "Microtubule dynamics (stabilization against depolymerization).",
+    "typically_affects": "Cell division (mitosis) and cytoskeletal structure.",
+    "sources": [
+      {"title": "Taxane - Wikipedia", "url": "https://en.wikipedia.org/wiki/Taxane"}
+    ]
+  },
+
+  "mitochondrial DNA polymerase inhibitor": {
+    "description": "DNA polymerase gamma (Pol gamma) is the sole enzyme responsible for replicating mitochondrial DNA. Certain nucleoside-analog drugs, originally designed to inhibit viral reverse transcriptase such as older HIV drugs like zidovudine, can also inhibit Pol gamma off-target, depleting mitochondrial DNA and causing the mitochondrial toxicity (myopathy, neuropathy) seen with some antiviral regimens.",
+    "pathway": "Mitochondrial DNA replication (Pol gamma activity).",
+    "typically_affects": "Mitochondrial DNA content and, downstream, mitochondrial function in tissues with high energy demand (muscle, nerve).",
+    "sources": [
+      {"title": "A mechanistic view of human mitochondrial DNA polymerase gamma (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2846211/"}
+    ]
+  },
+
+  "monoamine oxidase inhibitor": {
+    "description": "Monoamine oxidase (MAO) breaks down monoamine neurotransmitters -- serotonin, dopamine, and norepinephrine -- in nerve terminals. MAO inhibitors (MAOIs) block this breakdown, raising synaptic monoamine levels and were among the first antidepressant drug classes, though they've largely been replaced clinically by SSRIs due to drug/food interaction risks.",
+    "pathway": "Monoamine neurotransmitter metabolism (MAO-mediated breakdown).",
+    "typically_affects": "Serotonin, dopamine, and norepinephrine levels in the brain.",
+    "sources": [
+      {"title": "Monoamine oxidase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Monoamine_oxidase_inhibitor"}
+    ]
+  },
+
+  "mucolytic agent": {
+    "description": "Mucolytic agents break down the disulfide bonds that cross-link mucus glycoproteins, reducing mucus viscosity so it can be cleared more easily from the airways by coughing or ciliary action. Acetylcysteine is the classic example, used for conditions with thick, difficult-to-clear mucus such as cystic fibrosis and chronic bronchitis.",
+    "pathway": "Mucus glycoprotein (mucin) disulfide bond disruption.",
+    "typically_affects": "Airway mucus viscosity and clearance.",
+    "sources": [
+      {"title": "Mucolytic - Wikipedia", "url": "https://en.wikipedia.org/wiki/Mucolytic"}
+    ]
+  },
+
+  "neprilysin inhibitor": {
+    "description": "Neprilysin degrades natriuretic peptides (ANP, BNP) -- hormones that promote vasodilation and sodium excretion to relieve pressure on a failing heart -- along with enkephalins (neprilysin is the same enzyme as 'enkephalinase'). Neprilysin inhibitors like sacubitril block this breakdown, boosting natriuretic peptide levels, and are used, combined with an angiotensin receptor blocker, as a heart failure treatment.",
+    "pathway": "Natriuretic peptide metabolism (neprilysin activity).",
+    "typically_affects": "Vasodilation and sodium excretion via natriuretic peptide signaling; cardiac load in heart failure.",
+    "sources": [
+      {"title": "Neprilysin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Neprilysin"}
+    ]
+  },
+
+  "niacinamide phosphoribosyltransferase inhibitor": {
+    "description": "Nicotinamide phosphoribosyltransferase (NAMPT) catalyzes the rate-limiting step of the NAD+ salvage pathway, which most cells, and especially fast-growing cancer cells, rely on to replenish NAD+ for energy metabolism and DNA repair. NAMPT inhibitors like FK866 block this step, depleting NAD+ and starving cancer cells of the bioenergetic support they need to proliferate.",
+    "pathway": "NAD+ salvage pathway (NAMPT-catalyzed step).",
+    "typically_affects": "Cellular NAD+ levels and, downstream, energy metabolism and proliferation.",
+    "sources": [
+      {"title": "Inhibition of nicotinamide phosphoribosyltransferase (NAMPT) with OT-82 (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7481307/"}
+    ]
+  },
+
+  "nociceptin/orphanin FQ receptor agonist": {
+    "description": "The nociceptin/orphanin FQ receptor (NOP) is structurally related to classical opioid receptors but is activated by its own distinct peptide ligand rather than by endorphins or exogenous opioids, and produces largely opioid-independent effects on pain, mood, and reward. NOP agonists activate this receptor and are being studied for pain and anxiety, notably as non-addictive alternatives to classical opioids.",
+    "pathway": "Nociceptin/orphanin FQ (NOP) receptor signaling.",
+    "typically_affects": "Pain modulation, anxiety, and reward circuits, largely independent of classical opioid signaling.",
+    "sources": [
+      {"title": "Nociceptin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Nociceptin_receptor"}
+    ]
+  },
+
+  "nociceptin/orphanin FQ receptor antagonist": {
+    "description": "NOP receptor antagonists block the same receptor, preventing nociceptin/orphanin FQ from signaling. Because NOP activation can oppose some of the rewarding effects of classical opioids, NOP antagonists are studied for depression and substance use disorders, where boosting reward-circuit activity is the therapeutic goal.",
+    "pathway": "Nociceptin/orphanin FQ (NOP) receptor signaling.",
+    "typically_affects": "Mood and reward circuits.",
+    "sources": [
+      {"title": "Nociceptin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Nociceptin_receptor"}
+    ]
+  },
+
+  "non-nucleoside reverse transcriptase inhibitor": {
+    "description": "HIV reverse transcriptase converts the virus's RNA genome into DNA so it can integrate into the host cell. Non-nucleoside reverse transcriptase inhibitors (NNRTIs) bind an allosteric pocket on the enzyme, distinct from the active site targeted by nucleoside analogs, and lock it in an inactive shape, blocking this essential step of the HIV life cycle.",
+    "pathway": "HIV reverse transcription.",
+    "typically_affects": "HIV viral replication.",
+    "sources": [
+      {"title": "Non-nucleoside reverse-transcriptase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Non-nucleoside_reverse-transcriptase_inhibitor"}
+    ]
+  },
+
+  "opioid receptor agonist": {
+    "description": "Opioid receptors (mu, delta, kappa) are G-protein-coupled receptors normally activated by the body's own endorphins/enkephalins to dampen pain signaling in the spinal cord and brain. Opioid receptor agonists, from morphine to synthetic analgesics, mimic this signal for pain relief, though mu-receptor activation also drives the euphoria and respiratory depression responsible for opioid misuse and overdose risk.",
+    "pathway": "Opioid (mu/delta/kappa) receptor signaling.",
+    "typically_affects": "Pain perception, mood/reward, and respiratory drive.",
+    "sources": [
+      {"title": "Opioid receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Opioid_receptor"}
+    ]
+  },
+
+  "opioid receptor antagonist": {
+    "description": "Opioid receptor antagonists such as naloxone and naltrexone bind the same receptors without activating them, blocking endogenous or exogenous opioids from producing their effect. Naloxone's rapid reversal of opioid receptor binding is the basis for its use in reversing opioid overdose.",
+    "pathway": "Opioid (mu/delta/kappa) receptor signaling.",
+    "typically_affects": "Pain perception, mood/reward, and respiratory drive.",
+    "sources": [
+      {"title": "Opioid antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Opioid_antagonist"}
+    ]
+  },
+
+  "oxytocin receptor agonist": {
+    "description": "The oxytocin receptor is a G-protein-coupled receptor activated by oxytocin to drive uterine contraction during labor and milk ejection during breastfeeding, alongside roles in social bonding behavior. Oxytocin receptor agonists mimic this signal and are used clinically to induce or augment labor and to control postpartum bleeding.",
+    "pathway": "Oxytocin receptor signaling.",
+    "typically_affects": "Uterine contraction and milk ejection reflex.",
+    "sources": [
+      {"title": "Oxytocin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Oxytocin_receptor"}
+    ]
+  },
+
+  "phosphatase inhibitor": {
+    "description": "Phosphatases remove phosphate groups from proteins, reversing the effect of kinases and, together with them, forming the on/off switches of most cell signaling pathways. Phosphatase inhibitors block this removal step -- for example, calcineurin inhibitors like tacrolimus block a calcium-dependent phosphatase required for T-cell activation, the basis for their use as immunosuppressants.",
+    "pathway": "Protein dephosphorylation (phosphatase-kinase signaling balance).",
+    "typically_affects": "Varies by specific phosphatase target; broadly, signal transduction.",
+    "sources": [
+      {"title": "Phosphatase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Phosphatase"}
+    ]
+  },
+
+  "phosphoinositide dependent kinase inhibitor": {
+    "description": "3-phosphoinositide-dependent kinase 1 (PDK1) is a master kinase recruited to the membrane by PI3K-generated lipids, where it activates AKT and other AGC-family kinases central to cell growth and survival. PDK1 inhibitors block this activation step, an approach studied in cancers with hyperactive PI3K-AKT signaling.",
+    "pathway": "PI3K-PDK1-AKT signaling.",
+    "typically_affects": "Cell growth and survival signaling.",
+    "sources": [
+      {"title": "Multiple implications of 3-phosphoinositide-dependent protein kinase 1 in human cancer (PMC)", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3083972/"}
+    ]
+  },
+
+  "phospholipase inhibitor": {
+    "description": "Phospholipase enzymes, such as phospholipase A2, cleave membrane phospholipids to release arachidonic acid, the starting material for prostaglandin and leukotriene inflammatory signaling. Phospholipase inhibitors block this release upstream of both the COX and lipoxygenase pathways -- corticosteroids work partly through this mechanism, inducing a protein (lipocortin/annexin A1) that inhibits phospholipase A2.",
+    "pathway": "Arachidonic acid release (phospholipase A2 activity), upstream of prostaglandin/leukotriene synthesis.",
+    "typically_affects": "Inflammatory lipid mediator (prostaglandin/leukotriene) production.",
+    "sources": [
+      {"title": "Phospholipase A2 - Wikipedia", "url": "https://en.wikipedia.org/wiki/Phospholipase_A2"}
+    ]
+  },
+
+  "porcupine inhibitor": {
+    "description": "Porcupine (PORCN) is an enzyme in the endoplasmic reticulum that attaches a lipid group to Wnt signaling proteins, a modification required for Wnt to be secreted and to bind its receptor. Porcupine inhibitors like LGK974 block this lipidation step, preventing Wnt secretion altogether and shutting down Wnt/beta-catenin signaling in Wnt-driven cancers.",
+    "pathway": "Wnt ligand lipidation and secretion (Porcupine/PORCN activity).",
+    "typically_affects": "Wnt/beta-catenin signaling and Wnt-dependent cell proliferation.",
+    "sources": [
+      {"title": "Porcupine Inhibitor LGK974 Downregulates the Wnt Signaling Pathway (PMC)", "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7040395/"}
+    ]
+  },
+
+  "potassium channel activator": {
+    "description": "Potassium channel activators, also called potassium channel openers, increase potassium outflow through channels like KATP, hyperpolarizing the cell membrane and reducing excitability. Drugs like nicorandil and diazoxide use this mechanism to relax vascular smooth muscle for angina/hypertension or, in the case of diazoxide, to suppress excess insulin secretion.",
+    "pathway": "Potassium channel-mediated membrane hyperpolarization.",
+    "typically_affects": "Vascular smooth muscle tone and, for KATP-selective agents, insulin secretion.",
+    "sources": [
+      {"title": "Potassium channel opener - Wikipedia", "url": "https://en.wikipedia.org/wiki/Potassium_channel_opener"}
+    ]
+  },
+
+  "potassium channel agonist": {
+    "description": "This label overlaps closely with 'potassium channel activator': both describe compounds that increase potassium channel opening/conductance to hyperpolarize the cell membrane. The terminology varies by source -- 'opener'/'activator' is more common for the KATP-targeting drug class (e.g. minoxidil, nicorandil), while 'agonist' is sometimes used more loosely for the same mechanism.",
+    "pathway": "Potassium channel-mediated membrane hyperpolarization.",
+    "typically_affects": "Vascular smooth muscle tone and cellular excitability.",
+    "sources": [
+      {"title": "Potassium channel opener - Wikipedia", "url": "https://en.wikipedia.org/wiki/Potassium_channel_opener"}
+    ]
+  },
+
+  "prostacyclin analog": {
+    "description": "Prostacyclin (PGI2) is a prostaglandin produced by vascular endothelium that causes vasodilation and inhibits platelet aggregation. Prostacyclin analogs such as epoprostenol and treprostinil mimic this signal and are used to treat pulmonary arterial hypertension, where they relax the pulmonary blood vessels and reduce the excess clotting risk in that disease.",
+    "pathway": "Prostacyclin (IP) receptor signaling.",
+    "typically_affects": "Vascular tone (vasodilation) and platelet aggregation.",
+    "sources": [
+      {"title": "Prostacyclin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Prostacyclin"}
+    ]
+  },
+
+  "prostaglandin inhibitor": {
+    "description": "Prostaglandin inhibitors reduce the production or action of prostaglandins, the arachidonic-acid-derived lipid mediators involved in inflammation, pain, fever, and vascular tone, overlapping with the mechanism of cyclooxygenase inhibitors, though the label here may also include downstream prostaglandin receptor or synthase-specific inhibitors. The net effect is reduced inflammatory and pain signaling wherever prostaglandins are the driver.",
+    "pathway": "Arachidonic acid metabolism / prostaglandin synthesis or signaling.",
+    "typically_affects": "Inflammation, pain signaling, and vascular tone.",
+    "sources": [
+      {"title": "Prostaglandin - Wikipedia", "url": "https://en.wikipedia.org/wiki/Prostaglandin"}
+    ]
+  },
+
+  "prostanoid receptor agonist": {
+    "description": "Prostanoid receptor agonists activate the family of prostaglandin/thromboxane receptors (EP1-4, DP, FP, IP, TP) directly, mimicking the diverse effects these lipid mediators have on inflammation, smooth muscle tone, and platelet activity depending on which receptor subtype is engaged. FP receptor agonists like latanoprost, for example, are used to lower eye pressure in glaucoma by increasing fluid outflow.",
+    "pathway": "Prostanoid (prostaglandin/thromboxane) receptor signaling.",
+    "typically_affects": "Smooth muscle tone, ocular fluid dynamics, and platelet activity, depending on receptor subtype.",
+    "sources": [
+      {"title": "Prostanoid receptors -- IUPHAR/BPS Guide to Pharmacology", "url": "https://www.guidetopharmacology.org/GRAC/FamilyIntroductionForward?familyId=58"}
+    ]
+  },
+
+  "protease inhibitor": {
+    "description": "Protease inhibitors block enzymes that cleave proteins at specific sites -- a mechanism used across very different contexts, from HIV protease inhibitors that block viral polyprotein processing (preventing new infectious virus particles from maturing) to protease inhibitors targeting host enzymes involved in digestion, coagulation, or inflammation. The shared mechanism is direct occupation of the protease's active site to block its cleavage activity.",
+    "pathway": "Proteolytic (protease-catalyzed) cleavage, target-dependent.",
+    "typically_affects": "Varies by target protease -- viral maturation, digestion, coagulation, or inflammatory signaling.",
+    "sources": [
+      {"title": "Protease inhibitor (pharmacology) - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protease_inhibitor_(pharmacology)"}
+    ]
+  },
+
+  "proteasome inhibitor": {
+    "description": "The proteasome is the cell's main machinery for degrading unneeded or misfolded proteins, tagged for destruction by ubiquitin. Proteasome inhibitors like bortezomib block this degradation, causing toxic protein buildup that is especially lethal to cancer cells like multiple myeloma plasma cells, which produce large amounts of protein and are highly dependent on proteasome function.",
+    "pathway": "Ubiquitin-proteasome protein degradation pathway.",
+    "typically_affects": "Intracellular protein turnover; particularly lethal to protein-secretion-heavy cancer cells.",
+    "sources": [
+      {"title": "Proteasome inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Proteasome_inhibitor"}
+    ]
+  },
+
+  "protein tyrosine kinase inhibitor": {
+    "description": "This is a broad category covering inhibitors of any tyrosine kinase, receptor or non-receptor, enzymes that phosphorylate tyrosine residues on target proteins to relay growth and survival signals. Because aberrant tyrosine kinase activity drives many cancers, this class includes some of the most successful targeted cancer therapies, spanning specific kinases like EGFR and BCR-ABL already described individually in this dataset.",
+    "pathway": "Tyrosine kinase signal transduction.",
+    "typically_affects": "Cell growth, proliferation, and survival signaling.",
+    "sources": [
+      {"title": "Tyrosine kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Tyrosine_kinase"}
+    ]
+  },
+
+  "purine antagonist": {
+    "description": "Purine antagonists are antimetabolites that structurally resemble purine bases (adenine, guanine) and get incorporated into the nucleotide synthesis pathway, where they block normal purine metabolism and DNA/RNA synthesis. Because this most affects rapidly dividing cells, purine antagonists like 6-mercaptopurine are used as chemotherapy and immunosuppressants.",
+    "pathway": "Purine nucleotide biosynthesis/metabolism.",
+    "typically_affects": "DNA/RNA synthesis in rapidly dividing cells.",
+    "sources": [
+      {"title": "Antimetabolite - Wikipedia", "url": "https://en.wikipedia.org/wiki/Antimetabolite"}
+    ]
+  },
+
+  "purinergic receptor antagonist": {
+    "description": "Purinergic receptors -- P1 adenosine receptors and P2 ATP/ADP receptors -- respond to extracellular nucleotides and nucleosides released during cell stress, injury, or platelet activation. Purinergic receptor antagonists block this signaling; P2Y12 antagonists like clopidogrel, for example, prevent ADP-driven platelet aggregation and are widely used as antiplatelet drugs.",
+    "pathway": "Purinergic (P1/P2) receptor signaling.",
+    "typically_affects": "Platelet aggregation, inflammation, and pain signaling, depending on receptor subtype.",
+    "sources": [
+      {"title": "Purinergic receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Purinergic_receptor"}
+    ]
+  },
+
+  "rho associated kinase inhibitor": {
+    "description": "Rho-associated kinase (ROCK) acts downstream of the small GTPase RhoA to regulate the actin cytoskeleton, controlling smooth muscle contraction, cell shape, and migration. ROCK inhibitors like fasudil block this signaling to relax vascular and other smooth muscle, and are used or studied for glaucoma, vasospasm, and other conditions involving excess ROCK-driven contraction.",
+    "pathway": "RhoA-ROCK cytoskeletal signaling.",
+    "typically_affects": "Smooth muscle contraction, cell shape, and migration.",
+    "sources": [
+      {"title": "Rho-associated protein kinase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Rho-associated_protein_kinase"}
+    ]
+  },
+
+  "ribonucleotide reductase inhibitor": {
+    "description": "Ribonucleotide reductase converts ribonucleotides into the deoxyribonucleotides required for DNA synthesis and repair, making it a rate-limiting step for any dividing cell. Ribonucleotide reductase inhibitors like hydroxyurea block this conversion, starving cells of DNA building blocks -- used in chemotherapy and in some antiviral and antimalarial contexts.",
+    "pathway": "Deoxyribonucleotide biosynthesis (ribonucleotide reductase activity).",
+    "typically_affects": "DNA synthesis and repair in dividing cells.",
+    "sources": [
+      {"title": "Ribonucleotide reductase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Ribonucleotide_reductase"}
+    ]
+  },
+
+  "ribosomal protein inhibitor": {
+    "description": "This is a broad label for compounds that bind directly to ribosomal proteins, rather than ribosomal RNA, to block translation, overlapping mechanistically with the protein synthesis and 30S ribosomal subunit inhibitors described elsewhere in this dataset. Many antibiotics work by this general route, exploiting structural differences between bacterial and human ribosomal proteins for selective toxicity.",
+    "pathway": "Ribosomal protein translation.",
+    "typically_affects": "Bacterial (or, for non-selective agents, host) protein synthesis.",
+    "sources": [
+      {"title": "Ribosomal protein - Wikipedia", "url": "https://en.wikipedia.org/wiki/Ribosomal_protein"}
+    ]
+  },
+
+  "serine protease inhibitor": {
+    "description": "Serine proteases use a reactive serine residue in their active site to cleave target proteins, and this enzyme family includes digestive enzymes, clotting factors, and immune proteases. Serine protease inhibitors block this active site directly -- camostat, for example, inhibits serine proteases involved in viral entry and pancreatic conditions, while natural serine protease inhibitors (serpins) regulate coagulation and inflammation in the body.",
+    "pathway": "Serine protease proteolytic activity.",
+    "typically_affects": "Varies by target -- coagulation, digestion, inflammation, or viral entry, depending on the specific protease.",
+    "sources": [
+      {"title": "Serine protease inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Serine_protease_inhibitor"}
+    ]
+  },
+
+  "serotonin receptor agonist": {
+    "description": "Serotonin receptors (5-HT1-7, mostly G-protein-coupled except the ligand-gated 5-HT3) mediate serotonin's wide-ranging effects on mood, appetite, nausea, and vascular tone. Serotonin receptor agonists mimic this signaling at a specific receptor subtype -- 5-HT1B/1D agonists (triptans), for example, constrict cranial blood vessels to abort migraines, while other subtypes are targeted for depression or nausea.",
+    "pathway": "Serotonergic (5-HT receptor) signaling.",
+    "typically_affects": "Mood, appetite, nausea, and vascular tone, depending on receptor subtype.",
+    "sources": [
+      {"title": "Serotonin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Serotonin_receptor"}
+    ]
+  },
+
+  "serotonin receptor antagonist": {
+    "description": "Serotonin receptor antagonists block the same receptor family -- 5-HT3 antagonists like ondansetron, for example, block serotonin's role in triggering nausea and vomiting, making them standard antiemetics, while other subtype-selective antagonists are used for migraine prevention or as components of atypical antipsychotics.",
+    "pathway": "Serotonergic (5-HT receptor) signaling.",
+    "typically_affects": "Nausea/vomiting reflex, mood, and vascular tone, depending on receptor subtype.",
+    "sources": [
+      {"title": "Serotonin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Serotonin_receptor"}
+    ]
+  },
+
+  "serotonin reuptake inhibitor": {
+    "description": "Serotonin reuptake inhibitors block the serotonin transporter (SERT) that normally clears serotonin from the synapse after release, prolonging its availability to postsynaptic receptors. This is the mechanism of SSRIs, the most widely prescribed class of antidepressants, based on the theory that boosting synaptic serotonin helps relieve depression and anxiety.",
+    "pathway": "Serotonin reuptake (SERT transporter) inhibition.",
+    "typically_affects": "Synaptic serotonin availability; mood and anxiety regulation.",
+    "sources": [
+      {"title": "Selective serotonin reuptake inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Selective_serotonin_reuptake_inhibitor"}
+    ]
+  },
+
+  "smoothened receptor antagonist": {
+    "description": "Smoothened (SMO) is a G-protein-coupled-like receptor that transmits Hedgehog pathway signaling once released from suppression by the Hedgehog receptor Patched; excess Hedgehog/SMO signaling drives basal cell carcinoma and some other cancers. Smoothened antagonists like vismodegib bind and lock SMO in an inactive state, shutting down this signaling in Hedgehog-pathway-driven tumors.",
+    "pathway": "Hedgehog signaling (Smoothened-dependent).",
+    "typically_affects": "Cell proliferation in Hedgehog-pathway-driven tissue and tumors.",
+    "sources": [
+      {"title": "Smoothened - Wikipedia", "url": "https://en.wikipedia.org/wiki/Smoothened"}
+    ]
+  },
+
+  "somatostatin receptor agonist": {
+    "description": "Somatostatin receptors are G-protein-coupled receptors that, when activated by somatostatin, broadly inhibit hormone secretion throughout the body, including growth hormone, insulin, and glucagon. Somatostatin receptor agonists like octreotide mimic this suppressive signal and are used to treat conditions of hormone excess, such as acromegaly and certain neuroendocrine tumors.",
+    "pathway": "Somatostatin receptor signaling.",
+    "typically_affects": "Hormone secretion (growth hormone, insulin, glucagon, and others).",
+    "sources": [
+      {"title": "Somatostatin receptor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Somatostatin_receptor"}
+    ]
+  },
+
+  "sphingosine 1-phosphate receptor antagonist": {
+    "description": "S1P receptor antagonists block the same receptor family described for S1P receptor agonists elsewhere in this dataset, but rather than trapping lymphocytes in lymph nodes, blocking the receptor can prevent S1P from directing normal lymphocyte egress and vascular signaling -- the specific therapeutic consequence depends heavily on which S1P receptor subtype and cell type is affected.",
+    "pathway": "S1P-GPCR signaling.",
+    "typically_affects": "Lymphocyte trafficking and vascular/cell biology.",
+    "sources": [
+      {"title": "Sphingosine-1-phosphate receptor modulator - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sphingosine-1-phosphate_receptor_modulator"}
+    ]
+  },
+
+  "sterol demethylase inhibitor": {
+    "description": "Sterol 14-alpha demethylase, a cytochrome P450 enzyme, catalyzes an essential step in synthesizing ergosterol, the fungal equivalent of cholesterol that maintains fungal cell membrane integrity. Sterol demethylase inhibitors -- the azole class of antifungals such as fluconazole -- block this enzyme, depleting ergosterol and disrupting the fungal cell membrane.",
+    "pathway": "Fungal ergosterol biosynthesis (sterol 14-alpha demethylase activity).",
+    "typically_affects": "Fungal cell membrane integrity.",
+    "sources": [
+      {"title": "Azole - Wikipedia", "url": "https://en.wikipedia.org/wiki/Azole"}
+    ]
+  },
+
+  "sulfonylurea": {
+    "description": "Sulfonylureas are a specific drug class that close KATP channels on pancreatic beta cells, depolarizing them and triggering insulin release independent of blood glucose level -- the same underlying mechanism described under 'ATP channel blocker' and 'insulin secretagogue.' They were among the first oral diabetes drugs but carry a meaningful hypoglycemia risk because of this glucose-independent action.",
+    "pathway": "KATP channel-dependent insulin secretion.",
+    "typically_affects": "Insulin secretion from pancreatic beta cells.",
+    "sources": [
+      {"title": "Sulfonylurea - Wikipedia", "url": "https://en.wikipedia.org/wiki/Sulfonylurea"}
+    ]
+  },
+
+  "synthetic estrogen": {
+    "description": "Synthetic estrogens are lab-made compounds, such as ethinylestradiol, that activate estrogen receptors just as the body's natural estrogen does, but are chemically modified for properties like oral bioavailability or a longer half-life. They're widely used in hormonal contraceptives and menopausal hormone therapy.",
+    "pathway": "Estrogen receptor-mediated transcription.",
+    "typically_affects": "Reproductive tissue growth, menstrual cycle regulation, and secondary sex characteristics.",
+    "sources": [
+      {"title": "Estrogen (medication) - Wikipedia", "url": "https://en.wikipedia.org/wiki/Estrogen_(medication)"}
+    ]
+  },
+
+  "thromboxane synthase inhibitor": {
+    "description": "Thromboxane synthase converts a prostaglandin intermediate into thromboxane A2, a potent promoter of platelet aggregation and vasoconstriction. Thromboxane synthase inhibitors block this final synthesis step, reducing platelet clumping without blocking the entire cyclooxygenase pathway the way aspirin-like drugs do.",
+    "pathway": "Arachidonic acid metabolism / thromboxane synthesis.",
+    "typically_affects": "Platelet aggregation and vascular tone.",
+    "sources": [
+      {"title": "Thromboxane - Wikipedia", "url": "https://en.wikipedia.org/wiki/Thromboxane"}
+    ]
+  },
+
+  "tissue transglutaminase inhibitor": {
+    "description": "Tissue transglutaminase (TG2) crosslinks proteins by forming bonds between glutamine and lysine residues, a reaction implicated in fibrosis, neurodegeneration, and, notably, celiac disease, where TG2 modifies gluten peptides in a way that triggers autoimmune attack. TG2 inhibitors block this crosslinking activity, studied both for celiac disease and for fibrotic and neurodegenerative conditions.",
+    "pathway": "Protein crosslinking (transglutaminase-catalyzed glutamine-lysine bonds).",
+    "typically_affects": "Fibrotic tissue remodeling; in celiac disease, autoimmune gluten-peptide recognition.",
+    "sources": [
+      {"title": "Transglutaminase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Transglutaminase"}
+    ]
+  },
+
+  "transglutaminase inhibitor": {
+    "description": "Transglutaminase inhibitors block this same family of crosslinking enzymes more broadly, not just the tissue/TG2 isoform, reducing protein-protein crosslinking wherever a given transglutaminase isoform is active -- relevant across the same fibrotic, autoimmune, and neurodegenerative contexts described for tissue transglutaminase inhibitors.",
+    "pathway": "Protein crosslinking (transglutaminase-catalyzed glutamine-lysine bonds).",
+    "typically_affects": "Fibrotic tissue remodeling and protein aggregation.",
+    "sources": [
+      {"title": "Transglutaminase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Transglutaminase"}
+    ]
+  },
+
+  "triacylglycerol lipase inhibitor": {
+    "description": "Triacylglycerol lipases, including pancreatic lipase, break down dietary fat into absorbable free fatty acids in the gut. Inhibitors like orlistat block this enzyme, preventing roughly a third of ingested fat from being digested and absorbed, which is used as a weight-management therapy.",
+    "pathway": "Dietary fat digestion (pancreatic/triacylglycerol lipase activity).",
+    "typically_affects": "Intestinal fat absorption.",
+    "sources": [
+      {"title": "Orlistat - Wikipedia", "url": "https://en.wikipedia.org/wiki/Orlistat"}
+    ]
+  },
+
+  "tumor necrosis factor production inhibitor": {
+    "description": "Tumor necrosis factor (TNF-alpha) is a central pro-inflammatory cytokine that drives much of the tissue damage in autoimmune diseases like rheumatoid arthritis and inflammatory bowel disease. TNF production inhibitors block the intracellular signaling needed to synthesize and secrete TNF, as opposed to TNF-neutralizing antibody biologics that mop up TNF after it's released, reducing inflammation upstream.",
+    "pathway": "TNF-alpha synthesis/secretion signaling.",
+    "typically_affects": "Inflammatory signaling in autoimmune and chronic inflammatory disease.",
+    "sources": [
+      {"title": "TNF inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/TNF_inhibitor"}
+    ]
+  },
+
+  "tyrosine kinase inhibitor": {
+    "description": "Tyrosine kinase inhibitors are a broad drug class that blocks tyrosine kinase enzymes, receptor or non-receptor, at their ATP-binding site, shutting down the phosphorylation-driven growth and survival signaling many cancers depend on. This class includes many of the specific kinase inhibitors described individually elsewhere in this dataset (EGFR, BCR-ABL, VEGFR, and others) and represents one of the largest and most successful categories of targeted cancer therapy.",
+    "pathway": "Tyrosine kinase signal transduction.",
+    "typically_affects": "Cell growth, proliferation, and survival signaling.",
+    "sources": [
+      {"title": "Tyrosine-kinase inhibitor - Wikipedia", "url": "https://en.wikipedia.org/wiki/Tyrosine-kinase_inhibitor"}
+    ]
+  },
+
+  "tyrosine phosphatase inhibitor": {
+    "description": "Protein tyrosine phosphatases remove phosphate groups that tyrosine kinases add, acting as the 'off switch' counterpart in tyrosine kinase signaling. Tyrosine phosphatase inhibitors block this removal, prolonging tyrosine phosphorylation signals -- of interest both as research tools and, for specific phosphatases like PTP1B, a negative regulator of insulin signaling, as a potential diabetes/obesity drug target.",
+    "pathway": "Protein tyrosine dephosphorylation (phosphatase-kinase signaling balance).",
+    "typically_affects": "Duration/strength of tyrosine kinase signaling; insulin signaling for select targets like PTP1B.",
+    "sources": [
+      {"title": "Protein tyrosine phosphatase - Wikipedia", "url": "https://en.wikipedia.org/wiki/Protein_tyrosine_phosphatase"}
+    ]
+  },
+
+  "ubiquitin specific protease inhibitor": {
+    "description": "Ubiquitin-specific proteases (USPs) are the largest family of deubiquitinating enzymes (DUBs), removing ubiquitin tags from proteins and thereby rescuing them from proteasomal degradation. USP inhibitors block this 'rescue' step, promoting degradation of proteins, including some oncoproteins, that would otherwise escape the proteasome -- an approach being explored as an alternative or complement to direct proteasome inhibition in cancer.",
+    "pathway": "Deubiquitination (USP-mediated removal of ubiquitin tags).",
+    "typically_affects": "Protein stability and turnover via the ubiquitin-proteasome system.",
+    "sources": [
+      {"title": "Deubiquitinating enzyme - Wikipedia", "url": "https://en.wikipedia.org/wiki/Deubiquitinating_enzyme"}
+    ]
+  },
+
+  "uricosuric blocker": {
+    "description": "This label describes drugs that block the URAT1 transporter in the kidney, which normally reabsorbs filtered uric acid back into the blood. By blocking URAT1, as benzbromarone or lesinurad do, these drugs prevent that reabsorption, increasing uric acid excretion in the urine -- the standard uricosuric strategy for lowering blood urate levels in gout.",
+    "pathway": "Renal urate transport (URAT1-mediated reabsorption).",
+    "typically_affects": "Blood uric acid levels via increased renal excretion.",
+    "sources": [
+      {"title": "Molecular mechanism of drug inhibition of URAT1 (Nature Communications)", "url": "https://www.nature.com/articles/s41467-025-61226-x"}
+    ]
+  },
+
+  "vasopressin receptor antagonist": {
+    "description": "Vasopressin (antidiuretic hormone) acts on V1 receptors, causing vascular smooth muscle constriction, and V2 receptors, driving kidney water reabsorption, to regulate blood pressure and fluid balance. Vasopressin receptor antagonists ('vaptans') block these receptors -- V2 antagonists like tolvaptan promote water excretion without sodium loss, used to treat fluid overload conditions like hyponatremia and heart failure.",
+    "pathway": "Vasopressin (V1/V2) receptor signaling.",
+    "typically_affects": "Renal water reabsorption and vascular tone.",
+    "sources": [
+      {"title": "Vasopressin receptor antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Vasopressin_receptor_antagonist"}
+    ]
+  },
+
+  "vitamin K antagonist": {
+    "description": "Vitamin K antagonists like warfarin block the vitamin K epoxide reductase enzyme needed to recycle vitamin K, which the liver requires to activate several clotting factors (II, VII, IX, X). By depleting active vitamin K, these drugs reduce the liver's ability to produce functional clotting factors, providing anticoagulation -- one of the oldest and most widely used oral anticoagulant mechanisms.",
+    "pathway": "Vitamin K cycle (hepatic synthesis of clotting factors II, VII, IX, X).",
+    "typically_affects": "Blood coagulation via clotting factor synthesis.",
+    "sources": [
+      {"title": "Vitamin K antagonist - Wikipedia", "url": "https://en.wikipedia.org/wiki/Vitamin_K_antagonist"}
+    ]
   }
 }

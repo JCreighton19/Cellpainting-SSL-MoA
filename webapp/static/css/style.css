@@ -6,7 +6,7 @@ body {
   background-color: #f7f8fa;
 }
 
-/* ---- App shell: navbar + full-height 3-column workspace + thin footer ---- */
+/* ---- App shell: navbar + full-height 3-column workspace ---- */
 
 .app-body {
   display: flex;
@@ -22,13 +22,6 @@ body {
 .app-main {
   flex: 1 1 auto;
   min-height: 0; /* let children scroll instead of pushing the page taller */
-}
-
-.app-footer {
-  flex: 0 0 auto;
-  padding: 0.35rem 0;
-  background-color: #fff;
-  border-top: 1px solid #e9ecef;
 }
 
 .app-layout {

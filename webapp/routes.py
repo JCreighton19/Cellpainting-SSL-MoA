@@ -269,5 +269,7 @@ def register_routes(app, store, sim_index):
             "moa": df["moa"].fillna("unannotated").apply(title_case).tolist(),
             "broad_sample": df["broad_sample"].fillna("unknown").tolist(),
             "plate": df["plate"].tolist(),
+            # Compound name, so client-side search filtering can match e.g. "amlodipine".
+            "pert_iname": df["pert_iname"].fillna("").tolist(),
         }
         return jsonify(points)

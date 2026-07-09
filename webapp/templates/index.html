@@ -49,6 +49,10 @@
   <div class="resize-handle" id="resize-handle-left"></div>
 
   <section class="center-panel">
+    <div class="plot-header">
+      <h1 class="h5 mb-1">DINO Embedding Map</h1>
+      <p class="small text-muted mb-2">Click a point to select it; click the selected point again to deselect it.</p>
+    </div>
     <div id="umap-plot" class="umap-plot"></div>
   </section>
 
@@ -64,6 +68,12 @@
 
 <dialog id="viz-info-dialog">
   <h2 class="h5">About this visualization</h2>
+
+  <p>This interactive visualization explores embeddings learned by a self-supervised DINO
+    Vision Transformer trained on Cell Painting microscopy images. Each point represents a
+    microscopy image projected into a lower-dimensional embedding space using UMAP. Similar
+    cellular phenotypes tend to cluster together despite the model never seeing
+    mechanism-of-action (MoA) labels during training.</p>
 
   <h3 class="h6 mt-3">What does each point represent?</h3>
   <p class="small">

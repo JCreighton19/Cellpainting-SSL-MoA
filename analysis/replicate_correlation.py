@@ -141,8 +141,8 @@ def main():
             well_df["moa"].isin(["control vehicle"]) |
             well_df["broad_sample"].isin(["DMSO", ""])
         ).values
-        print(f"\nPostprocessing with {ctrl_mask.sum()} control wells (MAD + sphering)...")
-        well_embs = postprocess(well_embs, ctrl_mask).astype(np.float32)
+        print(f"\nPostprocessing with {ctrl_mask.sum()} control wells (per-plate MAD + sphering)...")
+        well_embs = postprocess(well_embs, ctrl_mask, well_df["plate"].values).astype(np.float32)
         norms = np.linalg.norm(well_embs, axis=1, keepdims=True)
         well_embs = well_embs / (norms + 1e-8)
 
