@@ -32,8 +32,11 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-DEFAULT_EMB = REPO_ROOT / "embeddings" / "070226_135708" / "embeddings_epoch_200.npy"
-DEFAULT_META = REPO_ROOT / "data" / "processed" / "master_metadata_qc.parquet"
+# Cluster scratch root (matches CP_OUTPUT_ROOT elsewhere) -- embeddings/metadata
+# live here, not in the repo checkout.
+SCRATCH_ROOT = Path("/scratch/creighton.jo/cellpainting")
+DEFAULT_EMB = SCRATCH_ROOT / "embeddings" / "070226_135708" / "embeddings_epoch_200.npy"
+DEFAULT_META = SCRATCH_ROOT / "data" / "processed" / "master_metadata_qc.parquet"
 DEFAULT_OUT = REPO_ROOT / "webapp" / "static" / "thumbnails"
 
 THUMB_SIZE = 256
