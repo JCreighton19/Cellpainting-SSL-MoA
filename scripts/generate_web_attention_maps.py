@@ -1,7 +1,17 @@
 """
-One-time offline web artifact generation: builds a compact DINO attention
-map (float16, ViT patch-grid resolution) per well, for the Flask app's
-right-sidebar "Attention" / "Overlay" toggle. NOT part of training.
+One-time offline web artifact generation: builds a DINO attention map
+(uint8) per well, for the Flask app's right-sidebar "Attention" / "Overlay"
+toggle. NOT part of training.
+
+Saved at raw ViT patch-grid resolution (small -- a few KB per well), not
+upsampled offline: webapp/routes.py already normalizes and resizes with
+PIL's bilinear interpolation at render time, so smoothing happens in the
+Flask app rather than being baked into a much larger stored array. (An
+earlier version of this script upsampled each crop to CROP_SIZE x CROP_SIZE
+and stored that -- float16 at ~7.6GB total across all wells -- which fixed
+the visual blockiness but was far too large to be a lightweight web
+artifact. Reverted in favor of this uint8-quantized, patch-grid-resolution
+version, which is ~200x smaller.)
 
 Reuses existing attention-extraction machinery rather than building a new
 pipeline:
@@ -19,10 +29,10 @@ Unlike analysis/extract_attention_maps.py (which samples a few random FOVs
 and a few random crops each, for notebook diagnostics), this script covers
 every well's representative site, and tiles that FULL site into all its
 non-overlapping foreground crops (same tiling as extract_embeddings.py's
-embed_fov) rather than just one crop -- each crop's (grid, grid) attention
-patch is placed into a mosaic at that crop's position, so the resulting map
-spatially lines up with the full-site thumbnail instead of covering only a
-small sub-region of it.
+embed_fov) rather than just one crop -- each crop's raw (grid, grid) CLS
+attention patch is placed into a mosaic at that crop's position, so the
+resulting map spatially lines up with the full-site thumbnail instead of
+covering only a small sub-region of it.
 
 Usage:
     python scripts/generate_web_attention_maps.py --run_dir /path/to/checkpoints
@@ -68,8 +78,9 @@ def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
     that crop's position. Falls back to the single centre crop if no tile
     passes the foreground filter (same fallback as embed_fov).
 
-    Returns a (n_h*grid, n_w*grid) float16 array, or None if the image is
-    smaller than one crop.
+    Returns a (n_h*grid, n_w*grid) uint8 array (min-max normalized to
+    0-255 -- resizing/smoothing happens in webapp/routes.py at render time,
+    not here), or None if the image is smaller than one crop.
     """
     C, H, W = image.shape
     n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
@@ -99,7 +110,10 @@ def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
             mosaic = np.zeros((n_h * grid, n_w * grid), dtype=np.float32)
         mosaic[r * grid:(r + 1) * grid, c * grid:(c + 1) * grid] = cls_attn
 
-    return mosaic.astype(np.float16)
+    attn = mosaic.astype(np.float32)
+    attn -= attn.min()
+    attn /= (attn.max() + 1e-8)
+    return (attn * 255).astype(np.uint8)
 
 
 def main():
@@ -171,7 +185,7 @@ def main():
             avg_kb = np.mean(sizes) / 1024
             print(f"\n--- Storage estimate (from first {i + 1} wells) ---")
             print(f"  Maps to generate     : {n_wells:,}")
-            print(f"  Attention grid shape : {mosaic.shape} (float16)")
+            print(f"  Attention grid shape : {mosaic.shape} (uint8)")
             print(f"  Average file size    : {avg_kb:.2f} KB")
             print(f"  Estimated total size : {avg_kb * n_wells / 1024:.1f} MB")
             print(f"-----------------------------------------------------\n")
