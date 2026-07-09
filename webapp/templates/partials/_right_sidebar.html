@@ -1,12 +1,23 @@
-<div class="thumbnail-placeholder border rounded d-flex align-items-center justify-content-center mb-3">
+<div class="thumbnail-placeholder position-relative border rounded d-flex align-items-center justify-content-center mb-3">
   {% if well.thumbnail_path %}
-    <img src="{{ url_for('static', filename=well.thumbnail_path) }}" alt="{{ well.pert_iname or well.well_id }}">
+    <img class="thumbnail-img" src="{{ url_for('static', filename=well.thumbnail_path) }}" alt="{{ well.pert_iname or well.well_id }}">
   {% else %}
     <span class="text-muted small text-center px-3">
       Representative image not available yet<br>(raw images are cluster-hosted)
     </span>
   {% endif %}
+  {% if well.attention_path %}
+    <img class="attention-img d-none" data-well-id="{{ well.well_id }}" alt="Attention heatmap for {{ well.well_id }}">
+  {% endif %}
 </div>
+
+{% if well.attention_path %}
+<div class="btn-group btn-group-sm w-100 mb-3" role="group" aria-label="Image view">
+  <button type="button" class="btn btn-outline-secondary active" data-view="image">Image</button>
+  <button type="button" class="btn btn-outline-secondary" data-view="attention">Attention</button>
+  <button type="button" class="btn btn-outline-secondary" data-view="overlay">Overlay</button>
+</div>
+{% endif %}
 
 <!-- SECTION 1: what am I looking at -->
 <h2 class="h5 mb-1">

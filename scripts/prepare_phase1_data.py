@@ -22,8 +22,10 @@ from utils.postprocessing import postprocess  # noqa: E402
 DEFAULT_EMB = REPO_ROOT / "embeddings" / "070226_135708" / "embeddings_epoch_200.npy"
 DEFAULT_META = REPO_ROOT / "data" / "processed" / "master_metadata_qc.parquet"
 DEFAULT_OUT = REPO_ROOT / "app_data"
-# Populated by scripts/generate_web_thumbnails.py; only referenced (not generated) here.
+# Populated by scripts/generate_web_thumbnails.py / generate_web_attention_maps.py;
+# only referenced (not generated) here.
 THUMBNAILS_DIR = REPO_ROOT / "webapp" / "static" / "thumbnails"
+ATTENTION_DIR = REPO_ROOT / "webapp" / "static" / "attention"
 
 
 def l2_normalize(X, eps=1e-8):
@@ -59,6 +61,7 @@ def main():
         mo = grp["moa"].dropna()
         pi = grp["pert_iname"].dropna()  # human-readable compound name, e.g. "dexamethasone"
         thumb_path = THUMBNAILS_DIR / f"{plate}_{well}.webp"
+        attn_path = ATTENTION_DIR / f"{plate}_{well}.npy"
         rows.append({
             "well_id": f"{plate}_{well}",
             "plate": plate,
@@ -70,6 +73,7 @@ def main():
             "control_type": grp["control_type"].dropna().iloc[0] if grp["control_type"].notna().any() else None,
             "n_tiles": len(grp),
             "thumbnail_path": f"thumbnails/{plate}_{well}.webp" if thumb_path.exists() else None,
+            "attention_path": f"attention/{plate}_{well}.npy" if attn_path.exists() else None,
         })
     well_embs = np.stack(well_embs).astype(np.float32)
     wells = pd.DataFrame(rows)

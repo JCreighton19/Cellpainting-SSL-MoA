@@ -1,9 +1,28 @@
+import io
 import json
 from pathlib import Path
 
-from flask import abort, jsonify, render_template, request
+import numpy as np
+from flask import abort, jsonify, render_template, request, send_file
+from PIL import Image
 
 from similarity import compute_neighborhood_stats, generate_interpretation, title_case
+
+ATTENTION_DIR = Path(__file__).resolve().parent / "static" / "attention"
+ATTENTION_IMG_SIZE = 256
+
+
+def _hot_colormap(norm):
+    """norm: (H, W) float32 in [0,1] -> (H, W, 3) uint8.
+
+    Hand-rolled black -> red -> yellow -> white ramp (matplotlib's "hot"
+    colormap formula) so the app doesn't need a matplotlib dependency just
+    for one small heatmap.
+    """
+    r = np.clip(norm * 3.0, 0, 1)
+    g = np.clip(norm * 3.0 - 1.0, 0, 1)
+    b = np.clip(norm * 3.0 - 2.0, 0, 1)
+    return (np.stack([r, g, b], axis=-1) * 255).astype(np.uint8)
 
 # A few curated searches shown in the left sidebar. Picked from the moa/broad_sample
 # columns actually present in wells.parquet.
@@ -258,6 +277,32 @@ def register_routes(app, store, sim_index):
             interpretation=interpretation,
             moa_info=moa_info,
         )
+
+    @app.route("/api/attention/<well_id>.png")
+    def api_attention_png(well_id):
+        # Validate well_id against the real dataset before touching the
+        # filesystem (get_well does a dict lookup, not a filesystem read) --
+        # avoids ever constructing a path from unvalidated user input.
+        well, _ = store.get_well(well_id)
+        if well is None or not well["attention_path"]:
+            abort(404)
+
+        npy_path = ATTENTION_DIR / f"{well_id}.npy"
+        if not npy_path.exists():
+            abort(404)
+
+        arr = np.load(npy_path).astype(np.float32)
+        lo, hi = float(arr.min()), float(arr.max())
+        norm = (arr - lo) / (hi - lo + 1e-8)
+        rgb = _hot_colormap(norm)
+        img = Image.fromarray(rgb, mode="RGB").resize(
+            (ATTENTION_IMG_SIZE, ATTENTION_IMG_SIZE), Image.BILINEAR
+        )
+
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png", max_age=86400)
 
     @app.route("/api/umap")
     def api_umap():

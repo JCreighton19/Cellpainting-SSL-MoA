@@ -111,6 +111,7 @@ body {
   width: 100%;
   aspect-ratio: 1 / 1;
   background-color: #eceef1;
+  overflow: hidden;
 }
 
 .thumbnail-placeholder img,
@@ -118,6 +119,20 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Attention heatmap stacks on top of the thumbnail within the same
+   position-relative .thumbnail-placeholder; toggled via map.js. */
+.attention-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attention-img.overlay-mode {
+  opacity: 0.55;
 }
 
 .thumbnail-sm {

@@ -257,6 +257,31 @@ function selectWell(wellId, opts) {
     .then((html) => { document.getElementById("sidebar-content").innerHTML = html; });
 }
 
+// Image / Attention / Overlay toggle for the right-sidebar thumbnail. The
+// heatmap PNG is generated on demand by /api/attention/<well_id>.png (see
+// routes.py) and lazily loaded the first time it's needed; Overlay reuses
+// that same image, just at reduced opacity via CSS, rather than requesting
+// or storing a separate pre-rendered overlay image.
+function setImageView(view) {
+  const container = document.getElementById("sidebar-content");
+  const thumb = container.querySelector(".thumbnail-img");
+  const attn = container.querySelector(".attention-img");
+
+  container.querySelectorAll("[data-view]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.view === view);
+  });
+
+  if (!attn) return; // this well has no attention map
+
+  if (!attn.src) {
+    attn.src = `/api/attention/${encodeURIComponent(attn.dataset.wellId)}.png`;
+  }
+
+  attn.classList.toggle("d-none", view === "image");
+  attn.classList.toggle("overlay-mode", view === "overlay");
+  if (thumb) thumb.classList.toggle("d-none", view === "attention");
+}
+
 // Plotly's scattergl only fires plotly_click on an actual marker (clicking
 // empty canvas fires nothing to catch), so the simplest way to offer
 // deselection is treating a second click on the already-selected point as
@@ -367,6 +392,15 @@ function initMap() {
 
   document.getElementById("color-by-moa").addEventListener("click", () => setColorBy("moa"));
   document.getElementById("color-by-plate").addEventListener("click", () => setColorBy("plate"));
+
+  // Delegated listener: _right_sidebar.html is swapped in via innerHTML on
+  // every well selection, so the Image/Attention/Overlay buttons don't exist
+  // yet at initMap() time -- bind once on the stable parent instead of
+  // re-binding after every render.
+  document.getElementById("sidebar-content").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-view]");
+    if (btn) setImageView(btn.dataset.view);
+  });
 
   const input = document.getElementById("search-input");
   document.getElementById("search-btn").addEventListener("click", () => performSearch(input.value));
