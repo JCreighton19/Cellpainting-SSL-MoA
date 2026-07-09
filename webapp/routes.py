@@ -292,8 +292,11 @@ def register_routes(app, store, sim_index):
             abort(404)
 
         arr = np.load(npy_path).astype(np.float32)
-        lo, hi = float(arr.min()), float(arr.max())
-        norm = (arr - lo) / (hi - lo + 1e-8)
+        # Percentile (not min/max) normalization: a few extreme attention
+        # values would otherwise stretch the range so far that the rest of
+        # the map reads as solid black.
+        lo, hi = np.percentile(arr, [1, 99])
+        norm = np.clip((arr - lo) / (hi - lo + 1e-8), 0, 1)
         rgb = _hot_colormap(norm)
         img = Image.fromarray(rgb, mode="RGB").resize(
             (ATTENTION_IMG_SIZE, ATTENTION_IMG_SIZE), Image.BILINEAR

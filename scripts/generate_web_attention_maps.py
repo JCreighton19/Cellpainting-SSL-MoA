@@ -1,17 +1,16 @@
 """
 One-time offline web artifact generation: builds a DINO attention map
-(uint8) per well, for the Flask app's right-sidebar "Attention" / "Overlay"
+(float16) per well, for the Flask app's right-sidebar "Attention" / "Overlay"
 toggle. NOT part of training.
 
 Saved at raw ViT patch-grid resolution (small -- a few KB per well), not
-upsampled offline: webapp/routes.py already normalizes and resizes with
-PIL's bilinear interpolation at render time, so smoothing happens in the
-Flask app rather than being baked into a much larger stored array. (An
-earlier version of this script upsampled each crop to CROP_SIZE x CROP_SIZE
-and stored that -- float16 at ~7.6GB total across all wells -- which fixed
-the visual blockiness but was far too large to be a lightweight web
-artifact. Reverted in favor of this uint8-quantized, patch-grid-resolution
-version, which is ~200x smaller.)
+upsampled offline: webapp/routes.py resizes with PIL's bilinear
+interpolation at render time, so smoothing happens in the Flask app rather
+than being baked into a much larger stored array. (An earlier version of
+this script upsampled each crop to CROP_SIZE x CROP_SIZE and stored that --
+float16 at ~7.6GB total across all wells -- which fixed the visual
+blockiness but was far too large to be a lightweight web artifact. Reverted
+in favor of this patch-grid-resolution version.)
 
 Reuses existing attention-extraction machinery rather than building a new
 pipeline:
@@ -78,9 +77,10 @@ def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
     that crop's position. Falls back to the single centre crop if no tile
     passes the foreground filter (same fallback as embed_fov).
 
-    Returns a (n_h*grid, n_w*grid) uint8 array (min-max normalized to
-    0-255 -- resizing/smoothing happens in webapp/routes.py at render time,
-    not here), or None if the image is smaller than one crop.
+    Returns a (n_h*grid, n_w*grid) float16 array of continuous, min-max
+    normalized [0,1] attention values (resizing/smoothing happens in
+    webapp/routes.py at render time, not here), or None if the image is
+    smaller than one crop.
     """
     C, H, W = image.shape
     n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
@@ -113,7 +113,7 @@ def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
     attn = mosaic.astype(np.float32)
     attn -= attn.min()
     attn /= (attn.max() + 1e-8)
-    return (attn * 255).astype(np.uint8)
+    return attn.astype(np.float16)
 
 
 def main():
@@ -185,7 +185,7 @@ def main():
             avg_kb = np.mean(sizes) / 1024
             print(f"\n--- Storage estimate (from first {i + 1} wells) ---")
             print(f"  Maps to generate     : {n_wells:,}")
-            print(f"  Attention grid shape : {mosaic.shape} (uint8)")
+            print(f"  Attention grid shape : {mosaic.shape} (float16)")
             print(f"  Average file size    : {avg_kb:.2f} KB")
             print(f"  Estimated total size : {avg_kb * n_wells / 1024:.1f} MB")
             print(f"-----------------------------------------------------\n")
