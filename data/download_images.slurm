@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=cp-download
 #SBATCH --partition=sharing
-#SBATCH --time=03:00:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
-#SBATCH --array=0-7
+#SBATCH --array=0-23
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/download_%A_%a.out
 #SBATCH --error=/scratch/creighton.jo/cellpainting/logs/download_%A_%a.err
 
@@ -22,29 +22,56 @@ BASE="s3://cellpainting-gallery/${DATASET}/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 AWS_OPTS="--no-sign-request"
 
-# 8 (experiment, plate) pairs, 2 per experiment across 4 experiments -- one
-# per SLURM array task (--array=0-7 above). This list is only which plates
-# to ATTEMPT; every plate is independently re-verified as a compound plate
-# below regardless of what's written here.
+# 24 (experiment, plate) pairs -- one per SLURM array task (--array=0-23
+# above). This is the SAME diversity-maximizing selection
+# scripts/download_compound_plates.py computes from
+# analysis/outputs/compound_plates.csv (excluding the 9 acquisitions already
+# downloaded -- see EXCLUDED_ACQUISITIONS there), captured here as a literal
+# list so this legacy per-plate-array workflow stays usable without
+# depending on the Python script at runtime. Every plate is still
+# independently re-verified as a compound plate below regardless of what's
+# written here -- this list is only which plates to ATTEMPT.
 #
-# REPLACE_ME_* barcodes: only 2020_11_04_CPJUMP1's barcode_platemap.csv is
-# already in this repo (data/raw/barcode_platemap.csv), so those two entries
-# are real. The other three experiments' compound barcodes are not something
-# to guess at -- fill them in from each experiment's own barcode_platemap.csv
-# (same file this script downloads and checks against). A left-over
-# REPLACE_ME_* will fail loudly in validation below, not silently proceed.
+# All 24 are within cpg0000-jump-pilot, the only dataset currently
+# configured in DATASET_CONFIGS (scripts/download_compound_plates.py) --
+# NOT the 2020_11_18_CPJUMP1_TimepointDay1 / 2020_11_19_TimepointDay4 /
+# 2020_12_02_CPJUMP1_2WeeksTimePoint experiments referenced by the old
+# 8-plate version of this list. If you want plates from other datasets or
+# experiments, regenerate with:
+#   python3 -c "
+#   import sys; sys.path.insert(0, 'scripts')
+#   import download_compound_plates as dcp
+#   for s in dcp.select_plates(dcp.load_candidate_plates(dcp.COMPOUND_PLATES_CSV), dcp.TARGET_NUM_PLATES):
+#       print(f'  \"{s.experiment}:{s.barcode}\"')
+#   "
 #
 # Kept in sync by hand with the identical list in download_metadata.slurm --
 # both scripts are standalone (no shared bash library), so update both.
 PLATES=(
-  "2020_11_04_CPJUMP1:BR00116991"
-  "2020_11_04_CPJUMP1:BR00116992"
-  "2020_11_18_CPJUMP1_TimepointDay1:REPLACE_ME_1"
-  "2020_11_18_CPJUMP1_TimepointDay1:REPLACE_ME_2"
-  "2020_11_19_TimepointDay4:REPLACE_ME_3"
-  "2020_11_19_TimepointDay4:REPLACE_ME_4"
-  "2020_12_02_CPJUMP1_2WeeksTimePoint:REPLACE_ME_5"
-  "2020_12_02_CPJUMP1_2WeeksTimePoint:REPLACE_ME_6"
+  "2020_11_04_CPJUMP1:BR00117008"
+  "2020_11_04_CPJUMP1_DL:BR00117010"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991A"
+  "2020_11_04_CPJUMP1:BR00117009"
+  "2020_11_04_CPJUMP1_DL:BR00117011"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991B"
+  "2020_11_04_CPJUMP1:BR00117015"
+  "2020_11_04_CPJUMP1_DL:BR00117012"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991C"
+  "2020_11_04_CPJUMP1:BR00117016"
+  "2020_11_04_CPJUMP1_DL:BR00117013"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991D"
+  "2020_11_04_CPJUMP1:BR00117017"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991E"
+  "2020_11_04_CPJUMP1:BR00117019"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991F"
+  "2020_11_04_CPJUMP1:BR00117024"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992A"
+  "2020_11_04_CPJUMP1:BR00117025"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992B"
+  "2020_11_04_CPJUMP1:BR00117026"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992C"
+  "2020_11_04_CPJUMP1:BR00117050"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992D"
 )
 
 pair="${PLATES[$SLURM_ARRAY_TASK_ID]}"

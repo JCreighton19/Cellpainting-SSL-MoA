@@ -1,21 +1,26 @@
 """
 Reproducible downloader for COMPOUND-perturbation Cell Painting Gallery plates.
 
-Replaces manual `aws s3 cp` runs. For each requested (dataset, experiment)
-pair, this script:
-  1. Downloads that experiment's barcode_platemap.csv (Assay_Plate_Barcode ->
-     Plate_Map_Name) if not already present locally.
-  2. Filters to barcodes whose Plate_Map_Name contains "compound" and does
-     NOT contain "orf"/"crispr" -- ORF and CRISPR plates are never selected,
-     regardless of --plates-per-experiment.
-  3. Randomly samples (fixed --seed, so reruns are reproducible) up to
-     --plates-per-experiment barcodes from the valid compound set.
-  4. Resolves each barcode to its full Gallery acquisition_id by listing S3
+Selects a fixed, diversity-maximizing set of TARGET_NUM_PLATES (default 24)
+compound plates from analysis/outputs/compound_plates.csv -- the authoritative
+inventory produced by scripts/scan_compound_plates.py -- instead of randomly
+sampling a fixed count per experiment. For each selected plate, this script:
+  1. Resolves the barcode to its full Gallery acquisition_id by listing S3
      (a barcode can only be resolved to an acquisition_id that actually
      exists in the bucket right now -- this IS the "confirm acquisition_id
      exists in S3" check, not a separate step).
-  5. Prints a summary table and, unless --dry-run, downloads images,
-     load_data.csv, and any missing shared metadata/platemap resources.
+  2. Verifies the acquisition's Images/ folder is non-empty and that the
+     acquisition doesn't already exist locally under a different experiment.
+  3. Prints a summary table (with a diversity breakdown) and, unless
+     --dry-run, downloads images, load_data.csv, and any missing shared
+     metadata/platemap resources.
+
+Selection strategy (see select_plates() for the full rationale): candidates
+are grouped by (dataset, experiment) and visited in a round robin that
+interleaves datasets first, then experiments within each dataset -- so every
+configured dataset, and every distinct experiment within it, contributes one
+plate before any group contributes a second. Fully deterministic (no
+randomness) so reruns always pick the same plates.
 
 Local layout produced (see datasets/build_metadata_table.py, which now reads
 platemaps from the same platemaps/{dataset}/{experiment}/ location this
@@ -35,21 +40,20 @@ script writes to):
 see datasets/build_metadata_table.py for why (the same barcode can be
 re-imaged at multiple timepoints/experiments).
 
-Only cpg0000-jump-pilot is configured in DATASET_CONFIGS below. Adding a new
-Cell Painting Gallery dataset (e.g. cpg0016) means adding one entry there --
-nothing else in this script assumes a specific dataset.
+Only cpg0000-jump-pilot is configured in DATASET_CONFIGS below. Candidates
+from any other dataset present in compound_plates.csv (e.g. cpg0002-jump-scope)
+are skipped with a warning until that dataset gets its own DATASET_CONFIGS
+entry -- nothing else in this script assumes a specific dataset.
 
 Usage:
-    python scripts/download_compound_plates.py \\
-        --datasets cpg0000-jump-pilot \\
-        --experiments 2020_11_04_CPJUMP1 \\
-        --plates-per-experiment 5 \\
-        --dry-run
+    python scripts/download_compound_plates.py --dry-run
+    python scripts/download_compound_plates.py
+    python scripts/download_compound_plates.py --target-plates 24 --datasets cpg0000-jump-pilot
 """
 import argparse
+import csv
 import json
 import logging
-import random
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -86,8 +90,38 @@ DATASET_CONFIGS = {
 # for presence only; see check_moa_annotation() below.
 MOA_ANNOTATION_PATH = REPO_ROOT / "data" / "raw" / "repo-drug-annotation-20200324.txt"
 
-COMPOUND_TOKEN = "compound"
-REJECTED_TOKENS = ("orf", "crispr")
+# Authoritative compound-plate inventory produced by scripts/scan_compound_plates.py.
+# Every row is already confirmed compound (Plate_Map_Name contains "compound") --
+# no re-classification needed here.
+COMPOUND_PLATES_CSV = REPO_ROOT / "analysis" / "outputs" / "compound_plates.csv"
+
+# How many plates select_plates() should pick when --target-plates isn't given.
+TARGET_NUM_PLATES = 24
+
+# Plates already downloaded in the original single-experiment dataset -- never
+# select or count these toward diversity coverage. Each entry is
+# (dataset, experiment, barcode, acquisition_id_if_known). Scoped to
+# (dataset, experiment), NOT barcode alone: 4 of these barcodes (BR00117010-13)
+# also appear as separate, still-available plates under cpg0000-jump-pilot's
+# sibling 2020_11_04_CPJUMP1_DL experiment in compound_plates.csv -- excluding
+# by barcode alone would have wrongly dropped those too. The acquisition_id is
+# only used as a post-resolution defense-in-depth check (see main()) -- it is
+# NOT how filtering against the CSV happens, since the CSV has no
+# acquisition_id column and resolve_acquisition_id() remains the source of
+# truth for what a barcode actually resolves to.
+EXCLUDED_ACQUISITIONS = [
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00116991", "BR00116991__2020-11-05T19_51_35-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00116992", "BR00116992__2020-11-05T21_31_31-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00116993", "BR00116993__2020-11-05T23_11_39-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00116994", "BR00116994__2020-11-06T00_59_44-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00116995", None),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00117010", "BR00117010__2020-11-08T18_18_00-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00117011", "BR00117011__2020-11-08T19_57_47-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00117012", "BR00117012__2020-11-08T14_58_34-Measurement1"),
+    ("cpg0000-jump-pilot", "2020_11_04_CPJUMP1", "BR00117013", "BR00117013__2020-11-08T16_38_19-Measurement1"),
+]
+EXCLUDED_DATASET_EXPERIMENT_BARCODES = {(d, e, b) for d, e, b, _ in EXCLUDED_ACQUISITIONS}
+EXCLUDED_ACQUISITION_IDS = {a for _, _, _, a in EXCLUDED_ACQUISITIONS if a}
 
 
 # --------------------------------------------------------------------------
@@ -142,20 +176,14 @@ class PlateSelection:
     reason: str = ""
 
 
-def classify_platemap(plate_map_name: str) -> str:
-    name = plate_map_name.lower()
-    if any(tok in name for tok in REJECTED_TOKENS):
-        return "rejected"
-    if COMPOUND_TOKEN in name:
-        return "compound"
-    return "unknown"
-
-
 def download_barcode_platemap(dataset: str, experiment: str, data_root: Path, force: bool) -> Path:
-    """Always actually fetched (skip-if-exists still applies), regardless of
-    --dry-run: it's a few-KB inspection input needed to select plates and
-    print the preview table at all, not part of "the download" --dry-run is
-    meant to suppress (images/load_data_csv/platemap content/metadata)."""
+    """Fetches barcode_platemap.csv for one (dataset, experiment) group actually
+    selected for download. Not used for plate discovery/classification anymore
+    (that now comes from the pre-scanned compound_plates.csv) -- this is purely
+    so datasets/build_metadata_table.py's resolve_plate_layout() has the file
+    it needs locally. Called from the download phase in main(), so --dry-run
+    never triggers it; the `force` skip-if-exists behavior matches every other
+    single-file download in this script."""
     cfg = DATASET_CONFIGS[dataset]
     dest = data_root / "platemaps" / dataset / experiment / "barcode_platemap.csv"
     src = s3_uri(dataset, cfg["source"], "workspace", "metadata", "platemaps",
@@ -164,50 +192,136 @@ def download_barcode_platemap(dataset: str, experiment: str, data_root: Path, fo
     return dest
 
 
-def discover_compound_barcodes(dataset: str, experiment: str, barcode_map_path: Path):
-    """Returns (compound_barcode_to_platemap: dict, skip_counts: dict)."""
-    import csv
-
-    compound = {}
-    skip_counts = {"rejected": 0, "unknown": 0}
-    if not barcode_map_path.exists():
-        logging.warning(
-            "No barcode_platemap.csv for %s/%s (dry-run and file not fetched yet, "
-            "or download failed) -- cannot select plates for this experiment.",
-            dataset, experiment,
+def read_compound_plates_csv(path: Path) -> list:
+    """Loads analysis/outputs/compound_plates.csv -- the authoritative,
+    pre-scanned inventory of confirmed compound plates (see
+    scripts/scan_compound_plates.py). Every row is already known-compound;
+    unlike the old live-S3 discovery this replaces, no further
+    classification happens here."""
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found. Run scripts/scan_compound_plates.py first to "
+            "produce the compound-plate inventory this script selects from."
         )
-        return compound, skip_counts
-
-    with open(barcode_map_path, newline="") as f:
-        for row in csv.DictReader(f):
-            barcode = row["Assay_Plate_Barcode"].strip()
-            plate_map_name = row["Plate_Map_Name"].strip()
-            kind = classify_platemap(plate_map_name)
-            if kind == "compound":
-                compound[barcode] = plate_map_name
-            else:
-                skip_counts[kind] += 1
-                logging.info("SKIP %s/%s barcode=%s plate_map=%s reason=%s",
-                             dataset, experiment, barcode, plate_map_name, kind)
-    return compound, skip_counts
-
-
-def select_plates(dataset: str, experiment: str, compound_barcodes: dict,
-                   n: int, seed: int) -> list:
-    barcodes = sorted(compound_barcodes)
-    if len(barcodes) <= n:
-        if len(barcodes) < n:
-            logging.warning(
-                "%s/%s has only %d valid compound plates (requested %d) -- taking all of them.",
-                dataset, experiment, len(barcodes), n,
+    with open(path, newline="") as f:
+        return [
+            PlateSelection(
+                dataset=row["dataset"].strip(),
+                experiment=row["experiment"].strip(),
+                barcode=row["plate_barcode"].strip(),
+                plate_map_name=row["plate_map_name"].strip(),
             )
-        chosen = barcodes
-    else:
-        chosen = random.Random(seed).sample(barcodes, n)
-    return [
-        PlateSelection(dataset, experiment, barcode, compound_barcodes[barcode])
-        for barcode in sorted(chosen)
-    ]
+            for row in csv.DictReader(f)
+        ]
+
+
+def load_candidate_plates(csv_path: Path, dataset_filter=None, experiment_filter=None) -> list:
+    """Reads compound_plates.csv and applies the filters that must happen
+    BEFORE diversity selection: already-downloaded exclusions, datasets not
+    yet configured in DATASET_CONFIGS (can't be downloaded without a `source`
+    to build S3 paths from), and any explicit --datasets/--experiments
+    narrowing. select_plates() only ever sees plates that are actually
+    eligible to download."""
+    all_rows = read_compound_plates_csv(csv_path)
+    logging.info("Loaded %d candidate compound plate row(s) from %s", len(all_rows), csv_path)
+
+    candidates = []
+    n_excluded = 0
+    unconfigured_datasets = set()
+    for c in all_rows:
+        if (c.dataset, c.experiment, c.barcode) in EXCLUDED_DATASET_EXPERIMENT_BARCODES:
+            n_excluded += 1
+            continue
+        if c.dataset not in DATASET_CONFIGS:
+            unconfigured_datasets.add(c.dataset)
+            continue
+        if dataset_filter and c.dataset not in dataset_filter:
+            continue
+        if experiment_filter and c.experiment not in experiment_filter:
+            continue
+        candidates.append(c)
+
+    logging.info("Excluded %d already-downloaded plate(s).", n_excluded)
+    if unconfigured_datasets:
+        logging.warning(
+            "Skipping plates from unconfigured dataset(s) %s -- add a DATASET_CONFIGS "
+            "entry (source + metadata filenames) to include them in future selections.",
+            sorted(unconfigured_datasets),
+        )
+    logging.info("%d candidate plate(s) eligible for selection.", len(candidates))
+    return candidates
+
+
+def select_plates(candidates: list, target_n: int) -> list:
+    """Diversity-maximizing selection: candidates are grouped by
+    (dataset, experiment), then visited in a round robin that interleaves
+    datasets first and experiments within each dataset second -- e.g. with
+    two datasets A (3 experiments) and B (65 experiments), the visiting
+    order is [A/e0, B/e0, A/e1, B/e1, A/e2, B/e2, B/e3, B/e4, ...]. Because
+    every group is visited once before any group is visited twice, the
+    first `target_n` groups in that order are exactly what gets selected
+    whenever target_n <= number of distinct groups (the common case) --
+    every plate comes from a DIFFERENT experiment, which is the strongest
+    possible reading of "avoid 24 near-identical plates from one experiment
+    when more diverse options exist." If target_n exceeds the number of
+    distinct groups, additional passes take a second (then third, ...)
+    plate from each group in the same order, so every group is exhausted
+    evenly rather than draining one group before touching the next.
+
+    Interleaving by dataset (rather than a flat sort of every (dataset,
+    experiment) pair together) matters once more datasets are configured:
+    a flat sort would let one dataset's experiments fill most of target_n
+    just because they happen to sort first alphabetically. Nesting
+    guarantees every configured dataset contributes before any dataset's
+    *second* experiment is used.
+
+    Deterministic throughout -- group visiting order is a plain sort, and
+    the barcode picked from within a group is always the lexicographically
+    smallest one remaining -- so reruns always select the same plates.
+    No randomness, so no seed is needed.
+    """
+    by_dataset = {}
+    for c in candidates:
+        by_dataset.setdefault(c.dataset, {}).setdefault(c.experiment, []).append(c)
+    for experiments in by_dataset.values():
+        for pool in experiments.values():
+            pool.sort(key=lambda c: c.barcode)
+
+    datasets = sorted(by_dataset)
+    experiments_by_dataset = {d: sorted(by_dataset[d]) for d in datasets}
+
+    group_order = []
+    i = 0
+    while True:
+        added_this_round = False
+        for d in datasets:
+            exps = experiments_by_dataset[d]
+            if i < len(exps):
+                group_order.append((d, exps[i]))
+                added_this_round = True
+        if not added_this_round:
+            break
+        i += 1
+
+    selected = []
+    while len(selected) < target_n:
+        progressed = False
+        for dataset, experiment in group_order:
+            if len(selected) >= target_n:
+                break
+            pool = by_dataset[dataset][experiment]
+            if pool:
+                selected.append(pool.pop(0))
+                progressed = True
+        if not progressed:
+            break
+
+    if len(selected) < target_n:
+        logging.warning(
+            "Only %d compound plate(s) available after exclusions/filters "
+            "(requested %d) -- taking all of them.", len(selected), target_n,
+        )
+    return selected
 
 
 def resolve_acquisition_id(dataset: str, experiment: str, barcode: str) -> str:
@@ -378,7 +492,7 @@ def update_experiment_dataset_manifest(data_root: Path, experiment: str, dataset
 # Reporting
 # --------------------------------------------------------------------------
 
-def print_summary_table(selections: list, skip_totals: dict):
+def print_summary_table(selections: list):
     headers = ["dataset", "experiment", "barcode", "acquisition_id", "platemap_type"]
     rows = [
         [s.dataset, s.experiment, s.barcode, s.acquisition_id or "?", "compound"]
@@ -397,9 +511,17 @@ def print_summary_table(selections: list, skip_totals: dict):
         print(fmt_row(r))
     print()
     print(f"Selected: {len(rows)} plate(s).")
-    if skip_totals["rejected"] or skip_totals["unknown"]:
-        print(f"Rejected (ORF/CRISPR): {skip_totals['rejected']}   "
-              f"Unrecognized platemap type: {skip_totals['unknown']}")
+
+    # Diversity breakdown so it's easy to eyeball how spread-out the final
+    # selection is, not just that acquisition IDs were resolved.
+    group_counts = {}
+    for s in selections:
+        key = (s.dataset, s.experiment)
+        group_counts[key] = group_counts.get(key, 0) + 1
+    print(f"Diversity: {len(rows)} plate(s) drawn from {len(group_counts)} "
+          f"distinct (dataset, experiment) group(s):")
+    for (dataset, experiment), count in sorted(group_counts.items()):
+        print(f"  {dataset} / {experiment}: {count}")
     print()
 
 
@@ -424,27 +546,28 @@ def parse_args():
         description="Download COMPOUND-only Cell Painting Gallery plates.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--datasets", nargs="+", required=True,
-                         help=f"Cell Painting Gallery dataset name(s), e.g. cpg0000-jump-pilot. "
-                              f"Must be configured in DATASET_CONFIGS ({', '.join(DATASET_CONFIGS)}).")
-    parser.add_argument("--experiments", nargs="+", required=True,
-                         help="Experiment/batch folder name(s), e.g. 2020_11_04_CPJUMP1. "
-                              "Tried against every --datasets entry; an experiment that "
-                              "doesn't exist under a given dataset is skipped with a warning.")
-    parser.add_argument("--plates-per-experiment", type=int, required=True,
-                         help="Number of valid compound plates to download per (dataset, experiment).")
+    parser.add_argument("--datasets", nargs="+", default=None,
+                         help="Optional filter: only select plates from these dataset(s). "
+                              f"Must be configured in DATASET_CONFIGS ({', '.join(DATASET_CONFIGS)}). "
+                              "Default: no filter (every configured dataset present in "
+                              "--compound-plates-csv is eligible).")
+    parser.add_argument("--experiments", nargs="+", default=None,
+                         help="Optional filter: only select plates from these experiment(s). "
+                              "Default: no filter.")
+    parser.add_argument("--target-plates", type=int, default=TARGET_NUM_PLATES,
+                         help="Total number of compound plates to select, spread across as "
+                              "many distinct (dataset, experiment) groups as possible.")
+    parser.add_argument("--compound-plates-csv", type=Path, default=COMPOUND_PLATES_CSV,
+                         help="Authoritative compound-plate inventory (see "
+                              "scripts/scan_compound_plates.py) to select from.")
     parser.add_argument("--dry-run", action="store_true",
-                         help="Discover, validate, and print the summary table -- no images, "
+                         help="Select, validate, and print the summary table -- no images, "
                               "load_data.csv, platemap content, or dataset metadata are "
-                              "downloaded. Exception: barcode_platemap.csv (a few KB) is still "
-                              "fetched if missing, since plate selection can't be previewed "
-                              "without it.")
+                              "downloaded.")
     parser.add_argument("--force", action="store_true",
                          help="Redownload single-file resources (load_data.csv, platemaps, "
                               "metadata) even if already present. Image sync is always safe "
                               "to rerun and ignores this flag.")
-    parser.add_argument("--seed", type=int, default=42,
-                         help="Random seed for plate sampling (reproducible reruns).")
     parser.add_argument("--data-root", default=None,
                          help="Defaults to $CP_OUTPUT_ROOT/data/raw.")
     parser.add_argument("--log-dir", default=None,
@@ -468,58 +591,53 @@ def main():
     log_dir = resolve_root(args.log_dir, "logs", "logs")
     log_path = setup_logging(log_dir)
 
-    unknown = [d for d in args.datasets if d not in DATASET_CONFIGS]
-    if unknown:
-        logging.error(
-            "Unconfigured dataset(s): %s. Add an entry to DATASET_CONFIGS in "
-            "scripts/download_compound_plates.py first (source folder + metadata "
-            "filenames) -- refusing to guess. Configured datasets: %s",
-            unknown, list(DATASET_CONFIGS),
-        )
-        sys.exit(2)
+    if args.datasets:
+        unknown = [d for d in args.datasets if d not in DATASET_CONFIGS]
+        if unknown:
+            logging.error(
+                "Unconfigured dataset(s): %s. Add an entry to DATASET_CONFIGS in "
+                "scripts/download_compound_plates.py first (source folder + metadata "
+                "filenames) -- refusing to guess. Configured datasets: %s",
+                unknown, list(DATASET_CONFIGS),
+            )
+            sys.exit(2)
 
     logging.info("Log file: %s", log_path)
     logging.info("Data root: %s", data_root)
     logging.info("Args: %s", vars(args))
 
+    candidates = load_candidate_plates(
+        args.compound_plates_csv,
+        dataset_filter=set(args.datasets) if args.datasets else None,
+        experiment_filter=set(args.experiments) if args.experiments else None,
+    )
+    diverse_selections = select_plates(candidates, args.target_plates)
+
     all_selections = []
-    skip_totals = {"rejected": 0, "unknown": 0}
     failures = 0
-
-    for dataset in args.datasets:
-        for experiment in args.experiments:
-            logging.info("=== %s / %s ===", dataset, experiment)
-            barcode_map_path = download_barcode_platemap(dataset, experiment, data_root, force=args.force)
-            if not barcode_map_path.exists():
-                logging.error(
-                    "Could not fetch barcode_platemap.csv for %s/%s -- does this experiment "
-                    "exist under this dataset? Skipping.", dataset, experiment,
+    for sel in diverse_selections:
+        try:
+            sel.acquisition_id = resolve_acquisition_id(sel.dataset, sel.experiment, sel.barcode)
+            if sel.acquisition_id in EXCLUDED_ACQUISITION_IDS:
+                # Defense-in-depth: load_candidate_plates() already excludes these
+                # by (dataset, experiment, barcode) before selection, so this
+                # should never actually trigger -- see EXCLUDED_ACQUISITIONS.
+                raise S3Error(
+                    f"acquisition {sel.acquisition_id} is in EXCLUDED_ACQUISITIONS "
+                    "(already downloaded)"
                 )
-                failures += 1
-                continue
+            verify_images_present(sel.dataset, sel.experiment, sel.acquisition_id)
+            check_local_collision(data_root, sel.experiment, sel.acquisition_id)
+        except S3Error as e:
+            logging.error("SKIP %s/%s barcode=%s: %s", sel.dataset, sel.experiment, sel.barcode, e)
+            failures += 1
+            continue
+        all_selections.append(sel)
 
-            compound_barcodes, counts = discover_compound_barcodes(dataset, experiment, barcode_map_path)
-            skip_totals["rejected"] += counts["rejected"]
-            skip_totals["unknown"] += counts["unknown"]
-            if not compound_barcodes:
-                logging.warning("No valid compound plates found for %s/%s.", dataset, experiment)
-                continue
+    for dataset, experiment in sorted({(s.dataset, s.experiment) for s in all_selections}):
+        update_experiment_dataset_manifest(data_root, experiment, dataset, args.dry_run)
 
-            for sel in select_plates(dataset, experiment, compound_barcodes,
-                                      args.plates_per_experiment, args.seed):
-                try:
-                    sel.acquisition_id = resolve_acquisition_id(dataset, experiment, sel.barcode)
-                    verify_images_present(dataset, experiment, sel.acquisition_id)
-                    check_local_collision(data_root, experiment, sel.acquisition_id)
-                except S3Error as e:
-                    logging.error("SKIP %s/%s barcode=%s: %s", dataset, experiment, sel.barcode, e)
-                    failures += 1
-                    continue
-                all_selections.append(sel)
-
-            update_experiment_dataset_manifest(data_root, experiment, dataset, args.dry_run)
-
-    print_summary_table(all_selections, skip_totals)
+    print_summary_table(all_selections)
 
     if args.dry_run:
         logging.info("Dry run complete -- nothing downloaded.")
@@ -527,7 +645,8 @@ def main():
         sys.exit(1 if failures else 0)
 
     # Download per-plate resources first, then dataset-level shared resources
-    # (platemap content files, compound/target metadata) once per dataset.
+    # (barcode_platemap.csv, platemap content files, compound/target metadata)
+    # once per (dataset, experiment) or per dataset as appropriate.
     plate_map_names_by_experiment = {}
     for sel in all_selections:
         r_images = download_images(sel.dataset, sel.experiment, sel.acquisition_id, data_root, args.dry_run)
@@ -538,6 +657,10 @@ def main():
         plate_map_names_by_experiment.setdefault((sel.dataset, sel.experiment), set()).add(sel.plate_map_name)
 
     for (dataset, experiment), plate_map_names in plate_map_names_by_experiment.items():
+        # datasets/build_metadata_table.py needs this locally to resolve each
+        # plate's platemap design; no longer fetched during selection (that now
+        # reads analysis/outputs/compound_plates.csv instead).
+        download_barcode_platemap(dataset, experiment, data_root, force=args.force)
         for plate_map_name in sorted(plate_map_names):
             r = download_platemap_file(dataset, experiment, plate_map_name, data_root, args.force, args.dry_run)
             if r == "failed":

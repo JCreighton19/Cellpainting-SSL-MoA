@@ -7,11 +7,13 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --partition=short
 
-# Usage (SLURM passes everything after the script straight through to it):
-#   sbatch scripts/download_compound_plates.slurm \
-#     --datasets cpg0000-jump-pilot \
-#     --experiments 2020_11_04_CPJUMP1 \
-#     --plates-per-experiment 10
+# Usage (SLURM passes everything after the script straight through to it).
+# Selects a diversity-maximizing set of --target-plates (default 24) compound
+# plates from analysis/outputs/compound_plates.csv -- run
+# scripts/scan_compound_plates.py first to (re)generate that inventory.
+#   sbatch scripts/download_compound_plates.slurm --dry-run
+#   sbatch scripts/download_compound_plates.slurm
+#   sbatch scripts/download_compound_plates.slurm --target-plates 24 --datasets cpg0000-jump-pilot
 
 REPO=/home/creighton.jo/Cellpainting-SSL-MoA
 

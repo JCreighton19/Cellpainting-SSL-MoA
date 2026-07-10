@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cp-metadata
 #SBATCH --partition=sharing
-#SBATCH --time=03:00:00
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=4G
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/meta_%j.out
@@ -24,20 +24,36 @@ AWS_OPTS="--no-sign-request --only-show-errors"
 
 mkdir -p "$OUT"
 
-# Same 8 (experiment, plate) pairs as download_images.slurm -- kept in sync
-# by hand (see comment there re: REPLACE_ME_* placeholders). Each is
+# Same 24 (experiment, plate) pairs as download_images.slurm -- kept in sync
+# by hand (see comment there for provenance/regeneration command). Each is
 # re-verified as a compound plate below before its load_data.csv is
 # downloaded; ORF/CRISPR plates are never fetched even if one somehow ends
 # up in this list.
 PLATES=(
-  "2020_11_04_CPJUMP1:BR00116991"
-  "2020_11_04_CPJUMP1:BR00116992"
-  "2020_11_18_CPJUMP1_TimepointDay1:REPLACE_ME_1"
-  "2020_11_18_CPJUMP1_TimepointDay1:REPLACE_ME_2"
-  "2020_11_19_TimepointDay4:REPLACE_ME_3"
-  "2020_11_19_TimepointDay4:REPLACE_ME_4"
-  "2020_12_02_CPJUMP1_2WeeksTimePoint:REPLACE_ME_5"
-  "2020_12_02_CPJUMP1_2WeeksTimePoint:REPLACE_ME_6"
+  "2020_11_04_CPJUMP1:BR00117008"
+  "2020_11_04_CPJUMP1_DL:BR00117010"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991A"
+  "2020_11_04_CPJUMP1:BR00117009"
+  "2020_11_04_CPJUMP1_DL:BR00117011"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991B"
+  "2020_11_04_CPJUMP1:BR00117015"
+  "2020_11_04_CPJUMP1_DL:BR00117012"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991C"
+  "2020_11_04_CPJUMP1:BR00117016"
+  "2020_11_04_CPJUMP1_DL:BR00117013"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991D"
+  "2020_11_04_CPJUMP1:BR00117017"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991E"
+  "2020_11_04_CPJUMP1:BR00117019"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116991F"
+  "2020_11_04_CPJUMP1:BR00117024"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992A"
+  "2020_11_04_CPJUMP1:BR00117025"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992B"
+  "2020_11_04_CPJUMP1:BR00117026"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992C"
+  "2020_11_04_CPJUMP1:BR00117050"
+  "2020_12_08_CPJUMP1_Bleaching:BR00116992D"
 )
 
 echo "Downloading GLOBAL compound metadata (once)..."
