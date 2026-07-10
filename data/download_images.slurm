@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cp-download
-#SBATCH --partition=sharing
-#SBATCH --time=01:00:00
+#SBATCH --partition=short
+#SBATCH --time=08:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --array=0-23
@@ -21,6 +21,37 @@ DATASET="cpg0000-jump-pilot"
 BASE="s3://cellpainting-gallery/${DATASET}/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 AWS_OPTS="--no-sign-request"
+
+# SLURM sends SIGTERM some time before SIGKILL when a job hits its time
+# limit or gets preempted -- catch it (and SIGINT, for manual Ctrl-C) so an
+# interruption logs clearly and cleans up any in-flight .tmp file instead of
+# just vanishing mid-transfer. The bulk image transfer below (aws s3 sync)
+# is already safe to interrupt on its own -- see the comment at that call --
+# this is about the small barcode_platemap.csv fetch in
+# resolve_plate_map_name() below, via s3_cp_atomic().
+cleanup_on_interrupt() {
+    echo "INTERRUPTED: caught signal, cleaning up in-flight .tmp files under ${OUT}."
+    find "$OUT" -name "*.tmp" -delete 2>/dev/null
+    echo "Safe to rerun -- already-completed downloads were not touched."
+    exit 143
+}
+trap cleanup_on_interrupt TERM INT
+
+# Downloads a single file atomically: fetches to "${dest}.tmp" first, then
+# renames into place only on success. Without this, a job killed mid-transfer
+# could leave a truncated file sitting directly at the final path, which a
+# later skip-if-exists check ([[ -s ... ]]) would wrongly treat as a
+# complete, already-downloaded file.
+s3_cp_atomic() {
+    local src="$1"
+    local dest="$2"
+    local tmp="${dest}.tmp"
+    if ! aws s3 cp "$src" "$tmp" $AWS_OPTS; then
+        rm -f "$tmp"
+        return 1
+    fi
+    mv "$tmp" "$dest"
+}
 
 # 24 (experiment, plate) pairs -- one per SLURM array task (--array=0-23
 # above). This is the SAME diversity-maximizing selection
@@ -101,12 +132,10 @@ resolve_plate_map_name() {
 
     mkdir -p "$barcode_csv_dir"
     if [[ ! -s "$barcode_csv" ]]; then
-        if ! aws s3 cp \
+        if ! s3_cp_atomic \
               "${BASE}/workspace/metadata/platemaps/${experiment}/barcode_platemap.csv" \
-              "$barcode_csv" \
-              $AWS_OPTS; then
+              "$barcode_csv"; then
             echo "ERROR: failed to download barcode_platemap.csv for experiment ${experiment}" >&2
-            rm -f "$barcode_csv"
             return 1
         fi
     fi
@@ -168,9 +197,11 @@ fi
 acquisition_id="${PLATE_PATH%/}"
 echo "Resolved acquisition: ${acquisition_id}"
 
-# aws s3 sync only transfers missing/changed files, so an interrupted
-# download resumes correctly on rerun without re-transferring what's already
-# there and without needing any extra bookkeeping here.
+# Already interruption-safe, no changes needed: aws s3 sync compares local
+# vs. remote file size (and mtime) before skipping a file, so a killed job
+# that left a truncated .tiff behind gets that specific file re-transferred
+# on the next run -- it is never mistaken for a complete download. Only
+# missing/changed files are (re)transferred either way, so reruns are cheap.
 aws s3 sync \
   "${BASE}/images/${experiment}/images/${acquisition_id}/Images/" \
   "${OUT}/images/${experiment}/${acquisition_id}/" \

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cp-metadata
-#SBATCH --partition=sharing
-#SBATCH --time=01:00:00
+#SBATCH --partition=short
+#SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=4G
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/meta_%j.out
@@ -21,8 +21,45 @@ DATASET="cpg0000-jump-pilot"
 BASE="s3://cellpainting-gallery/${DATASET}/source_4"
 OUT="/scratch/creighton.jo/cellpainting/data/raw"
 AWS_OPTS="--no-sign-request --only-show-errors"
+# `--only-show-errors` suppresses per-file progress output for transfer
+# commands (cp/mv/rm/sync) -- `aws s3 ls` doesn't have progress output to
+# suppress and this AWS CLI install rejects the flag outright ("Unknown
+# options: --only-show-errors"), so `ls` calls use this narrower var instead.
+AWS_LS_OPTS="--no-sign-request"
 
 mkdir -p "$OUT"
+
+# SLURM sends SIGTERM some time before SIGKILL when a job hits its time
+# limit or gets preempted -- catch it (and SIGINT, for manual Ctrl-C) so an
+# interruption logs clearly and cleans up any in-flight .tmp file instead of
+# just vanishing mid-transfer. Every single-file download below goes through
+# s3_cp_atomic() (see below), so nothing but a .tmp file is ever at risk.
+cleanup_on_interrupt() {
+    echo "INTERRUPTED: caught signal, cleaning up in-flight .tmp files under ${OUT}."
+    find "$OUT" -name "*.tmp" -delete 2>/dev/null
+    echo "Safe to rerun -- already-completed downloads were not touched."
+    exit 143
+}
+trap cleanup_on_interrupt TERM INT
+
+# Downloads a single file atomically: fetches to "${dest}.tmp" first, then
+# renames into place only on success. Without this, a job killed mid-transfer
+# could leave a truncated file sitting directly at the final path, which a
+# later skip-if-exists check ([[ -s ... ]]) would wrongly treat as a
+# complete, already-downloaded file -- this matters here even for the
+# "always redownload" calls (global metadata, load_data.csv) since without
+# it, a killed job could leave a truncated file for something ELSE to read
+# before this script is rerun.
+s3_cp_atomic() {
+    local src="$1"
+    local dest="$2"
+    local tmp="${dest}.tmp"
+    if ! aws s3 cp "$src" "$tmp" $AWS_OPTS; then
+        rm -f "$tmp"
+        return 1
+    fi
+    mv "$tmp" "$dest"
+}
 
 # Same 24 (experiment, plate) pairs as download_images.slurm -- kept in sync
 # by hand (see comment there for provenance/regeneration command). Each is
@@ -58,15 +95,13 @@ PLATES=(
 
 echo "Downloading GLOBAL compound metadata (once)..."
 
-aws s3 cp \
+s3_cp_atomic \
   "${BASE}/workspace/metadata/external_metadata/JUMP-Target-1_compound_metadata.tsv" \
-  "${OUT}/JUMP-Target-1_compound_metadata.tsv" \
-  $AWS_OPTS
+  "${OUT}/JUMP-Target-1_compound_metadata.tsv"
 
-aws s3 cp \
+s3_cp_atomic \
   "${BASE}/workspace/metadata/external_metadata/JUMP-Target-1_compound_metadata_targets.tsv" \
-  "${OUT}/JUMP-Target-1_compound_metadata_targets.tsv" \
-  $AWS_OPTS
+  "${OUT}/JUMP-Target-1_compound_metadata_targets.tsv"
 
 # --- Compound-plate validation -------------------------------------------
 # Identical to the function of the same name in download_images.slurm --
@@ -80,12 +115,10 @@ resolve_plate_map_name() {
 
     mkdir -p "$barcode_csv_dir"
     if [[ ! -s "$barcode_csv" ]]; then
-        if ! aws s3 cp \
+        if ! s3_cp_atomic \
               "${BASE}/workspace/metadata/platemaps/${experiment}/barcode_platemap.csv" \
-              "$barcode_csv" \
-              $AWS_OPTS; then
+              "$barcode_csv"; then
             echo "ERROR: failed to download barcode_platemap.csv for experiment ${experiment}" >&2
-            rm -f "$barcode_csv"
             return 1
         fi
     fi
@@ -170,10 +203,9 @@ for pair in "${PLATES[@]}"; do
         echo "Platemap content already present, skipping: ${platemap_dest}"
     else
         mkdir -p "$platemap_dir"
-        aws s3 cp \
+        s3_cp_atomic \
           "${BASE}/workspace/metadata/platemaps/${experiment}/platemap/${PLATE_MAP_NAME}.txt" \
-          "$platemap_dest" \
-          $AWS_OPTS
+          "$platemap_dest"
     fi
 
     # Resolve the full acquisition folder name so load_data.csv is stored
@@ -183,7 +215,7 @@ for pair in "${PLATES[@]}"; do
     # itself is barcode-only; only the local path preserves acquisition_id.
     PLATE_PATH=$(aws s3 ls \
       "${BASE}/images/${experiment}/images/" \
-      $AWS_OPTS \
+      $AWS_LS_OPTS \
       | awk -v p="$plate" '$2 ~ "^"p"__" {print $2}')
 
     if [[ -z "$PLATE_PATH" ]]; then
@@ -200,10 +232,9 @@ for pair in "${PLATES[@]}"; do
     load_data_dir="${OUT}/load_data_csv/${experiment}/${acquisition_id}"
     mkdir -p "$load_data_dir"
 
-    aws s3 cp \
+    s3_cp_atomic \
       "${BASE}/workspace/load_data_csv/${experiment}/${plate}/load_data.csv" \
-      "${load_data_dir}/load_data.csv" \
-      $AWS_OPTS
+      "${load_data_dir}/load_data.csv"
 
     echo "Done: ${experiment}/${plate}"
     echo "End: $(date)"
