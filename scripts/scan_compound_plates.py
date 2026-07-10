@@ -107,7 +107,7 @@ def s3_uri(*parts) -> str:
 
 
 def _run_aws(args: list) -> subprocess.CompletedProcess:
-    cmd = ["aws", *args, "--no-sign-request", "--only-show-errors"]
+    cmd = ["aws", *args, "--no-sign-request"]
     return subprocess.run(cmd, capture_output=True, text=True)
 
 
@@ -129,13 +129,12 @@ def s3_list(prefix: str):
     return dirs, files
 
 
-def s3_list_safe(prefix: str):
-    """Same as s3_list(), but swallows S3Error and returns ([], []) --
-    for probing candidate paths that are expected to 404 most of the time."""
+def s3_list_safe(prefix):
     try:
         return s3_list(prefix)
     except S3Error as e:
-        logging.debug("s3 ls failed for %s: %s", prefix, e)
+        logging.warning("FAILED: %s", prefix)
+        logging.warning(str(e))
         return [], []
 
 
@@ -186,24 +185,28 @@ class CompoundPlateRow:
     plate_map_name: str
 
 
-def discover_platemap_roots(dataset: str):
-    """Yields (source, platemaps_uri, experiment_names) for every place under
-    this dataset with a non-empty workspace/metadata/platemaps/ directory.
-    `source` is "" for a dataset with no source_N level. Every top-level
-    subfolder of the dataset is tried as a candidate source -- see module
-    docstring for why this isn't hardcoded to source_4 or similar."""
-    dataset_root = s3_uri(dataset)
-    try:
-        top_dirs, _ = s3_list(dataset_root)
-    except S3Error as e:
-        logging.error("Dataset %s: could not list %s (%s)", dataset, dataset_root, e)
-        return
+def discover_platemap_roots(dataset):
+    top_dirs, _ = s3_list(s3_uri(dataset))
 
-    for source in ["", *top_dirs]:
-        platemaps_uri = s3_uri(dataset, source, "workspace", "metadata", "platemaps")
-        experiment_names, _ = s3_list_safe(platemaps_uri)
-        if experiment_names:
-            yield source, platemaps_uri, experiment_names
+    for source in top_dirs:
+        if not source.startswith("source_"):
+            continue
+
+        platemap_root = s3_uri(
+            dataset,
+            source,
+            "workspace",
+            "metadata",
+            "platemaps",
+        )
+
+        try:
+            experiments, _ = s3_list(platemap_root)
+            if experiments:
+                yield source, platemap_root, experiments
+
+        except S3Error as e:
+            logging.info("No platemaps under %s (%s)",platemap_root, e)
 
 
 def scan_dataset(dataset: str):
