@@ -363,6 +363,8 @@ def main():
     print("missing MOA:", compound_df["moa"].isna().mean())
     all_master = []
     skipped_missing_load_data = []
+    skipped_missing_manifest = []
+    skipped_missing_platemap = []
 
     for experiment, acquisition_id in ACQUISITIONS:
         print(f"\n==============================")
@@ -373,16 +375,36 @@ def main():
         barcode, measurement = parse_acquisition_id(acquisition_id)
         timepoint = parse_timepoint(experiment)
 
+        # Both checks below are about INCOMPLETE download state, not data
+        # corruption: the manifest and platemap files are written per-plate by
+        # data/download_metadata.slurm (or scripts/download_compound_plates.py),
+        # separately from images (data/download_images.slurm or aws s3 sync
+        # directly) -- so it's expected that images can exist locally for an
+        # experiment before its metadata-side download has completed. Skip and
+        # report rather than crash the whole run, same as the missing
+        # load_data.csv case above.
         if experiment not in experiment_dataset:
-            raise ValueError(
-                f"Experiment {experiment!r} has no entry in {EXPERIMENT_DATASET_MANIFEST_PATH}. "
-                "Every experiment on disk is expected to have been downloaded via "
-                "scripts/download_compound_plates.py, which writes this manifest."
-            )
+            print(f"WARNING: experiment {experiment!r} has no entry in "
+                  f"{EXPERIMENT_DATASET_MANIFEST_PATH} -- skipping "
+                  f"{experiment}/{acquisition_id}. The manifest is written "
+                  "per-plate by data/download_metadata.slurm, so this means it "
+                  "hasn't successfully processed ANY plate from this experiment "
+                  "yet -- rerun it.")
+            skipped_missing_manifest.append((experiment, acquisition_id))
+            continue
         dataset = experiment_dataset[experiment]
-        layout_df, plate_map_name = resolve_plate_layout(
-            dataset, experiment, barcode, barcode_map_cache, layout_cache
-        )
+
+        try:
+            layout_df, plate_map_name = resolve_plate_layout(
+                dataset, experiment, barcode, barcode_map_cache, layout_cache
+            )
+        except (ValueError, FileNotFoundError) as e:
+            print(f"WARNING: could not resolve platemap for {experiment}/{acquisition_id} "
+                  f"({e}) -- skipping. Usually means barcode_platemap.csv or the "
+                  "platemap content file for this experiment/plate hasn't been "
+                  "downloaded yet.")
+            skipped_missing_platemap.append((experiment, acquisition_id))
+            continue
 
         load_data_path = (
             LOAD_DATA_ROOT / experiment / acquisition_id / "load_data.csv"
@@ -472,6 +494,19 @@ def main():
         for experiment, acquisition_id in skipped_missing_load_data:
             print(f"  {experiment}/{acquisition_id}")
         print("Fetch load_data.csv for these and rerun to include them.")
+
+    if skipped_missing_manifest:
+        print(f"\n{len(skipped_missing_manifest)} acquisition(s) skipped (no experiment_datasets.json entry):")
+        for experiment, acquisition_id in skipped_missing_manifest:
+            print(f"  {experiment}/{acquisition_id}")
+        print("Run data/download_metadata.slurm (or scripts/download_compound_plates.py) "
+              "for these experiments and rerun to include them.")
+
+    if skipped_missing_platemap:
+        print(f"\n{len(skipped_missing_platemap)} acquisition(s) skipped (platemap not resolvable):")
+        for experiment, acquisition_id in skipped_missing_platemap:
+            print(f"  {experiment}/{acquisition_id}")
+        print("Fetch barcode_platemap.csv / platemap content for these and rerun to include them.")
 
     print("\nSaving...")
 
