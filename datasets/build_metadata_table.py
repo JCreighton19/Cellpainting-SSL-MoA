@@ -362,6 +362,7 @@ def main():
     print(compound_df["moa"].value_counts().head())
     print("missing MOA:", compound_df["moa"].isna().mean())
     all_master = []
+    skipped_missing_load_data = []
 
     for experiment, acquisition_id in ACQUISITIONS:
         print(f"\n==============================")
@@ -387,6 +388,22 @@ def main():
             LOAD_DATA_ROOT / experiment / acquisition_id / "load_data.csv"
         )
         image_root = IMAGE_ROOT / experiment / acquisition_id
+
+        if not load_data_path.exists():
+            # ACQUISITIONS is discovered purely from what's under IMAGE_ROOT, so
+            # it assumes every acquisition with images also has a load_data.csv.
+            # That's true for anything scripts/download_compound_plates.py or
+            # data/download_metadata.slurm fetched (they always fetch both) --
+            # it's NOT true for plates downloaded manually before that pipeline
+            # existed (images-only). Skip rather than crash the whole run; see
+            # the printed summary at the end for what got skipped.
+            print(f"WARNING: {load_data_path} not found -- skipping "
+                  f"{experiment}/{acquisition_id} (images present, load_data.csv "
+                  "missing; likely an images-only manual download predating the "
+                  "current pipeline).")
+            skipped_missing_load_data.append((experiment, acquisition_id))
+            continue
+
         print("\nLoading imaging index...")
         load_df = load_imaging_index(load_data_path)
         print("load_df shape:", load_df.shape)
@@ -449,6 +466,12 @@ def main():
 
     print("final shape:", master_df.shape)
     print("final cols:", master_df.columns)
+
+    if skipped_missing_load_data:
+        print(f"\n{len(skipped_missing_load_data)} acquisition(s) skipped (missing load_data.csv):")
+        for experiment, acquisition_id in skipped_missing_load_data:
+            print(f"  {experiment}/{acquisition_id}")
+        print("Fetch load_data.csv for these and rerun to include them.")
 
     print("\nSaving...")
 
