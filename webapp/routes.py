@@ -11,6 +11,16 @@ from similarity import compute_neighborhood_stats, generate_interpretation, titl
 ATTENTION_DIR = Path(__file__).resolve().parent / "static" / "attention"
 ATTENTION_IMG_SIZE = 256
 
+# generate_web_attention_maps.py now tiles each 1080x1080 site with evenly-
+# spaced, slightly-overlapping crops covering the FULL image (previously
+# floor(1080/224)=4 non-overlapping crops left the last ~17% of each
+# dimension untiled). Coverage is complete, so the render size is just the
+# full canvas -- kept as a named constant (not a bare ATTENTION_IMG_SIZE
+# reference below) so a future coverage change only needs one number here.
+_ATTENTION_SITE_SIZE = 1080
+_ATTENTION_COVERED_PX = _ATTENTION_SITE_SIZE
+ATTENTION_RENDER_SIZE = round(ATTENTION_IMG_SIZE * _ATTENTION_COVERED_PX / _ATTENTION_SITE_SIZE)
+
 
 def _hot_colormap(norm):
     """norm: (H, W) float32 in [0,1] -> (H, W, 3) uint8.
@@ -298,12 +308,19 @@ def register_routes(app, store, sim_index):
         lo, hi = np.percentile(arr, [1, 99])
         norm = np.clip((arr - lo) / (hi - lo + 1e-8), 0, 1)
         rgb = _hot_colormap(norm)
-        img = Image.fromarray(rgb, mode="RGB").resize(
-            (ATTENTION_IMG_SIZE, ATTENTION_IMG_SIZE), Image.BILINEAR
-        )
+        heat = Image.fromarray(rgb, mode="RGB").resize(
+            (ATTENTION_RENDER_SIZE, ATTENTION_RENDER_SIZE), Image.BILINEAR
+        ).convert("RGBA")
+
+        # Composite at the same (0,0)-anchored scale as the thumbnail (see
+        # ATTENTION_RENDER_SIZE above) instead of stretching over the full
+        # canvas; the uncovered edge strip stays transparent so it doesn't
+        # paint over thumbnail regions with no attention data.
+        canvas = Image.new("RGBA", (ATTENTION_IMG_SIZE, ATTENTION_IMG_SIZE), (0, 0, 0, 0))
+        canvas.paste(heat, (0, 0))
 
         buf = io.BytesIO()
-        img.save(buf, "PNG")
+        canvas.save(buf, "PNG")
         buf.seek(0)
         return send_file(buf, mimetype="image/png", max_age=86400)
 

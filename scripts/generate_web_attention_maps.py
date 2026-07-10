@@ -70,9 +70,11 @@ ESTIMATE_SAMPLE_SIZE = 20  # wells used to project total storage before the full
 def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
     """
     image: (5, H, W) float32 in [0,1], the full site tensor (same one used
-    to build the thumbnail). Tiles it into non-overlapping CROP_SIZE crops
-    (same unfold + Otsu foreground filter as extract_embeddings.embed_fov),
-    runs each foreground crop through extract_attention_for_crop(), and
+    to build the thumbnail). Tiles it into evenly-spaced CROP_SIZE crops
+    that fully cover the image (slightly overlapping rather than leaving an
+    untiled edge strip -- see stride comment below), filtered by the same
+    Otsu foreground check as extract_embeddings.embed_fov. Runs each
+    foreground crop through extract_attention_for_crop(), and
     places each crop's mean-over-heads CLS attention grid into a mosaic at
     that crop's position. Falls back to the single centre crop if no tile
     passes the foreground filter (same fallback as embed_fov).
@@ -83,12 +85,18 @@ def attention_mosaic_for_site(model, attn_block, image, otsu_thresh, device):
     smaller than one crop.
     """
     C, H, W = image.shape
-    n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
+    # Ceil (not floor) division + an evenly-spaced stride so the last crop's
+    # far edge lands exactly on the image border instead of leaving an
+    # untiled strip (floor(1080/224)=4 crops only reaches 896 of 1080px).
+    # Crops overlap slightly instead of leaving a gap.
+    n_h, n_w = -(-H // CROP_SIZE), -(-W // CROP_SIZE)
     if n_h == 0 or n_w == 0:
         return None
+    stride_h = CROP_SIZE if n_h == 1 else (H - CROP_SIZE) // (n_h - 1)
+    stride_w = CROP_SIZE if n_w == 1 else (W - CROP_SIZE) // (n_w - 1)
 
-    crops = (image.unfold(1, CROP_SIZE, CROP_SIZE)
-                  .unfold(2, CROP_SIZE, CROP_SIZE)
+    crops = (image.unfold(1, CROP_SIZE, stride_h)
+                  .unfold(2, CROP_SIZE, stride_w)
                   .permute(1, 2, 0, 3, 4)
                   .contiguous()
                   .view(n_h * n_w, C, CROP_SIZE, CROP_SIZE))
