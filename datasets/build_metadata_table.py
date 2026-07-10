@@ -1,5 +1,6 @@
 # datasets/build_metadata_table.py
 
+import json
 from pathlib import Path
 import pandas as pd
 import re
@@ -9,13 +10,29 @@ SCRATCH_ROOT = Path("/scratch/creighton.jo/cellpainting")
 IMAGE_ROOT = SCRATCH_ROOT / "data/raw/images"
 LOAD_DATA_ROOT = SCRATCH_ROOT / "data/raw/load_data_csv"
 COMPOUND_METADATA_PATH = (SCRATCH_ROOT / "data/raw/JUMP-Target-1_compound_metadata.tsv")
-PLATEMAP_PATH = (SCRATCH_ROOT / "data/raw/platemaps/JUMP-Target-1_compound_platemap.txt")
+# Compound platemap design is NOT the same across every Cell Painting Gallery
+# dataset (only cpg0000-jump-pilot uses the single "JUMP-Target-1" design) --
+# see resolve_plate_layout() below, which resolves the right platemap file
+# per plate via barcode_platemap.csv instead of one hardcoded global file.
+PLATEMAP_ROOT = SCRATCH_ROOT / "data/raw/platemaps"
+# Written by scripts/download_compound_plates.py: {experiment: dataset}. Images/
+# load_data_csv paths don't carry dataset at all (see ACQUISITIONS below), so
+# this is the only place that mapping is recorded.
+EXPERIMENT_DATASET_MANIFEST_PATH = SCRATCH_ROOT / "data/raw/experiment_datasets.json"
 OUTPUT_PATH = (SCRATCH_ROOT / "data/processed/master_metadata.parquet")
 MOA_PATH = SCRATCH_ROOT / "data/raw/repo-drug-annotation-20200324.txt"
-PLATES = sorted([
-    p.name for p in IMAGE_ROOT.iterdir()
-    if p.is_dir()
-])
+
+# Raw images/load_data are organized as {experiment}/{acquisition_id}/..., since
+# the same physical plate barcode can be re-imaged under multiple experiments/
+# timepoints (e.g. CPJUMP1 Day1/Day4/2Weeks re-measurements of the same plate).
+# acquisition_id (e.g. "BR00117006__2020-11-03T19_45_39-Measurement1") is the
+# Cell Painting Gallery's own acquisition folder name and is globally unique;
+# the bare barcode alone is not.
+ACQUISITIONS = sorted(
+    (experiment_dir.name, acquisition_dir.name)
+    for experiment_dir in IMAGE_ROOT.iterdir() if experiment_dir.is_dir()
+    for acquisition_dir in experiment_dir.iterdir() if acquisition_dir.is_dir()
+)
 CHANNEL_MAP = {
     "ch1": "mito_img_path",
     "ch2": "agp_img_path",
@@ -23,6 +40,46 @@ CHANNEL_MAP = {
     "ch4": "er_img_path",
     "ch5": "dna_img_path",
 }
+
+# IDENTIFIER PARSING
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def assert_filesystem_safe(name: str, label: str):
+    """acquisition_id becomes the `plate` column, which flows straight into
+    .pt filenames (preprocess_dataset.py) and webapp asset filenames
+    (thumbnails/attention maps). Fail fast if it isn't a safe path component."""
+    if not _SAFE_ID_RE.match(name):
+        raise ValueError(
+            f"{label} {name!r} contains characters unsafe for use in filenames/paths."
+        )
+
+
+def parse_acquisition_id(acquisition_id: str):
+    """
+    "BR00117006__2020-11-03T19_45_39-Measurement1" -> (barcode="BR00117006", measurement=1)
+    """
+    match = re.match(r"^(?P<barcode>[^_]+)__.*-Measurement(?P<measurement>\d+)$", acquisition_id)
+    if not match:
+        raise ValueError(
+            f"Could not parse barcode/measurement from acquisition id: {acquisition_id!r}. "
+            "Expected '{barcode}__{timestamp}-Measurement{N}'."
+        )
+    return match.group("barcode"), int(match.group("measurement"))
+
+
+def parse_timepoint(experiment: str):
+    """Best-effort, human-readable timepoint label parsed from the experiment
+    folder name. Returns None (not a guess) when no explicit timepoint token
+    is present, e.g. the baseline "2020_11_04_CPJUMP1" experiment."""
+    match = re.search(r"TimepointDay(\d+)", experiment, re.IGNORECASE)
+    if match:
+        return f"Day{match.group(1)}"
+    match = re.search(r"(\d+)\s*Weeks?TimePoint", experiment, re.IGNORECASE)
+    if match:
+        return f"{match.group(1)}Weeks"
+    return None
+
 
 # WELL NORMALIZATION
 def rc_to_a01(well: str):
@@ -66,6 +123,59 @@ def load_plate_layouts(path: Path) -> pd.DataFrame:
     df["well"] = df["well"].str.upper().str.strip()
     print(f"[platemap] rows={len(df)} wells={df['well'].nunique()}")
     return df
+
+
+def load_experiment_dataset_manifest(path: Path) -> dict:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Experiment-to-dataset manifest not found at {path}. Run "
+            "scripts/download_compound_plates.py for at least one experiment "
+            "first (it writes this file), or add entries manually as "
+            '{"experiment_name": "dataset_name"}.'
+        )
+    return json.loads(path.read_text())
+
+
+def load_barcode_platemap(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    print(f"[barcode_platemap] rows={len(df)} path={path}")
+    return df
+
+
+def resolve_plate_layout(dataset: str, experiment: str, barcode: str,
+                          barcode_map_cache: dict, layout_cache: dict) -> pd.DataFrame:
+    """Per-plate compound platemap resolution: barcode_platemap.csv (Assay_
+    Plate_Barcode -> Plate_Map_Name) picks the platemap design for THIS
+    plate, then that design's content file is loaded. Replaces a single
+    hardcoded platemap file, which was only ever correct because every
+    cpg0000-jump-pilot plate happens to share the same "JUMP-Target-1"
+    design -- a different dataset (e.g. cpg0016) has a different platemap
+    per plate, not one shared file. Both caches are keyed to avoid re-reading
+    the same file for every plate in an experiment."""
+    barcode_map_key = (dataset, experiment)
+    if barcode_map_key not in barcode_map_cache:
+        barcode_map_cache[barcode_map_key] = load_barcode_platemap(
+            PLATEMAP_ROOT / dataset / experiment / "barcode_platemap.csv"
+        )
+    barcode_map = barcode_map_cache[barcode_map_key]
+
+    matches = barcode_map.loc[barcode_map["Assay_Plate_Barcode"] == barcode, "Plate_Map_Name"]
+    if matches.empty:
+        raise ValueError(
+            f"Barcode {barcode!r} (experiment={experiment}, dataset={dataset}) is not "
+            f"present in {PLATEMAP_ROOT / dataset / experiment / 'barcode_platemap.csv'}. "
+            "Every plate on disk is expected to have been selected by "
+            "scripts/download_compound_plates.py, which only downloads plates already "
+            "confirmed present in that file."
+        )
+    plate_map_name = matches.iloc[0]
+
+    layout_key = (dataset, experiment, plate_map_name)
+    if layout_key not in layout_cache:
+        layout_cache[layout_key] = load_plate_layouts(
+            PLATEMAP_ROOT / dataset / experiment / "platemap" / f"{plate_map_name}.txt"
+        )
+    return layout_cache[layout_key], plate_map_name
 
 
 # COMPOUND METADATA
@@ -235,8 +345,10 @@ def validate(df):
 
 # MAIN
 def main():
-    print("\nLoading platemap...")
-    layout_df = load_plate_layouts(PLATEMAP_PATH)
+    print("\nLoading experiment-to-dataset manifest...")
+    experiment_dataset = load_experiment_dataset_manifest(EXPERIMENT_DATASET_MANIFEST_PATH)
+    barcode_map_cache = {}
+    layout_cache = {}
     print("\nLoading compound metadata...")
     compound_df = load_compound_metadata(COMPOUND_METADATA_PATH)
     compound_df = compound_df.drop_duplicates("broad_sample")
@@ -251,17 +363,46 @@ def main():
     print("missing MOA:", compound_df["moa"].isna().mean())
     all_master = []
 
-    for plate in PLATES:
+    for experiment, acquisition_id in ACQUISITIONS:
         print(f"\n==============================")
-        print(f"PROCESSING {plate}")
+        print(f"PROCESSING {experiment} / {acquisition_id}")
         print(f"==============================")
-        load_data_path = (
-            LOAD_DATA_ROOT / plate / "load_data.csv"
+        assert_filesystem_safe(experiment, "experiment")
+        assert_filesystem_safe(acquisition_id, "acquisition_id")
+        barcode, measurement = parse_acquisition_id(acquisition_id)
+        timepoint = parse_timepoint(experiment)
+
+        if experiment not in experiment_dataset:
+            raise ValueError(
+                f"Experiment {experiment!r} has no entry in {EXPERIMENT_DATASET_MANIFEST_PATH}. "
+                "Every experiment on disk is expected to have been downloaded via "
+                "scripts/download_compound_plates.py, which writes this manifest."
+            )
+        dataset = experiment_dataset[experiment]
+        layout_df, plate_map_name = resolve_plate_layout(
+            dataset, experiment, barcode, barcode_map_cache, layout_cache
         )
-        image_root = IMAGE_ROOT / plate
+
+        load_data_path = (
+            LOAD_DATA_ROOT / experiment / acquisition_id / "load_data.csv"
+        )
+        image_root = IMAGE_ROOT / experiment / acquisition_id
         print("\nLoading imaging index...")
         load_df = load_imaging_index(load_data_path)
         print("load_df shape:", load_df.shape)
+
+        # `plate` is the globally-unique acquisition ID, not the bare barcode
+        # load_imaging_index parsed out of load_data.csv's Metadata_Plate column
+        # (that value is overwritten here). experiment/timepoint/measurement/
+        # dataset/plate_map_name are explicit metadata-only columns; they never
+        # enter file/dir naming.
+        load_df["plate"] = acquisition_id
+        load_df["barcode"] = barcode
+        load_df["experiment"] = experiment
+        load_df["timepoint"] = timepoint
+        load_df["measurement"] = measurement
+        load_df["dataset"] = dataset
+        load_df["plate_map_name"] = plate_map_name
 
         print("\nBuilding master table...")
         master = build_master_metadata(
@@ -274,21 +415,28 @@ def main():
         master = attach_image_paths(
             master,
             image_root,
-            plate
+            acquisition_id
         )
 
-        # Confirm no duplicates and validate
-        dup_count = master.duplicated(["plate", "well", "site"]).sum()
-        if dup_count > 0:
-            raise ValueError(
-                f"Found {dup_count} duplicate (plate, well, site) rows"
-            )
         validate(master)
         print(master.groupby(["plate", "well", "site"]).size().describe())
         all_master.append(master)
 
     print("\nConcatenating all plates...")
     master_df = pd.concat(all_master, ignore_index=True)
+
+    # Duplicate check must run on the fully concatenated table: two
+    # experiments processed independently above can't detect a collision
+    # against each other, only a global check after concat can.
+    dup_count = master_df.duplicated(["plate", "well", "site"]).sum()
+    if dup_count > 0:
+        raise ValueError(
+            f"Found {dup_count} duplicate (plate, well, site) rows across "
+            "experiments. plate is expected to be the globally-unique "
+            "acquisition ID -- check ACQUISITIONS discovery and load_data.csv "
+            "contents for the offending plates."
+        )
+
     master_df["is_control"] = (master_df["control_type"] == "negcon").astype(int)
     master_df["compound_count"] = (
         master_df.groupby("broad_sample", dropna=False)["broad_sample"]

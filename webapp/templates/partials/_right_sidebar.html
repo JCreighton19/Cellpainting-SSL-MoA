@@ -60,7 +60,16 @@
   <dt class="col-7">Dominant neighboring MoA</dt>
   <dd class="col-5 text-end">{{ stats.dominant_moa|titlecase }}</dd>
 
-  <dt class="col-7">Neighborhood consistency</dt>
+  <dt class="col-7">
+    Neighborhood consistency
+    <details class="info-tooltip">
+      <summary aria-label="How is neighborhood consistency determined?">?</summary>
+      <div class="info-tooltip-popup small">
+        Share of the {{ stats.k }} nearest neighbors that share the single most common MoA among
+        them: High &ge;60%, Moderate &ge;40%, otherwise Low.
+      </div>
+    </details>
+  </dt>
   <dd class="col-5 text-end">{{ stats.consistency }}</dd>
 </dl>
 {% else %}
@@ -69,31 +78,26 @@
 
 <hr>
 
-<!-- SECTION 3: interpretation, only after the evidence above -->
-<h3 class="h6 text-uppercase text-muted mb-2">Interpretation</h3>
-<div class="insight-box rounded p-2 mb-0">
-  <p class="small mb-0">{{ interpretation }}</p>
-</div>
-
-<hr>
-
-<!-- SECTION 4: representative neighbors, summarized before enumerated -->
+<!-- SECTION 3: representative neighbors, summarized before enumerated -->
 <h3 class="h6 text-uppercase text-muted mb-1">Representative neighbors</h3>
-{% if stats %}
-<p class="small text-muted mb-2">
-  {{ stats.dominant_count }} / {{ stats.k }} neighbors are {{ stats.dominant_moa|titlecase }}.
-</p>
-{% endif %}
 {% for n in neighbors %}
 <div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small">
   <div>
-    <span class="fw-semibold">{{ n.pert_iname|titlecase or "Unannotated compound" }}</span>
-    <span class="text-muted">&middot; {{ n.moa|titlecase or "Unannotated" }}</span>
+    <span class="fw-semibold">{{ n.moa|titlecase or "Unannotated" }}</span>
+    <span class="text-muted">&middot; {{ n.pert_iname|titlecase or "Unannotated compound" }}</span>
     {% if n.same_moa %}<span class="badge bg-success ms-1">same MoA</span>{% endif %}
   </div>
   <div class="text-muted text-nowrap ms-2">{{ "%.2f"|format(n.similarity) }}</div>
 </div>
 {% endfor %}
+
+<hr>
+
+<!-- SECTION 4: interpretation, only after the evidence above -->
+<h3 class="h6 text-uppercase text-muted mb-2">Interpretation</h3>
+<div class="insight-box rounded p-2 mb-0">
+  <p class="small mb-0">{{ interpretation }}</p>
+</div>
 
 <details class="mt-3">
   <summary class="text-muted small">Technical details</summary>

@@ -85,7 +85,10 @@ function mergeDimBright(dim, bright) {
 // Trace order matters here beyond just this function's own dim/bright split:
 // the "unannotated"/"other-annotated" traces are pushed before the top-MoA
 // traces below so the more informative, colored traces always render above
-// the muted background ones, filter active or not.
+// the muted background ones, filter active or not. When a filter IS active,
+// matched points are pulled out of their color-group trace entirely and
+// drawn in one shared trace pushed last (see matched/buildMatchedTrace
+// below), so a match can never be hidden under a later group's gray points.
 function buildMoaTraces(data) {
   const counts = {};
   data.moa.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
@@ -100,6 +103,7 @@ function buildMoaTraces(data) {
   topMoas.forEach((m) => { groups[m] = { dim: emptyBucket(), bright: emptyBucket() }; });
   groups["other-annotated"] = { dim: emptyBucket(), bright: emptyBucket() };
   groups["unannotated"] = { dim: emptyBucket(), bright: emptyBucket() };
+  const matched = emptyBucket();
 
   for (let i = 0; i < data.well_id.length; i++) {
     const moa = data.moa[i];
@@ -119,9 +123,13 @@ function buildMoaTraces(data) {
     }
 
     const matches = !matchSet || matchSet.has(data.well_id[i]);
-    const bucket = matches ? groups[key].bright : groups[key].dim;
-    const color = matches ? (matchSet ? MATCH_HIGHLIGHT_COLOR : baseColor) : FILTERED_OUT_COLOR;
-    pushPoint(bucket, data, i, color, matches ? baseOpacity : FILTERED_OUT_OPACITY);
+    if (matchSet && matches) {
+      pushPoint(matched, data, i, MATCH_HIGHLIGHT_COLOR, baseOpacity);
+    } else if (matches) {
+      pushPoint(groups[key].bright, data, i, baseColor, baseOpacity);
+    } else {
+      pushPoint(groups[key].dim, data, i, FILTERED_OUT_COLOR, FILTERED_OUT_OPACITY);
+    }
   }
 
   const traces = [];
@@ -144,7 +152,22 @@ function buildMoaTraces(data) {
       hoverinfo: "text",
     });
   });
+  pushMatchedTrace(traces, matched);
   return traces;
+}
+
+// Shared trace for search-matched points, appended after every color-group
+// trace so it always paints on top and a match is never obscured by a later
+// group's gray (filtered-out) points. Omitted entirely when there's no
+// active filter or nothing matched.
+function pushMatchedTrace(traces, matched) {
+  if (!matchSet || !matched.x.length) return;
+  traces.push({
+    x: matched.x, y: matched.y, text: matched.text, customdata: matched.customdata,
+    mode: "markers", type: "scattergl", name: "search match", showlegend: false,
+    marker: { size: 8, color: matched.color, opacity: matched.opacity },
+    hoverinfo: "text",
+  });
 }
 
 function buildPlateTraces(data) {
@@ -154,16 +177,21 @@ function buildPlateTraces(data) {
 
   const groups = {};
   plates.forEach((p) => { groups[p] = { dim: emptyBucket(), bright: emptyBucket() }; });
+  const matched = emptyBucket();
 
   for (let i = 0; i < data.well_id.length; i++) {
     const p = data.plate[i];
     const matches = !matchSet || matchSet.has(data.well_id[i]);
-    const bucket = matches ? groups[p].bright : groups[p].dim;
-    const color = matches ? (matchSet ? MATCH_HIGHLIGHT_COLOR : plateColor[p]) : FILTERED_OUT_COLOR;
-    pushPoint(bucket, data, i, color, matches ? MARKER_OPACITY : FILTERED_OUT_OPACITY);
+    if (matchSet && matches) {
+      pushPoint(matched, data, i, MATCH_HIGHLIGHT_COLOR, MARKER_OPACITY);
+    } else if (matches) {
+      pushPoint(groups[p].bright, data, i, plateColor[p], MARKER_OPACITY);
+    } else {
+      pushPoint(groups[p].dim, data, i, FILTERED_OUT_COLOR, FILTERED_OUT_OPACITY);
+    }
   }
 
-  return plates.map((p) => {
+  const traces = plates.map((p) => {
     const g = mergeDimBright(groups[p].dim, groups[p].bright);
     return {
       x: g.x, y: g.y, text: g.text, customdata: g.customdata,
@@ -172,6 +200,8 @@ function buildPlateTraces(data) {
       hoverinfo: "text",
     };
   });
+  pushMatchedTrace(traces, matched);
+  return traces;
 }
 
 function buildHighlightTrace() {
@@ -279,7 +309,10 @@ function setImageView(view) {
 
   attn.classList.toggle("d-none", view === "image");
   attn.classList.toggle("overlay-mode", view === "overlay");
-  if (thumb) thumb.classList.toggle("d-none", view === "attention");
+  if (thumb) {
+    thumb.classList.toggle("d-none", view === "attention");
+    thumb.classList.toggle("overlay-brighten", view === "overlay");
+  }
 }
 
 // Plotly's scattergl only fires plotly_click on an actual marker (clicking
@@ -317,9 +350,11 @@ function applyFilter(query) {
   msgEl.textContent = matchSet.size
     ? `${matchSet.size.toLocaleString()} point${matchSet.size === 1 ? "" : "s"} match "${query}".`
     : `No points match "${query}".`;
+  document.getElementById("clear-filter-btn").classList.remove("d-none");
 }
 
 function clearFilter() {
+  document.getElementById("clear-filter-btn").classList.add("d-none");
   if (!matchSet) return;
   matchSet = null;
   document.getElementById("search-message").textContent = "";
@@ -408,16 +443,13 @@ function initMap() {
     if (e.key === "Enter") performSearch(input.value);
   });
   // Clearing the box (e.g. selecting all + delete) restores original
-  // coloring immediately, without needing a separate "clear filter" control.
+  // coloring immediately, in addition to the explicit "Clear filter" button.
   input.addEventListener("input", () => {
     if (!input.value.trim()) clearFilter();
   });
-
-  document.querySelectorAll(".example-chip").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      input.value = btn.dataset.q;
-      performSearch(btn.dataset.q);
-    });
+  document.getElementById("clear-filter-btn").addEventListener("click", () => {
+    input.value = "";
+    clearFilter();
   });
 
   makeResizable(document.getElementById("resize-handle-left"), document.getElementById("sidebar-left"), "left");
