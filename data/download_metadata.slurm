@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cp-metadata
 #SBATCH --partition=sharing
-#SBATCH --time=03:00:00
+#SBATCH --time=02:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=4G
 #SBATCH --output=/scratch/creighton.jo/cellpainting/logs/meta_%j.out
