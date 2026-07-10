@@ -1,6 +1,7 @@
 import io
 import json
 from pathlib import Path
+import matplotlib.cm as cm
 
 import numpy as np
 from flask import abort, jsonify, render_template, request, send_file
@@ -307,7 +308,8 @@ def register_routes(app, store, sim_index):
         # the map reads as solid black.
         lo, hi = np.percentile(arr, [1, 99])
         norm = np.clip((arr - lo) / (hi - lo + 1e-8), 0, 1)
-        rgb = _hot_colormap(norm)
+        rgba = cm.inferno(norm)
+        rgb = (rgba[:, :, :3] * 255).astype(np.uint8)
         heat = Image.fromarray(rgb, mode="RGB").resize(
             (ATTENTION_RENDER_SIZE, ATTENTION_RENDER_SIZE), Image.BILINEAR
         ).convert("RGBA")

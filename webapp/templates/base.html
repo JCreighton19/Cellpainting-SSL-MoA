@@ -21,9 +21,6 @@
   <nav class="navbar navbar-dark bg-dark app-navbar">
     <div class="container-fluid">
       <span class="navbar-brand mb-0">Cell Painting Phenotype Explorer</span>
-      <div class="d-flex align-items-center gap-2">
-        <button id="help-btn" type="button" class="btn btn-sm btn-outline-light rounded-circle" title="About this tool" aria-label="About this tool">?</button>
-      </div>
     </div>
   </nav>
 
@@ -31,74 +28,6 @@
     {% block content %}{% endblock %}
   </main>
 
-  <dialog id="help-dialog">
-    <h2 class="h5">About this tool</h2>
-
-    <h3 class="h6 mt-3">What is Cell Painting?</h3>
-    <p class="small">
-      Cell Painting is a microscopy assay that stains cells with multiple fluorescent dyes marking
-      different structures — nucleus, endoplasmic reticulum, RNA, the cytoskeleton/Golgi/membrane,
-      and mitochondria. Imaging all of these together captures a detailed snapshot of a cell's
-      morphology after treatment with a compound.
-    </p>
-
-    <h3 class="h6 mt-3">What did the model learn?</h3>
-    <p class="small">
-      A self-supervised vision model (DINO) was trained on these images without any
-      mechanism-of-action labels, learning to compress each image into a 384-number embedding.
-      For details on how the map itself is built and how to read distance and similarity, see
-      "ⓘ About this visualization" in the left sidebar.
-    </p>
-
-    <h3 class="h6 mt-3">Technical details</h3>
-    <p class="small mb-0">
-      Embeddings were created from JUMP Cell Painting wells and
-      postprocessed with MAD and sphering. Similarity is determined via a
-      simple cosine similarity search.
-    </p>
-
-    <h3 class="h6 mt-3">Acknowledgements</h3>
-    <p class="small mb-2">
-      This project builds upon several open datasets, research efforts,
-      and visualization tools. The microscopy data were provided by the
-      JUMP Cell Painting Consortium (JUMP-CP), an open
-      resource for large-scale exploration of cellular phenotypes using
-      high-content imaging.
-    </p>
-
-    <p class="small mb-2">
-      The self-supervised representation learning approach was inspired by
-      Kim et al. (2025), "Self-supervised learning of morphological
-      representations from large-scale Cell Painting data", which
-      demonstrated the potential of vision models to learn biologically
-      meaningful representations from Cell Painting images without relying
-      on mechanism-of-action labels.
-    </p>
-
-    <p class="small mb-0">
-      The interactive embedding visualization was inspired by the
-      <a href="https://projector.tensorflow.org/" target="_blank">
-        TensorFlow Embedding Projector
-      </a>, an open-source tool
-      for exploring high-dimensional embeddings through interactive
-      dimensionality reduction and similarity-based visualization. Its
-      design principles informed the interface used to explore learned
-      cellular representations in this tool.
-    </p>
-
-    <div class="text-end mt-3">
-      <button id="help-close" type="button" class="btn btn-sm btn-primary">Close</button>
-    </div>
-  </dialog>
-
-  <script>
-    document.getElementById("help-btn").addEventListener("click", () => {
-      document.getElementById("help-dialog").showModal();
-    });
-    document.getElementById("help-close").addEventListener("click", () => {
-      document.getElementById("help-dialog").close();
-    });
-  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

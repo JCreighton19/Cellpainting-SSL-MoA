@@ -42,7 +42,12 @@
         <button type="button" id="color-by-moa" class="btn btn-outline-secondary active">MoA</button>
         <button type="button" id="color-by-plate" class="btn btn-outline-secondary">Plate</button>
       </div>
-      <button type="button" id="viz-info-btn" class="btn btn-link btn-sm px-0 mt-2">ⓘ About this visualization</button>
+    </div>
+
+    <div class="sidebar-section">
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="how-to-read-dialog">ⓘ How to Read This Map</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="about-project-dialog">🧬 About the Project</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start" data-dialog-open="technical-details-dialog">⚙️ Technical Details</button>
     </div>
   </aside>
 
@@ -66,45 +71,306 @@
 
 </div>
 
-<dialog id="viz-info-dialog">
-  <h2 class="h5">About this visualization</h2>
+<dialog id="how-to-read-dialog" class="info-dialog">
+  <h2 class="h5">ⓘ How to Read This Map</h2>
 
-  <p>This interactive visualization explores embeddings learned by a self-supervised DINO
-    Vision Transformer trained on Cell Painting microscopy images. Each point represents a
-    microscopy image projected into a lower-dimensional embedding space using UMAP. Similar
-    cellular phenotypes tend to cluster together despite the model never seeing
-    mechanism-of-action (MoA) labels during training.</p>
+  <h3 class="h6 mt-3">What am I looking at?</h3>
+  <p class="small">
+    This interactive map shows how a machine learning model organizes microscopy experiments
+    based on the visual characteristics of the cells.
+  </p>
+  <p class="small">
+    Each point represents one experimental well. Wells that appear close together contain cells
+    with similar visual patterns according to the model, while wells farther apart have more
+    different learned representations.
+  </p>
+  <p class="small">
+    The map is a two-dimensional visualization of a much larger feature space. The goal is to
+    help explore patterns in the model's learned understanding of cellular morphology.
+  </p>
 
   <h3 class="h6 mt-3">What does each point represent?</h3>
   <p class="small">
-    Each point is one well. Its position comes from a 2D projection (UMAP) of the 384-number
-    embedding a self-supervised model (DINO) produced for that well's cell images.
+    Each point represents a single well from a Cell Painting experiment.
+  </p>
+  <p class="small">
+    The model converts the microscopy images from each well into a numerical representation
+    called an embedding — a compact "fingerprint" of the cell images that captures important
+    visual features learned by the model.
+  </p>
+  <p class="small">
+    In this visualization, each well is represented by a 384-dimensional embedding that has been
+    projected into two dimensions for visualization.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://www.tensorflow.org/text/guide/word_embeddings" target="_blank" rel="noopener">Introduction to embeddings (TensorFlow)</a>
   </p>
 
   <h3 class="h6 mt-3">What does distance mean?</h3>
+  <p class="small mb-1">
+    The distance between points represents similarity in the model's learned representation.
+  </p>
+  <ul class="small mb-1">
+    <li>Nearby points &rarr; cells with similar visual characteristics according to the model.</li>
+    <li>Distant points &rarr; cells with more different visual characteristics.</li>
+  </ul>
   <p class="small">
-    Nearby points correspond to phenotypically similar perturbations in the learned embedding
-    space. Distances suggest similarity but should not be interpreted as causal biological
+    This similarity reflects <em>phenotypic similarity</em> — similarity in observable cellular
+    appearance — and should not be interpreted as proof that two compounds have the same
+    biological mechanism.
+  </p>
+  <p class="small">
+    For example, two compounds may appear close together because they cause similar
+    morphological changes, even if they act through different biological pathways.
+  </p>
+
+  <h3 class="h6 mt-3">What do the colors represent?</h3>
+  <p class="small">
+    Colors indicate annotated mechanisms of action (MoA) when available.
+  </p>
+  <p class="small">
+    A mechanism of action describes the biological process affected by a compound (for example,
+    disrupting DNA replication or affecting a specific cellular pathway).
+  </p>
+  <p class="small">
+    Only the most frequent mechanisms are shown as individual colors to keep the map readable.
+    Less common mechanisms are grouped as "Other," and some wells may not have an available
+    annotation.
+  </p>
+  <p class="small">
+    Importantly, the model was not trained using these labels. The colors are added afterward to
+    evaluate whether biologically meaningful patterns emerge in the learned representation.
+  </p>
+
+  <h3 class="h6 mt-3">Why are the axes labeled UMAP 1 and UMAP 2?</h3>
+  <p class="small">
+    The original embeddings contain 384 dimensions, which cannot be directly visualized. UMAP
+    (Uniform Manifold Approximation and Projection) is a dimensionality reduction method that
+    compresses high-dimensional data into two dimensions while attempting to preserve local
     relationships.
   </p>
-
-  <h3 class="h6 mt-3">Why are only some mechanisms colored?</h3>
-  <p class="small">
-    Only the {{ stats.n_moas_in_legend }} most frequent mechanisms get their own color (covering
-    {{ "%.0f"|format(stats.pct_top10_coverage * 100) }}% of wells) — another
-    {{ "%.0f"|format(stats.pct_other_annotated * 100) }}% of wells <em>do</em> have an annotated
-    mechanism but are grouped as "other" purely for legend readability; only
-    {{ "%.0f"|format(stats.pct_unannotated * 100) }}% have no annotation at all.
+  <p class="small mb-1">
+    The UMAP axes themselves do not represent specific biological features. The meaningful
+    information is:
+  </p>
+  <ul class="small mb-1">
+    <li>which points are close together,</li>
+    <li>which groups form clusters,</li>
+    <li>and how samples relate to each other.</li>
+  </ul>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://umap-learn.readthedocs.io/" target="_blank" rel="noopener">UMAP documentation</a>
   </p>
 
-  <h3 class="h6 mt-3">Embeddings and similarity</h3>
+  <h3 class="h6 mt-3">How is similarity calculated?</h3>
+  <p class="small">
+    Each well is represented as a numerical embedding. Similarity between wells is calculated
+    using cosine similarity, which compares the orientation of two embedding vectors.
+  </p>
+  <p class="small">
+    Higher similarity means the model considers the wells to have more similar learned visual
+    characteristics.
+  </p>
   <p class="small mb-0">
-    Similarity between two wells is the cosine similarity of their postprocessed DINO embeddings —
-    a measure of shared visual phenotype, not a direct measure of shared biological mechanism.
+    This is a measure of similarity in the model's feature space — not a direct measurement of
+    biological similarity.
   </p>
 
   <div class="text-end mt-3">
-    <button id="viz-info-close" type="button" class="btn btn-sm btn-primary">Close</button>
+    <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
+  </div>
+</dialog>
+
+<dialog id="about-project-dialog" class="info-dialog">
+  <h2 class="h5">🧬 About the Project</h2>
+
+  <h3 class="h6 mt-3">What is Cell Painting?</h3>
+  <p class="small">
+    Cell Painting is a high-content microscopy assay that uses fluorescent stains to visualize
+    multiple structures inside cells.
+  </p>
+  <p class="small mb-1">Cells are stained to highlight features including:</p>
+  <ul class="small mb-1">
+    <li>nucleus,</li>
+    <li>mitochondria,</li>
+    <li>endoplasmic reticulum,</li>
+    <li>RNA,</li>
+    <li>cytoskeletal and membrane structures.</li>
+  </ul>
+  <p class="small">
+    By capturing many cellular features at once, Cell Painting provides a detailed view of how
+    compounds change cell morphology.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://www.broadinstitute.org/imaging/morphological-profiling" target="_blank" rel="noopener">Broad Institute Cell Painting overview</a>
+  </p>
+
+  <h3 class="h6 mt-3">Why analyze cell morphology?</h3>
+  <p class="small">
+    Changes in a cell's appearance can reveal how a compound affects cellular processes.
+  </p>
+  <p class="small mb-1">Different perturbations may alter features such as:</p>
+  <ul class="small mb-1">
+    <li>cell shape,</li>
+    <li>organelle organization,</li>
+    <li>nuclear morphology,</li>
+    <li>texture,</li>
+    <li>and overall cellular state.</li>
+  </ul>
+  <p class="small">
+    These observable characteristics are called phenotypes.
+  </p>
+  <p class="small">
+    The goal of this project is to determine whether machine learning can discover meaningful
+    cellular phenotypes directly from images.
+  </p>
+
+  <h3 class="h6 mt-3">What did the model learn?</h3>
+  <p class="small">
+    This project uses a self-supervised vision model called DINO (self-Distillation with No
+    Labels).
+  </p>
+  <p class="small">
+    Traditional supervised learning requires examples with known labels, such as: "This image
+    came from a compound affecting pathway X."
+  </p>
+  <p class="small">
+    Self-supervised learning instead allows a model to learn patterns directly from unlabeled
+    data. During training, DINO learns a representation of microscopy images by identifying
+    consistent visual patterns across different views of the same data.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO: Emerging Properties in Self-Supervised Vision Transformers (arXiv)</a>
+  </p>
+
+  <h3 class="h6 mt-3">Why is this approach interesting?</h3>
+  <p class="small">
+    Large microscopy datasets contain enormous amounts of information, but manually labeling
+    every image with biological annotations is expensive and incomplete.
+  </p>
+  <p class="small">
+    Self-supervised learning provides a way to discover patterns without requiring predefined
+    labels.
+  </p>
+  <p class="small">
+    If samples with similar biological effects cluster together after training, it suggests that
+    the model has learned meaningful representations of cellular morphology.
+  </p>
+
+  <h3 class="h6 mt-3">Dataset</h3>
+  <p class="small">
+    This project uses data from the JUMP Cell Painting Consortium, an open resource containing
+    large-scale Cell Painting microscopy experiments.
+  </p>
+  <p class="small">
+    The dataset contains images of cells treated with thousands of compounds across many
+    experimental conditions.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://jump-cellpainting.broadinstitute.org/" target="_blank" rel="noopener">JUMP Cell Painting Consortium</a>
+  </p>
+
+  <div class="text-end mt-3">
+    <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
+  </div>
+</dialog>
+
+<dialog id="technical-details-dialog" class="info-dialog">
+  <h2 class="h5">⚙️ Technical Details</h2>
+
+  <h3 class="h6 mt-3">Computational pipeline</h3>
+  <p class="small mb-1">The visualization was generated through the following pipeline:</p>
+  <p class="small text-center mb-0">
+    Cell Painting microscopy images<br>&darr;<br>
+    DINO Vision Transformer<br>&darr;<br>
+    384-dimensional embeddings<br>&darr;<br>
+    Embedding postprocessing<br>&darr;<br>
+    Cosine similarity analysis<br>&darr;<br>
+    UMAP dimensionality reduction<br>&darr;<br>
+    Interactive visualization
+  </p>
+
+  <h3 class="h6 mt-3">Model architecture</h3>
+  <p class="small">
+    The representation model is a Vision Transformer (ViT) trained using the DINO self-supervised
+    learning framework.
+  </p>
+  <p class="small">
+    A Vision Transformer divides images into smaller regions and learns relationships between
+    those regions to build a representation of the image.
+  </p>
+  <p class="small">
+    The model outputs a 384-dimensional embedding representing learned visual features.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">Vision Transformer paper (Google Research)</a>
+  </p>
+
+  <h3 class="h6 mt-3">Embeddings and similarity</h3>
+  <p class="small">
+    An embedding is a numerical representation produced by the model.
+  </p>
+  <p class="small mb-1">
+    Instead of comparing images directly pixel-by-pixel, embeddings allow the model to compare
+    images based on learned features. For this project:
+  </p>
+  <ul class="small mb-0">
+    <li>each well is represented by a 384-dimensional vector,</li>
+    <li>embeddings summarize learned morphological patterns,</li>
+    <li>similarity is measured using cosine similarity.</li>
+  </ul>
+
+  <h3 class="h6 mt-3">Embedding processing</h3>
+  <p class="small mb-1">
+    Before visualization, embeddings are processed to improve comparisons between samples.
+    Processing includes:
+  </p>
+  <ul class="small mb-1">
+    <li>median absolute deviation (MAD) normalization,</li>
+    <li>sphering/whitening transformations,</li>
+    <li>normalization before similarity calculations.</li>
+  </ul>
+  <p class="small mb-0">
+    These steps reduce unwanted variation and improve the structure of the learned feature space.
+  </p>
+
+  <h3 class="h6 mt-3">UMAP visualization</h3>
+  <p class="small">
+    Because the embeddings exist in a 384-dimensional space, they cannot be directly displayed.
+    UMAP creates a two-dimensional representation that preserves local relationships between
+    samples as much as possible.
+  </p>
+  <p class="small mb-0">
+    The final map is therefore an interactive window into the model's learned feature space
+    rather than a direct biological coordinate system.
+  </p>
+
+  <h3 class="h6 mt-3">References and acknowledgements</h3>
+  <p class="small mb-1">This project builds upon:</p>
+  <ul class="small mb-0">
+    <li>
+      <a href="https://jump-cellpainting.broadinstitute.org/" target="_blank" rel="noopener">JUMP Cell Painting Consortium</a>
+      — open microscopy dataset.
+    </li>
+    <li>
+      Kim et al. (2025), "Self-supervised learning of morphological representations from
+      large-scale Cell Painting data" — demonstration of self-supervised representation learning
+      for cellular morphology.
+    </li>
+    <li>
+      <a href="https://projector.tensorflow.org/" target="_blank" rel="noopener">TensorFlow Embedding Projector</a>
+      — inspiration for interactive exploration of high-dimensional embeddings.
+    </li>
+  </ul>
+
+  <div class="text-end mt-3">
+    <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
 </dialog>
 
@@ -114,11 +380,15 @@
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 <script>
-  document.getElementById("viz-info-btn").addEventListener("click", () => {
-    document.getElementById("viz-info-dialog").showModal();
+  document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.getElementById(btn.dataset.dialogOpen).showModal();
+    });
   });
-  document.getElementById("viz-info-close").addEventListener("click", () => {
-    document.getElementById("viz-info-dialog").close();
+  document.querySelectorAll("[data-dialog-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.closest("dialog").close();
+    });
   });
 </script>
 {% endblock %}

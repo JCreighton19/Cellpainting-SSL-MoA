@@ -91,19 +91,19 @@ body {
   .umap-plot { height: 60vh; }
 }
 
-/* ---- Dialogs (help + about-this-visualization) ---- */
+/* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ---- */
 
-#help-dialog,
-#viz-info-dialog {
+.info-dialog {
   max-width: 480px;
   width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
   border: none;
   border-radius: 0.5rem;
   padding: 1.25rem 1.5rem;
 }
 
-#help-dialog::backdrop,
-#viz-info-dialog::backdrop {
+.info-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
