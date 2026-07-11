@@ -21,6 +21,9 @@ PLATEMAP_ROOT = SCRATCH_ROOT / "data/raw/platemaps"
 EXPERIMENT_DATASET_MANIFEST_PATH = SCRATCH_ROOT / "data/raw/experiment_datasets.json"
 OUTPUT_PATH = (SCRATCH_ROOT / "data/processed/master_metadata.parquet")
 MOA_PATH = SCRATCH_ROOT / "data/raw/repo-drug-annotation-20200324.txt"
+# Hand-curated fallback for compounds missing/blank in MOA_PATH -- see
+# load_moa_overrides() and data/raw/moa_overrides.tsv for sourcing.
+MOA_OVERRIDES_PATH = SCRATCH_ROOT / "data/raw/moa_overrides.tsv"
 
 # Raw images/load_data are organized as {experiment}/{acquisition_id}/..., since
 # the same physical plate barcode can be re-imaged under multiple experiments/
@@ -260,6 +263,19 @@ def load_moa(path: Path):
     print(f"[moa] rows={len(df)} cols={df.columns.tolist()}")
     return df
 
+
+def load_moa_overrides(path: Path):
+    """Hand-curated fallback for compounds absent from repo-drug-annotation
+    (or present there with a blank moa field) -- see data/raw/moa_overrides.tsv
+    for the per-compound source citation. Missing file is not an error: the
+    override table is optional, not every deployment needs it."""
+    if not path.exists():
+        print(f"[moa_overrides] {path} not found -- skipping overrides")
+        return pd.DataFrame(columns=["pert_iname", "moa"])
+    df = pd.read_csv(path, sep="\t")
+    print(f"[moa_overrides] rows={len(df)}")
+    return df
+
 # IMAGE INDEX
 def build_image_index(image_root: Path, plate: str):
     records = {}
@@ -437,6 +453,23 @@ def main():
         on="_pert_iname_key",
         how="left"
     ).drop(columns="_pert_iname_key")
+
+    # Fallback for compounds repo-drug-annotation doesn't cover at all, or
+    # covers with a blank moa field -- fills nulls only, never overwrites a
+    # moa the primary file already provided.
+    moa_overrides_df = load_moa_overrides(MOA_OVERRIDES_PATH)
+    if not moa_overrides_df.empty:
+        overrides_lookup = (
+            moa_overrides_df.assign(_pert_iname_key=moa_overrides_df["pert_iname"].str.lower())
+            .drop_duplicates("_pert_iname_key")
+            .set_index("_pert_iname_key")["moa"]
+        )
+        compound_df["_pert_iname_key"] = compound_df["pert_iname"].str.lower()
+        compound_df["moa"] = compound_df["moa"].fillna(
+            compound_df["_pert_iname_key"].map(overrides_lookup)
+        )
+        compound_df = compound_df.drop(columns="_pert_iname_key")
+
     print(compound_df.columns)
     print(compound_df["moa"].value_counts().head())
     print("missing MOA:", compound_df["moa"].isna().mean())
