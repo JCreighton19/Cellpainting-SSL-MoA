@@ -419,11 +419,24 @@ def main():
     compound_df = load_compound_metadata(COMPOUND_METADATA_PATH)
     compound_df = compound_df.drop_duplicates("broad_sample")
     moa_df = load_moa(MOA_PATH)
-    compound_df = compound_df.merge(
-        moa_df[["pert_iname", "moa"]],
-        on="pert_iname",
-        how="left"
+    # pert_iname casing differs between compound_metadata.tsv and the MoA
+    # annotation file (e.g. "purvalanol-a" vs "purvalanol-A"), so join
+    # case-insensitively via a throwaway lowercased key rather than an exact
+    # match on pert_iname, which was silently dropping real MoA annotations.
+    # moa_df has a small number of pert_iname values that only differ by case
+    # (e.g. "sb-431542" vs "SB-431542"); drop_duplicates keeps the first row
+    # per lowercased key so the join can't fan out into duplicate compound_df
+    # rows.
+    moa_lookup = (
+        moa_df.assign(_pert_iname_key=moa_df["pert_iname"].str.lower())
+        .drop_duplicates("_pert_iname_key")[["_pert_iname_key", "moa"]]
     )
+    compound_df["_pert_iname_key"] = compound_df["pert_iname"].str.lower()
+    compound_df = compound_df.merge(
+        moa_lookup,
+        on="_pert_iname_key",
+        how="left"
+    ).drop(columns="_pert_iname_key")
     print(compound_df.columns)
     print(compound_df["moa"].value_counts().head())
     print("missing MOA:", compound_df["moa"].isna().mean())
