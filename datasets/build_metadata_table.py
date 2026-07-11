@@ -81,6 +81,72 @@ def parse_timepoint(experiment: str):
     return None
 
 
+_BR_PLATE_SUFFIX_RE = re.compile(r"^(?P<base>BR\d+)(?P<suffix>[A-Za-z])$")
+
+
+def strip_reimaging_suffix(barcode: str) -> str:
+    """
+    BR00116991A -> BR00116991 (drops a trailing re-imaging suffix letter)
+    BR00116991F -> BR00116991
+    BR00116992D -> BR00116992
+    Only handles the "BR{digits}{letter}" plate pattern; any other barcode
+    (including a bare "BR00116991" with no suffix) is returned unchanged.
+    """
+    match = _BR_PLATE_SUFFIX_RE.match(barcode)
+    return match.group("base") if match else barcode
+
+
+def resolve_load_data_path(experiment: str, acquisition_id: str, barcode: str) -> Path:
+    """
+    Most Cell Painting Gallery experiments (e.g. the original cpg0000-jump-pilot
+    "2020_11_04_CPJUMP1") store load_data.csv per acquisition folder:
+        load_data_csv/{experiment}/{acquisition_id}/load_data.csv
+
+    Some experiments -- e.g. "2020_12_08_CPJUMP1_Bleaching" -- instead store it
+    keyed by the BASE plate barcode (re-imaging suffix letter stripped), with
+    no experiment folder at all:
+        load_data_csv/{base_barcode}/load_data.csv
+    even though the matching images still live under
+        images/{experiment}/{acquisition_id}/...
+
+    e.g. acquisition_id="BR00116991A__2020-11-11T18_34_27-Measurement1" ->
+    base_barcode="BR00116991" -> data/raw/load_data_csv/BR00116991/load_data.csv
+
+    Tries the acquisition-path form first (preserves existing behavior for
+    experiments laid out that way), then falls back to the base-barcode form.
+    This only affects WHERE load_data.csv is read from -- the `plate` column
+    written into the metadata table stays the full acquisition_id either way.
+    """
+    acquisition_path = LOAD_DATA_ROOT / experiment / acquisition_id / "load_data.csv"
+    if acquisition_path.exists():
+        print(f"[load_data] Resolved load_data.csv via acquisition path: {acquisition_path}")
+        return acquisition_path
+
+    base_barcode = strip_reimaging_suffix(barcode)
+    fallback_path = LOAD_DATA_ROOT / base_barcode / "load_data.csv"
+    if fallback_path.exists():
+        print(f"[load_data] Resolved load_data.csv via base barcode fallback: {base_barcode}")
+        return fallback_path
+
+    # Neither location exists -- return the acquisition-path form so the
+    # existing "not found" handling/messaging in main() stays unchanged.
+    return acquisition_path
+
+
+def _selfcheck_base_barcode_resolution():
+    """Standalone sanity check (not a full test suite) for the base-barcode
+    fallback path construction used by resolve_load_data_path() above."""
+    acquisition_id = "BR00116991A__2020-11-11T18_34_27-Measurement1"
+    barcode, _ = parse_acquisition_id(acquisition_id)
+    base_barcode = strip_reimaging_suffix(barcode)
+    expected = LOAD_DATA_ROOT / "BR00116991" / "load_data.csv"
+    actual = LOAD_DATA_ROOT / base_barcode / "load_data.csv"
+    assert actual == expected, f"base barcode resolution check failed: {actual} != {expected}"
+
+
+_selfcheck_base_barcode_resolution()
+
+
 # WELL NORMALIZATION
 def rc_to_a01(well: str):
     match = re.match(r"r(\d{2})c(\d{2})", well.lower())
@@ -406,9 +472,7 @@ def main():
             skipped_missing_platemap.append((experiment, acquisition_id))
             continue
 
-        load_data_path = (
-            LOAD_DATA_ROOT / experiment / acquisition_id / "load_data.csv"
-        )
+        load_data_path = resolve_load_data_path(experiment, acquisition_id, barcode)
         image_root = IMAGE_ROOT / experiment / acquisition_id
 
         if not load_data_path.exists():
