@@ -55,9 +55,11 @@
   <section class="center-panel">
     <div class="plot-header">
       <h1 class="h5 mb-1">DINO Embedding Map</h1>
-      <p class="small text-muted mb-2">Click a point to select it; click the selected point again to deselect it.</p>
+      <p class="small text-muted mb-2">Click a point to select it; click elsewhere to clear selection</p>
     </div>
     <div id="umap-plot" class="umap-plot"></div>
+    <p class="small text-muted map-legend-caption">Click a color to isolate it, click again to restore all. Double-click a color to hide it, and double-click again to restore it.</p>
+    <div id="map-legend" class="map-legend"></div>
   </section>
 
   <div class="resize-handle" id="resize-handle-right"></div>
@@ -175,6 +177,18 @@
   <p class="small mb-0">
     This is a measure of similarity in the model's feature space — not a direct measurement of
     biological similarity.
+  </p>
+
+  <h3 class="h6 mt-3">Why don't the closest points on the map always match the neighbor list?</h3>
+  <p class="small">
+    The "Neighborhood Summary" and "Representative Neighbors" panels are computed directly in the
+    full, 384-dimensional embedding space, not from the 2D positions shown on the map.
+  </p>
+  <p class="small">
+    UMAP is built to preserve local structure, but compressing 384 dimensions down to 2 is lossy:
+    a point can land visually near others on the map without being one of its true nearest
+    neighbors in the full embedding space, and vice versa. This is an expected property of any 2D
+    projection, not an error in the panel.
   </p>
 
   <h3 class="h6 mt-3">What does the attention map show?</h3>
@@ -362,6 +376,30 @@
     The final map is therefore an interactive window into the model's learned feature space
     rather than a direct biological coordinate system.
   </p>
+
+  <h3 class="h6 mt-3">Limitations</h3>
+  <ul class="small mb-0">
+    <li>
+      The compound library behind this map is a single fixed reference set (~300 compounds, one
+      plate design) imaged across multiple replicate plates — not the broad chemical diversity
+      used in larger benchmark studies, so results should not be read as a general test of the
+      model's chemistry coverage.
+    </li>
+    <li>
+      The learned representation still shows a measurable plate/batch effect: which plate a well
+      came from is more predictable from the embedding than one might expect from morphology
+      alone.
+    </li>
+    <li>
+      Agreement between a well's neighbors and its annotated MoA is well above random chance, but
+      modest in absolute terms — treat clustering patterns as suggestive, not diagnostic.
+    </li>
+    <li>
+      The 2D UMAP layout is for visualization only. Similarity and neighbor calculations are
+      performed in the full, high-dimensional embedding space and can disagree with what looks
+      closest on the 2D map (see "How to Read This Map").
+    </li>
+  </ul>
 
   <h3 class="h6 mt-3">References and acknowledgements</h3>
   <p class="small mb-1">This project builds upon:</p>

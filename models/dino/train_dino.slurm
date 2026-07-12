@@ -85,6 +85,21 @@ fi
 export RESUME_DIR
 
 # ----------------------------
+# PER-RUN LOG SYMLINKS
+# ----------------------------
+# #SBATCH --output/--error above are evaluated by sbatch at submit time,
+# before RESUME_DIR exists, so the real .out/.err files always land in the
+# flat logs/ dir -- there's no way to point them at RESUME_DIR directly.
+# Symlinking them into the run's own directory instead of copying at the end
+# of the script means the association survives an ungraceful kill (e.g.
+# hitting --time), not just a clean exit -- $SLURM_JOB_ID is already known
+# this early, so the link can be created before training even starts.
+RUN_LOG_DIR="$RESUME_DIR/logs"
+mkdir -p "$RUN_LOG_DIR"
+ln -sf "$OUT/logs/${SLURM_JOB_NAME}_${SLURM_JOB_ID}.out" "$RUN_LOG_DIR/${SLURM_JOB_NAME}_${SLURM_JOB_ID}.out"
+ln -sf "$OUT/logs/${SLURM_JOB_NAME}_${SLURM_JOB_ID}.err" "$RUN_LOG_DIR/${SLURM_JOB_NAME}_${SLURM_JOB_ID}.err"
+
+# ----------------------------
 # SINGLE CONTINUOUS LOG FILE
 # ----------------------------
 LOGFILE="$RESUME_DIR/train.log"

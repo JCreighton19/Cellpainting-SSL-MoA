@@ -1,3 +1,9 @@
+<!-- Consumed by map.js (selectWell) to draw connector lines from this well
+     to its true nearest neighbors on the UMAP plot, since those neighbors
+     are computed server-side in the full embedding space and aren't
+     otherwise available to the client-side plot data. -->
+<div id="neighbor-well-ids" class="d-none" data-ids="{{ neighbors|map(attribute='well_id')|join(',') }}"></div>
+
 <div class="thumbnail-placeholder position-relative border rounded d-flex align-items-center justify-content-center mb-3">
   {% if well.thumbnail_path %}
     <img class="thumbnail-img" src="{{ url_for('static', filename=well.thumbnail_path) }}" alt="{{ well.pert_iname or well.well_id }}">
@@ -46,7 +52,17 @@
 <hr>
 
 <!-- SECTION 2: evidence -->
-<h3 class="h6 text-uppercase text-muted mb-2">Neighborhood summary</h3>
+<h3 class="h6 text-muted mb-2 d-flex align-items-center gap-1">
+  Neighborhood summary
+  <details class="info-tooltip">
+    <summary aria-label="How are these neighbors determined?">?</summary>
+    <div class="info-tooltip-popup small">
+      These neighbors are identified using the model's underlying similarity scores, not their
+      position on the 2D map above. Because the map is a simplified projection, a true neighbor
+      may appear visually distant. See "How to Read This Map" for more detail.
+    </div>
+  </details>
+</h3>
 {% if stats %}
 <dl class="row small mb-0">
   <dt class="col-7">Mean similarity</dt>
@@ -78,8 +94,8 @@
 
 <hr>
 
-<!-- SECTION 3: representative neighbors, summarized before enumerated -->
-<h3 class="h6 text-uppercase text-muted mb-1">Representative neighbors</h3>
+<!-- SECTION 3: nearest neighbors, summarized before enumerated -->
+<h3 class="h6 text-uppercase text-muted mb-1">Nearest neighbors</h3>
 {% for n in neighbors %}
 <div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small">
   <div>

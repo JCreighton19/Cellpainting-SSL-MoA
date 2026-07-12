@@ -33,6 +33,60 @@ def get_checkpoints(run_dir):
     return [(e, os.path.join(run_dir, f)) for e, f in ckpts]
 
 
+def select_foreground_crops(img, otsu_thresh):
+    """
+    Tile a single FOV into non-overlapping CROP_SIZE×CROP_SIZE crops, keep
+    those with ≥MIN_FG foreground (DNA channel > Otsu). Falls back to a
+    single centre crop if none pass. Pure tensor op -- no device move, no
+    model call -- so callers that need the SAME crop locations across
+    multiple versions of an image (e.g. channel-ablation: selecting crops
+    fresh from a DNA-zeroed image would degenerate to the centre-crop
+    fallback, since foreground selection itself depends on the DNA channel)
+    can select once from one image and reuse those locations elsewhere.
+
+    img: (C, H, W) tensor.
+    Returns: (K, C, CROP_SIZE, CROP_SIZE) tensor, K>=1, same device as img.
+    """
+    C, H, W = img.shape
+    n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
+
+    if n_h == 0 or n_w == 0:
+        # image smaller than crop size — use the full image
+        return img.unsqueeze(0)
+
+    # unfold into (n_h*n_w, C, CROP_SIZE, CROP_SIZE) — views until .contiguous()
+    crops = (img.unfold(1, CROP_SIZE, CROP_SIZE)   # (C, n_h, W, crop)
+                .unfold(2, CROP_SIZE, CROP_SIZE)   # (C, n_h, n_w, crop, crop)
+                .permute(1, 2, 0, 3, 4)            # (n_h, n_w, C, crop, crop)
+                .contiguous()
+                .view(n_h * n_w, C, CROP_SIZE, CROP_SIZE))  # ~4 MB for 16 crops
+
+    fg = (crops[:, 4] > otsu_thresh).float().mean(dim=[1, 2]) >= MIN_FG
+    crops = crops[fg]
+
+    if len(crops) == 0:
+        r0 = (H - CROP_SIZE) // 2
+        c0 = (W - CROP_SIZE) // 2
+        crops = img[:, r0:r0 + CROP_SIZE, c0:c0 + CROP_SIZE].unsqueeze(0)
+
+    return crops
+
+
+@torch.no_grad()
+def embed_crops(model, crops, device):
+    """
+    Forward-pass an already-selected set of crops through model, sub-batched
+    to bound VRAM usage, and return the L2-normalised mean embedding.
+
+    crops: (K, C, CROP_SIZE, CROP_SIZE) tensor, any device.
+    Returns: (D,) tensor on device.
+    """
+    crops = crops.to(device)
+    parts = [model(crops[i:i + CROP_BATCH]) for i in range(0, len(crops), CROP_BATCH)]
+    z = F.normalize(torch.cat(parts, dim=0), dim=1)
+    return z.mean(dim=0)  # (D,)
+
+
 @torch.no_grad()
 def embed_fov(model, img, otsu_thresh, device):
     """
@@ -42,34 +96,8 @@ def embed_fov(model, img, otsu_thresh, device):
 
     img: (C, H, W) tensor, already on CPU (moved per-item to avoid OOM).
     """
-    C, H, W = img.shape
-    n_h, n_w = H // CROP_SIZE, W // CROP_SIZE
-
-    if n_h == 0 or n_w == 0:
-        # image smaller than crop size — use the full image
-        crops = img.unsqueeze(0).to(device)
-    else:
-        # unfold into (n_h*n_w, C, CROP_SIZE, CROP_SIZE) — views until .contiguous()
-        crops = (img.unfold(1, CROP_SIZE, CROP_SIZE)   # (C, n_h, W, crop)
-                    .unfold(2, CROP_SIZE, CROP_SIZE)   # (C, n_h, n_w, crop, crop)
-                    .permute(1, 2, 0, 3, 4)            # (n_h, n_w, C, crop, crop)
-                    .contiguous()
-                    .view(n_h * n_w, C, CROP_SIZE, CROP_SIZE))  # ~4 MB for 16 crops
-
-        fg = (crops[:, 4] > otsu_thresh).float().mean(dim=[1, 2]) >= MIN_FG
-        crops = crops[fg]
-
-        if len(crops) == 0:
-            r0 = (H - CROP_SIZE) // 2
-            c0 = (W - CROP_SIZE) // 2
-            crops = img[:, r0:r0 + CROP_SIZE, c0:c0 + CROP_SIZE].unsqueeze(0)
-
-        crops = crops.to(device)
-
-    # sub-batch through model to bound VRAM usage
-    parts = [model(crops[i:i + CROP_BATCH]) for i in range(0, len(crops), CROP_BATCH)]
-    z = F.normalize(torch.cat(parts, dim=0), dim=1)
-    return z.mean(dim=0)  # (D,)
+    crops = select_foreground_crops(img, otsu_thresh)
+    return embed_crops(model, crops, device)
 
 
 def load_model(checkpoint_path, device):

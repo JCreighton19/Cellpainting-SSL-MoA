@@ -270,20 +270,10 @@ def register_routes(app, store, sim_index):
         interpretation = generate_interpretation("well", well["moa"], stats)
         moa_info = describe_moa(well["moa"])
 
-        # Representative Neighbors: collapse replicate wells of the same
-        # compound into one entry (first = highest similarity, since
-        # `neighbors` is already sorted by descending score).
-        seen, representative_neighbors = set(), []
-        for n in neighbors:
-            key = n["broad_sample"] or n["well_id"]
-            if key not in seen:
-                seen.add(key)
-                representative_neighbors.append(n)
-
         return render_template(
             "partials/_right_sidebar.html",
             well=well,
-            neighbors=representative_neighbors,
+            neighbors=neighbors,
             stats=stats,
             interpretation=interpretation,
             moa_info=moa_info,
