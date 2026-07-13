@@ -34,14 +34,13 @@ const FILTERED_OUT_OPACITY = 0.25;
 // active search filter, so matches jump out regardless of colorBy mode.
 const MATCH_HIGHLIGHT_COLOR = "#00e676";
 
-// 3D UMAP was evaluated and intentionally deferred: the precomputed
-// wells.parquet only carries umap_x/umap_y (see scripts/prepare_phase1_data.py,
-// which fits UMAP with n_components=2), so a 3rd dimension needs an offline
-// re-fit of the whole dataset. On the front end it would also mean swapping
-// scattergl for Plotly's scatter3d (a different trace type with orbit-camera
-// controls instead of 2D pan/zoom) and reworking centerOn()/updateHighlightPosition(),
-// which both assume a 2D axis range. That's real restructuring, not a toggle
-// away from where the app is today, so it isn't implemented here.
+// 3D UMAP is a separate offline fit (n_components=3, see
+// scripts/prepare_phase1_data.py), not a 3rd axis bolted onto the 2D layout
+// -- wells.parquet carries both umap_x/umap_y (2D) and umap_x_3d/umap_y_3d/
+// umap_z_3d (3D) side by side, and /api/umap returns both (x/y and x3d/y3d/z3d).
+// The `is3D` flag below switches trace type (scattergl <-> scatter3d) and
+// coordinate source; 2D remains the default and is otherwise untouched.
+let is3D = false;
 
 let plotEl = null;
 let umapData = null;
@@ -49,6 +48,12 @@ let selectedWellId = null;
 let highlightTraceIndex = null;
 let neighborLinesTraceIndex = null;
 let neighborMarkersTraceIndex = null;
+// 3D's selected-point indicator: a plain DOM element positioned via manual
+// camera projection (see startHighlight3D) rather than a Plotly trace, since
+// even a single-point Plotly.restyle() on the 3D scene is expensive enough to
+// freeze the UI (gl3d rebuilds every trace in the scene on any restyle).
+let highlight3DEl = null;
+let highlight3DRaf = null;
 // well_ids of the selected point's true nearest neighbors (full embedding
 // space, from the sidebar's neighbor list), so render() can redraw them
 // after a color-by/filter change rebuilds every trace from scratch.
@@ -69,18 +74,33 @@ let isolatedLegendKey = null;
 // the first half of a double-click -- see handleLegendClick().
 let legendClickTimer = null;
 const LEGEND_DBLCLICK_MS = 300;
+// Thresholds for telling a real click apart from a 3D orbit-rotate drag that
+// happens to end over empty canvas -- see the mousedown/click listeners in
+// initMap().
+const CLICK_MAX_DURATION_MS = 400;
+const CLICK_MAX_MOVE_PX = 5;
 
 function hoverText(data, i) {
   return `Plate: ${data.plate[i]}<br>MoA: ${data.moa[i]}`;
 }
 
+// Coordinate source for point i: the 2D UMAP (x/y) or the separate 3D UMAP
+// fit (x3d/y3d/z3d), depending on the active view -- see `is3D` above.
+function getCoords(data, i) {
+  return is3D
+    ? { x: data.x3d[i], y: data.y3d[i], z: data.z3d[i] }
+    : { x: data.x[i], y: data.y[i], z: undefined };
+}
+
 function emptyBucket() {
-  return { x: [], y: [], text: [], customdata: [], color: [], opacity: [] };
+  return { x: [], y: [], z: [], text: [], customdata: [], color: [], opacity: [] };
 }
 
 function pushPoint(bucket, data, i, color, opacity) {
-  bucket.x.push(data.x[i]);
-  bucket.y.push(data.y[i]);
+  const c = getCoords(data, i);
+  bucket.x.push(c.x);
+  bucket.y.push(c.y);
+  if (is3D) bucket.z.push(c.z);
   bucket.text.push(hoverText(data, i));
   bucket.customdata.push(data.well_id[i]);
   bucket.color.push(color);
@@ -94,11 +114,26 @@ function mergeDimBright(dim, bright) {
   return {
     x: dim.x.concat(bright.x),
     y: dim.y.concat(bright.y),
+    z: dim.z.concat(bright.z),
     text: dim.text.concat(bright.text),
     customdata: dim.customdata.concat(bright.customdata),
     color: dim.color.concat(bright.color),
     opacity: dim.opacity.concat(bright.opacity),
   };
+}
+
+// Trace type + optional z, shared by every point trace builder below so
+// scattergl (2D) vs scatter3d (3D) only needs deciding in one place.
+function makeTrace(g, { name, size, visible }) {
+  const trace = {
+    x: g.x, y: g.y, text: g.text, customdata: g.customdata,
+    mode: "markers", type: is3D ? "scatter3d" : "scattergl", name, showlegend: false,
+    visible,
+    marker: { size, color: g.color, opacity: g.opacity },
+    hoverinfo: "text",
+  };
+  if (is3D) trace.z = g.z;
+  return trace;
 }
 
 // "other" and "unannotated" are kept as two separate buckets rather than one
@@ -161,24 +196,12 @@ function buildMoaTraces(data) {
   [["unannotated", "no annotated MoA", 5, UNANNOTATED_COLOR], ["other-annotated", "other annotated MoA (grouped for readability)", 5, OTHER_ANNOTATED_COLOR]]
     .forEach(([key, name, size, swatchColor]) => {
       const g = mergeDimBright(groups[key].dim, groups[key].bright);
-      traces.push({
-        x: g.x, y: g.y, text: g.text, customdata: g.customdata,
-        mode: "markers", type: "scattergl", name, showlegend: false,
-        visible: hiddenLegendKeys.has(key) ? "legendonly" : true,
-        marker: { size, color: g.color, opacity: g.opacity },
-        hoverinfo: "text",
-      });
+      traces.push(makeTrace(g, { name, size, visible: hiddenLegendKeys.has(key) ? "legendonly" : true }));
       legendItems.push({ key, label: name, color: swatchColor });
     });
   topMoas.forEach((m) => {
     const g = mergeDimBright(groups[m].dim, groups[m].bright);
-    traces.push({
-      x: g.x, y: g.y, text: g.text, customdata: g.customdata,
-      mode: "markers", type: "scattergl", name: m, showlegend: false,
-      visible: hiddenLegendKeys.has(m) ? "legendonly" : true,
-      marker: { size: 7, color: g.color, opacity: g.opacity },
-      hoverinfo: "text",
-    });
+    traces.push(makeTrace(g, { name: m, size: 7, visible: hiddenLegendKeys.has(m) ? "legendonly" : true }));
     legendItems.push({ key: m, label: m, color: topMoaColor[m] });
   });
   pushMatchedTrace(traces, matched);
@@ -191,12 +214,7 @@ function buildMoaTraces(data) {
 // active filter or nothing matched.
 function pushMatchedTrace(traces, matched) {
   if (!matchSet || !matched.x.length) return;
-  traces.push({
-    x: matched.x, y: matched.y, text: matched.text, customdata: matched.customdata,
-    mode: "markers", type: "scattergl", name: "search match", showlegend: false,
-    marker: { size: 8, color: matched.color, opacity: matched.opacity },
-    hoverinfo: "text",
-  });
+  traces.push(makeTrace(matched, { name: "search match", size: 8, visible: true }));
 }
 
 function buildPlateTraces(data) {
@@ -222,19 +240,19 @@ function buildPlateTraces(data) {
 
   const traces = plates.map((p) => {
     const g = mergeDimBright(groups[p].dim, groups[p].bright);
-    return {
-      x: g.x, y: g.y, text: g.text, customdata: g.customdata,
-      mode: "markers", type: "scattergl", name: p, showlegend: false,
-      visible: hiddenLegendKeys.has(p) ? "legendonly" : true,
-      marker: { size: 6, color: g.color, opacity: g.opacity },
-      hoverinfo: "text",
-    };
+    return makeTrace(g, { name: p, size: 6, visible: hiddenLegendKeys.has(p) ? "legendonly" : true });
   });
   const legendItems = plates.map((p) => ({ key: p, label: p, color: plateColor[p] }));
   pushMatchedTrace(traces, matched);
   return { traces, legendItems };
 }
 
+// Built in both 2D and 3D (unlike the neighbor traces below, which 3D skips
+// entirely -- see render()): a single point restyled on click is cheap
+// enough even under gl3d's whole-scene-rebuild-per-restyle behavior, unlike
+// the neighbor lines/markers which scale with neighbor count on top of that.
+// 2D only -- see render()'s is3D branch and startHighlight3D for 3D's
+// restyle-free equivalent.
 function buildHighlightTrace() {
   return {
     x: [], y: [], mode: "markers", type: "scattergl",
@@ -248,7 +266,7 @@ function buildHighlightTrace() {
 // updateNeighborHighlights(). Dotted connector lines make it obvious when a
 // neighbor is visually far away on the map, which is the point: it makes the
 // UMAP-vs-embedding-space discrepancy explained in "How to Read This Map"
-// visible instead of just asserted.
+// visible instead of just asserted. 2D only -- see render().
 function buildNeighborTraces() {
   return [
     {
@@ -264,36 +282,56 @@ function buildNeighborTraces() {
   ];
 }
 
+// No-op in 3D (neighborLinesTraceIndex is null there -- see render()): gl3d
+// rebuilds the ENTIRE scene's point buffers on any restyle to any trace
+// bound to it (Scene.prototype.plot in plotly.js loops over every trace in
+// the scene, not just the restyled ones), so restyling this on every click
+// forced a full ~5,100-point scene rebuild each time. The sidebar's neighbor
+// list/stats already show this information without needing an on-map
+// overlay, so 3D just skips it instead of paying that cost.
 function updateNeighborHighlights(wellId, neighborIds) {
+  if (neighborLinesTraceIndex === null) return;
   const idx = umapData.well_id.indexOf(wellId);
-  if (idx === -1 || neighborLinesTraceIndex === null) return;
-  const cx = umapData.x[idx];
-  const cy = umapData.y[idx];
+  if (idx === -1) return;
   const lineX = [], lineY = [], nx = [], ny = [];
   neighborIds.forEach((nid) => {
     const ni = umapData.well_id.indexOf(nid);
     if (ni === -1) return;
-    lineX.push(cx, umapData.x[ni], null);
-    lineY.push(cy, umapData.y[ni], null);
+    lineX.push(umapData.x[idx], umapData.x[ni], null);
+    lineY.push(umapData.y[idx], umapData.y[ni], null);
     nx.push(umapData.x[ni]);
     ny.push(umapData.y[ni]);
   });
-  Plotly.restyle(plotEl, { x: [lineX], y: [lineY] }, [neighborLinesTraceIndex]);
-  Plotly.restyle(plotEl, { x: [nx], y: [ny] }, [neighborMarkersTraceIndex]);
+  // One restyle across both trace indices instead of two separate calls.
+  Plotly.restyle(plotEl, { x: [lineX, nx], y: [lineY, ny] }, [neighborLinesTraceIndex, neighborMarkersTraceIndex]);
 }
 
-function clearNeighborHighlights() {
-  selectedNeighborIds = [];
-  if (neighborLinesTraceIndex === null) return;
-  Plotly.restyle(plotEl, { x: [[]], y: [[]] }, [neighborLinesTraceIndex]);
-  Plotly.restyle(plotEl, { x: [[]], y: [[]] }, [neighborMarkersTraceIndex]);
+// UMAP axis titles don't carry meaningful units (see "How to Read This Map"),
+// so the title is de-emphasized -- small, muted font instead of Plotly's bold
+// default -- but otherwise 2D keeps its original, fully-interactive axes
+// (grid, zeroline, tick labels all still Plotly's normal behavior as you pan/
+// zoom); only tick marks (the little perpendicular dashes) are turned off,
+// same as Plotly's own default for this axis type.
+const AXIS_LINE_COLOR = "#ced4da";
+function axisTitle(text) {
+  return { text, font: { size: 11, color: "#868e96" } };
 }
+// Native scatter3d axis lines are drawn along whichever box edge is
+// currently "back-facing" the camera, so they jump to a different edge as
+// the view rotates -- showline: false here turns that off in favor of the
+// fixed, origin-crossing lines added as their own traces (see
+// buildOriginAxisTraces), which don't move.
+const CLEAN_3D_AXIS = {
+  showgrid: false, zeroline: false, showticklabels: false, ticks: "",
+  showspikes: false,
+  showline: false,
+};
 
-function defaultLayout() {
+function default2DLayout() {
   return {
     margin: { t: 10, r: 10, b: 40, l: 40 },
-    xaxis: { title: "UMAP 1" },
-    yaxis: { title: "UMAP 2" },
+    xaxis: { title: axisTitle("UMAP 1"), ticks: "" },
+    yaxis: { title: axisTitle("UMAP 2"), ticks: "" },
     // Plotly's own legend is a single column and can't be reflowed into
     // multiple columns, so it's hidden here in favor of the custom
     // #map-legend built by renderLegend() below.
@@ -301,6 +339,72 @@ function defaultLayout() {
     dragmode: "pan",
     hovermode: "closest",
   };
+}
+
+// Padded [lo, hi] extent of arr, extended to include 0 if the data doesn't
+// already reach it (so an origin-crossing axis line always actually crosses).
+// Shared by default3DLayout (explicit scene axis range) and
+// buildOriginAxisTraces (axis line endpoints) so both agree on the same
+// bounds -- see default3DLayout for why the range needs to be explicit.
+function compute3DExtent(arr) {
+  let lo = 0, hi = 0;
+  for (const v of arr) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const pad = (hi - lo) * 0.05;
+  return [lo - pad, hi + pad];
+}
+
+// scatter3d traces live in a "scene", not top-level xaxis/yaxis -- navigation
+// is orbit/zoom (Plotly's built-in scatter3d camera controls) rather than the
+// 2D pan/zoom above, so there's no dragmode to set here. showspikes: false
+// on all three axes turns off the dashed projection lines Plotly otherwise
+// draws from a hovered/selected point to each scene wall.
+//
+// Explicit range (instead of leaving it on Plotly's default autorange) matters
+// for more than layout: without it, every Plotly.restyle() that moves the
+// highlight/neighbor traces (i.e. every point click) makes gl3d recompute the
+// scene's bounding box from all traces' data before it can redraw -- on top of
+// gl3d's own full-scene redraw per restyle, that's real, avoidable cost on
+// every single click. A fixed range (points never fall outside it) removes
+// that recompute.
+function default3DLayout() {
+  return {
+    margin: { t: 10, r: 10, b: 10, l: 10 },
+    scene: {
+      xaxis: { title: axisTitle("UMAP 1"), range: compute3DExtent(umapData.x3d), ...CLEAN_3D_AXIS },
+      yaxis: { title: axisTitle("UMAP 2"), range: compute3DExtent(umapData.y3d), ...CLEAN_3D_AXIS },
+      zaxis: { title: axisTitle("UMAP 3"), range: compute3DExtent(umapData.z3d), ...CLEAN_3D_AXIS },
+    },
+    showlegend: false,
+    hovermode: "closest",
+  };
+}
+
+// Fixed, view-independent stand-in for the native (moving) 3D axis lines:
+// three line traces crossing at the data origin, each spanning that axis's
+// full (padded) range -- see compute3DExtent. Plain data traces, so they
+// don't move when the camera orbits, unlike scene.xaxis/yaxis/zaxis's own
+// axis line.
+function buildOriginAxisTraces(data) {
+  const [xlo, xhi] = compute3DExtent(data.x3d);
+  const [ylo, yhi] = compute3DExtent(data.y3d);
+  const [zlo, zhi] = compute3DExtent(data.z3d);
+  const axisLine = (x, y, z) => ({
+    x, y, z, mode: "lines", type: "scatter3d",
+    name: "axis-line", showlegend: false, hoverinfo: "skip",
+    line: { color: AXIS_LINE_COLOR, width: 3 },
+  });
+  return [
+    axisLine([xlo, xhi], [0, 0], [0, 0]),
+    axisLine([0, 0], [ylo, yhi], [0, 0]),
+    axisLine([0, 0], [0, 0], [zlo, zhi]),
+  ];
+}
+
+function defaultLayout() {
+  return is3D ? default3DLayout() : default2DLayout();
 }
 
 // Single click: isolate this key (hide every other), or restore all if it's
@@ -370,7 +474,10 @@ function renderLegend(items) {
 }
 
 // Mouse wheel zooms, left-drag pans, hover always on; the toolbar is trimmed
-// to just "Reset axes" so normal navigation never needs it.
+// to just "Reset axes" so normal navigation never needs it. The 3D-only
+// entries here (tableRotation, resetCameraLastSave3d) are harmless no-ops
+// when the current plot is 2D -- Plotly silently ignores removal requests
+// for buttons that don't apply to the active trace type.
 const PLOT_CONFIG = {
   responsive: true,
   scrollZoom: true,
@@ -379,21 +486,36 @@ const PLOT_CONFIG = {
     "zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
     "autoScale2d", "hoverClosestCartesian", "hoverCompareCartesian",
     "toggleSpikelines", "toImage",
+    "tableRotation", "resetCameraLastSave3d",
   ],
 };
 
 // Re-renders using the current colorBy mode and search filter (module state
 // above), so any caller that changes either one just calls render() again.
-function render() {
+// Pass resetLayout: true when switching 2D/3D -- scatter3d's "scene" layout
+// and scattergl's "xaxis"/"yaxis" layout aren't interchangeable, so the old
+// plotEl.layout (from the other mode) can't be reused there.
+function render(opts) {
+  opts = opts || {};
   const result = currentColorBy === "plate" ? buildPlateTraces(umapData) : buildMoaTraces(umapData);
   const traces = result.traces;
-  highlightTraceIndex = traces.length;
-  traces.push(buildHighlightTrace());
-  neighborLinesTraceIndex = traces.length;
-  const neighborTraces = buildNeighborTraces();
-  traces.push(...neighborTraces);
-  neighborMarkersTraceIndex = neighborLinesTraceIndex + 1;
-  Plotly.react(plotEl, traces, plotEl.layout || defaultLayout(), PLOT_CONFIG);
+  // 3D skips the highlight-ring/neighbor-line overlay traces entirely --
+  // see updateHighlightPosition/startHighlight3D and updateNeighborHighlights
+  // for why (both restyle-free in 3D instead).
+  if (is3D) {
+    highlightTraceIndex = null;
+    neighborLinesTraceIndex = null;
+    neighborMarkersTraceIndex = null;
+    traces.push(...buildOriginAxisTraces(umapData));
+  } else {
+    highlightTraceIndex = traces.length;
+    traces.push(buildHighlightTrace());
+    neighborLinesTraceIndex = traces.length;
+    traces.push(...buildNeighborTraces());
+    neighborMarkersTraceIndex = neighborLinesTraceIndex + 1;
+  }
+  const layout = opts.resetLayout ? defaultLayout() : (plotEl.layout || defaultLayout());
+  Plotly.react(plotEl, traces, layout, PLOT_CONFIG);
   renderLegend(result.legendItems);
   // Plotly sizes the plot against #umap-plot's height at the moment
   // Plotly.react() runs, which is BEFORE renderLegend() above has given
@@ -419,12 +541,123 @@ function setColorBy(mode) {
   render();
 }
 
+// Toggles between the 2D UMAP (default) and the separate 3D UMAP fit. Colors,
+// legend, search filter, and selection all carry over unchanged -- only the
+// coordinate source, trace type, and layout (see render's resetLayout) differ.
+function setDimension(is3DNext) {
+  if (is3DNext === is3D) return;
+  // Stop tracking regardless of which direction we're switching -- render()
+  // below re-establishes the right one (a fresh 2D restyle, or a fresh
+  // startHighlight3D loop) if there's still a selection.
+  stopHighlight3D();
+  is3D = is3DNext;
+  render({ resetLayout: true });
+}
+
 function updateHighlightPosition(wellId) {
+  if (is3D) {
+    startHighlight3D(wellId);
+    return;
+  }
+  if (highlightTraceIndex === null) return;
   const idx = umapData.well_id.indexOf(wellId);
   if (idx === -1) return;
   Plotly.restyle(plotEl, { x: [[umapData.x[idx]]], y: [[umapData.y[idx]]] }, [highlightTraceIndex]);
 }
 
+// Same model/view/projection transform gl3d itself uses on every point (see
+// plotly.js's src/plots/gl3d/project.js -- not public API, so reimplemented
+// here) to convert a raw (x, y, z) data coordinate to clip space. Reading
+// these matrices costs nothing extra: Plotly already recomputes them every
+// frame while orbiting, whether or not we look at them.
+function projectPoint3D(cameraParams, v) {
+  const xform = (m, p) => {
+    const out = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 4; j++) out[j] += m[4 * i + j] * p[i];
+    }
+    return out;
+  };
+  return xform(cameraParams.projection, xform(cameraParams.view, xform(cameraParams.model, [v[0], v[1], v[2], 1])));
+}
+
+function get3DScene() {
+  const fullLayout = plotEl && plotEl._fullLayout;
+  return (fullLayout && fullLayout.scene && fullLayout.scene._scene) || null;
+}
+
+function ensureHighlight3DEl(container) {
+  if (highlight3DEl && highlight3DEl.parentNode !== container) {
+    highlight3DEl.parentNode.removeChild(highlight3DEl);
+    highlight3DEl = null;
+  }
+  if (!highlight3DEl) {
+    highlight3DEl = document.createElement("div");
+    highlight3DEl.className = "umap-3d-highlight";
+    container.appendChild(highlight3DEl);
+  }
+  return highlight3DEl;
+}
+
+function stopHighlight3D() {
+  if (highlight3DRaf !== null) {
+    cancelAnimationFrame(highlight3DRaf);
+    highlight3DRaf = null;
+  }
+  if (highlight3DEl) highlight3DEl.style.display = "none";
+}
+
+// 3D's restyle-free stand-in for updateHighlightPosition: projects the
+// selected point's data coordinate to screen pixels every animation frame
+// (so it tracks the point through camera orbit/zoom) and positions a plain
+// DOM dot there -- no Plotly.restyle()/react()/relayout() call involved, so
+// it never triggers gl3d's whole-scene rebuild. Stops itself (see the guard
+// below) once the selection changes or the scene becomes unavailable, e.g.
+// after switching back to 2D.
+function startHighlight3D(wellId) {
+  if (highlight3DRaf !== null) cancelAnimationFrame(highlight3DRaf);
+
+  function tick() {
+    const scene = get3DScene();
+    const idx = umapData.well_id.indexOf(wellId);
+    if (!is3D || !scene || !scene.glplot || idx === -1 || wellId !== selectedWellId) {
+      stopHighlight3D();
+      return;
+    }
+    const container = scene.container;
+    const el = ensureHighlight3DEl(container);
+    // gl3d doesn't feed raw data values into the camera matrices -- every
+    // vertex is pre-scaled by scene.dataScale first (confirmed directly in
+    // plotly.js's scatter3d/convert.js: "xc = ... * scaleFactor[0]"), so the
+    // point we project has to go through that same scaling or it lands
+    // nowhere near the actual rendered point.
+    const ds = scene.dataScale || [1, 1, 1];
+    const p = projectPoint3D(scene.glplot.cameraParams, [
+      umapData.x3d[idx] * ds[0],
+      umapData.y3d[idx] * ds[1],
+      umapData.z3d[idx] * ds[2],
+    ]);
+    const ndcX = p[3] > 0 ? p[0] / p[3] : NaN;
+    const ndcY = p[3] > 0 ? p[1] / p[3] : NaN;
+    // Behind the camera, or rotated outside the visible viewport (valid NDC
+    // is -1..1 on each axis) -- hide rather than draw over the legend/
+    // sidebars, which happened before since nothing clamped the projected
+    // position to the plot area.
+    if (p[3] <= 0 || ndcX < -1 || ndcX > 1 || ndcY < -1 || ndcY > 1) {
+      el.style.display = "none";
+    } else {
+      el.style.display = "block";
+      el.style.left = `${((ndcX + 1) / 2) * container.clientWidth}px`;
+      el.style.top = `${((1 - ndcY) / 2) * container.clientHeight}px`;
+    }
+    highlight3DRaf = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// 2D-only: scatter3d navigates via orbit/zoom camera controls rather than an
+// xaxis/yaxis range, so there's no equivalent "pan to point" in 3D -- callers
+// guard with `!is3D` (see selectWell) rather than this being a no-op here.
 function centerOn(x, y) {
   const layout = plotEl._fullLayout;
   if (!layout) return;
@@ -443,7 +676,7 @@ function selectWell(wellId, opts) {
   selectedWellId = wellId;
   updateHighlightPosition(wellId);
 
-  if (opts.center !== false) {
+  if (opts.center !== false && !is3D) {
     const idx = umapData.well_id.indexOf(wellId);
     if (idx !== -1) centerOn(umapData.x[idx], umapData.y[idx]);
   }
@@ -492,8 +725,15 @@ function setImageView(view) {
 // that case).
 function clearSelection() {
   selectedWellId = null;
-  Plotly.restyle(plotEl, { x: [[]], y: [[]] }, [highlightTraceIndex]);
-  clearNeighborHighlights();
+  selectedNeighborIds = [];
+  stopHighlight3D();
+  // highlightTraceIndex/neighborLinesTraceIndex/neighborMarkersTraceIndex are
+  // all null in 3D (see render()), so this is 2D-only and a no-op in 3D.
+  if (highlightTraceIndex !== null) {
+    // Single restyle across all 3 traces instead of separate calls.
+    const idxs = [highlightTraceIndex, neighborLinesTraceIndex, neighborMarkersTraceIndex];
+    Plotly.restyle(plotEl, { x: idxs.map(() => []), y: idxs.map(() => []) }, idxs);
+  }
   document.getElementById("sidebar-content").innerHTML =
     '<p class="text-muted small">Click a point on the map, or search, to explore a phenotype.</p>';
 }
@@ -598,6 +838,18 @@ function initMap() {
         }
       });
 
+      // Orbiting the 3D view is a mousedown-drag-mouseup gesture on the same
+      // canvas element, which browsers still fire a native "click" for on
+      // release regardless of how much the mouse moved in between -- without
+      // this, every rotate ended with the click handler below mistaking it
+      // for a deselect-click on empty canvas. Recorded on mousedown (not by
+      // plotly_click, which only fires for actual marker hits and wouldn't
+      // catch a drag that ends over empty canvas).
+      let mouseDownInfo = null;
+      plotEl.addEventListener("mousedown", (e) => {
+        mouseDownInfo = { x: e.clientX, y: e.clientY, time: Date.now() };
+      });
+
       // plotly_click only fires when a marker is actually hit, so it can't
       // tell us about a click on empty canvas -- a plain DOM listener on the
       // plot container catches those too. Deferred via setTimeout(0) so it
@@ -606,8 +858,17 @@ function initMap() {
       // doesn't also clear the current selection.
       plotEl.addEventListener("click", (e) => {
         if (e.target.closest(".modebar")) return;
+        const down = mouseDownInfo;
+        mouseDownInfo = null;
+        // Only relevant in 3D (2D drags to pan, not rotate, and isn't
+        // reported as having this problem) -- a real click stays put and
+        // resolves quickly; a rotate drag moves the mouse and/or takes a while.
+        const wasDrag = is3D && down && (
+          Date.now() - down.time > CLICK_MAX_DURATION_MS ||
+          Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_MAX_MOVE_PX
+        );
         setTimeout(() => {
-          if (!hitMarkerThisClick && selectedWellId) clearSelection();
+          if (!hitMarkerThisClick && selectedWellId && !wasDrag) clearSelection();
           hitMarkerThisClick = false;
         }, 0);
       });
@@ -616,6 +877,8 @@ function initMap() {
   document.getElementById("color-by-moa").addEventListener("click", () => setColorBy("moa"));
   document.getElementById("color-by-plate").addEventListener("click", () => setColorBy("plate"));
 
+  document.getElementById("view-3d-toggle").addEventListener("change", (e) => setDimension(e.target.checked));
+
   // Delegated listener: _right_sidebar.html is swapped in via innerHTML on
   // every well selection, so the Image/Attention/Overlay buttons don't exist
   // yet at initMap() time -- bind once on the stable parent instead of
@@ -623,6 +886,20 @@ function initMap() {
   document.getElementById("sidebar-content").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-view]");
     if (btn) setImageView(btn.dataset.view);
+  });
+
+  // Closes any open "?" help tooltip (.info-tooltip, e.g. Neighborhood
+  // Summary / Neighborhood consistency) on a click outside it -- native
+  // <details> has no built-in click-outside-to-close. This also covers
+  // "click the other help button": that click's default action (opening
+  // the clicked tooltip) runs after this listener, so the previously open
+  // one is already closed by the time the other one opens. A single
+  // document-level listener works for both current and future tooltips
+  // without needing to rebind after _right_sidebar.html is swapped in.
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll(".info-tooltip[open]").forEach((details) => {
+      if (!details.contains(e.target)) details.removeAttribute("open");
+    });
   });
 
   const input = document.getElementById("search-input");

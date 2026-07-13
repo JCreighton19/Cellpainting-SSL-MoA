@@ -56,6 +56,10 @@ body {
 
 .sidebar-right {
   border-left: 1px solid #e9ecef;
+  /* Wider initial width than the shared 20% default -- still draggable
+     within the usual MIN_SIDEBAR_WIDTH/MAX_SIDEBAR_WIDTH bounds in map.js. */
+  flex-basis: 27%;
+  min-width: 300px;
 }
 
 .sidebar-section {
@@ -73,6 +77,26 @@ body {
 .umap-plot {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* 3D's selected-point indicator: a plain DOM dot positioned via manual camera
+   projection (see startHighlight3D in map.js) rather than a Plotly trace, so
+   selecting a point in 3D never triggers a Plotly restyle/redraw. */
+.umap-3d-highlight {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  /* Centers the circle exactly on its left/top point regardless of the
+     border's own width -- negative margins here would need to account for
+     border-box growth by hand and left the circle only tangent to the
+     point instead of enclosing it. */
+  transform: translate(-50%, -50%);
+  border: 2px solid #000;
+  border-radius: 50%;
+  pointer-events: none;
+  display: none;
+  z-index: 10;
 }
 
 .example-chip {
@@ -158,7 +182,8 @@ body {
 /* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ---- */
 
 .info-dialog {
-  max-width: 480px;
+  position: relative;
+  max-width: 700px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
@@ -169,6 +194,44 @@ body {
 
 .info-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
+}
+
+/* Breaks each subsection into a visible "chapter" instead of one
+   continuous block of text -- the first heading (right under the dialog
+   title) is skipped since it doesn't need its own divider. */
+.info-dialog h3 {
+  margin-top: 1.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.info-dialog h3:first-of-type {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.dialog-close-x {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.dialog-close-x:hover {
+  background-color: #e9ecef;
+  color: #212529;
 }
 
 .thumbnail-placeholder {
@@ -240,9 +303,22 @@ body {
 .info-tooltip-popup {
   position: absolute;
   top: 130%;
-  right: 0;
-  z-index: 20;
+  /* Centered under the trigger rather than right-anchored: right:0 made the
+     popup extend leftward from wherever the trigger happened to sit (e.g.
+     mid-row for "Neighborhood consistency"), which could push it past the
+     sidebar's own left edge -- .sidebar-right's overflow-y:auto clips
+     overflow-x too (a well-known CSS quirk: a non-visible overflow-y forces
+     overflow-x to compute as auto as well), so the popup got silently cut
+     off rather than simply covered. Centering keeps overflow risk
+     symmetric regardless of where the trigger sits. */
+  left: 50%;
+  transform: translateX(-50%);
+  /* Well above anything else on the page (Plotly's plot, cards below it in
+     the DOM, etc.) in case it ever still needs to render outside the
+     sidebar's own bounds. */
+  z-index: 2000;
   width: 180px;
+  max-width: calc(100vw - 2rem);
   padding: 0.5rem 0.6rem;
   background-color: #fff;
   border: 1px solid #dee2e6;
@@ -278,4 +354,25 @@ body {
 
 .neighbor-card-compact {
   background-color: #fff;
+}
+
+/* Right-sidebar channel-importance bar chart (see routes.py's
+   build_channel_importance_bars) -- plain CSS bars rather than a charting
+   library, since it's just 5 small horizontal bars. */
+.channel-bar-label,
+.channel-bar-value {
+  flex: 0 0 auto;
+  width: 2.5rem;
+}
+
+.channel-bar-track {
+  background-color: #e9ecef;
+  border-radius: 3px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.channel-bar-fill {
+  height: 100%;
+  border-radius: 3px;
 }

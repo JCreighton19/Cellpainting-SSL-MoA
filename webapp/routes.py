@@ -51,6 +51,51 @@ MOA_DESCRIPTIONS_PATH = Path(__file__).resolve().parent / "moa_descriptions.json
 with open(MOA_DESCRIPTIONS_PATH) as _f:
     _MOA_DESCRIPTIONS = {k: v for k, v in json.load(_f).items() if not k.startswith("_")}
 
+# Written by scripts/generate_web_channel_importance.py -- one combined JSON
+# ({well_id: {channel_name: {"importance", "cosine_similarity"}}}), not one
+# file per well (see that script's docstring). Optional: guarded rather than
+# a bare open() since, unlike moa_descriptions.json, this artifact may not
+# have been generated yet for a given model checkpoint.
+CHANNEL_IMPORTANCE_PATH = Path(__file__).resolve().parent / "static" / "channel_importance.json"
+if CHANNEL_IMPORTANCE_PATH.exists():
+    with open(CHANNEL_IMPORTANCE_PATH) as _f:
+        _CHANNEL_IMPORTANCE = json.load(_f)
+else:
+    _CHANNEL_IMPORTANCE = {}
+
+# Order and (muted, readable-on-white) colors intentionally echo the
+# thumbnail composite's channel coloring (scripts/generate_web_thumbnails.py's
+# CHANNEL_COLORS), so the sidebar's channel-importance bars visually tie back
+# to the thumbnail/attention image directly above them.
+CHANNEL_DISPLAY = [
+    ("Mito", "#dc3545"),
+    ("AGP", "#d4a017"),
+    ("RNA", "#e83e8c"),
+    ("ER", "#28a745"),
+    ("DNA", "#0d6efd"),
+]
+
+
+def build_channel_importance_bars(well_id):
+    """Returns [{name, color, importance, pct}, ...] for the sidebar's
+    channel-importance bar chart, with pct scaled relative to this well's
+    most important channel -- or None if this well has no precomputed
+    channel-ablation scores yet."""
+    scores = _CHANNEL_IMPORTANCE.get(well_id)
+    if not scores:
+        return None
+    max_importance = max(s["importance"] for s in scores.values()) or 1.0
+    return [
+        {
+            "name": name,
+            "color": color,
+            "importance": scores[name]["importance"],
+            "pct": 100.0 * scores[name]["importance"] / max_importance,
+        }
+        for name, color in CHANNEL_DISPLAY
+        if name in scores
+    ]
+
 
 def describe_moa(moa_name: str):
     """Looks up curated educational text for a MoA label.
@@ -269,6 +314,7 @@ def register_routes(app, store, sim_index):
         )
         interpretation = generate_interpretation("well", well["moa"], stats)
         moa_info = describe_moa(well["moa"])
+        channel_importance_bars = build_channel_importance_bars(well_id)
 
         return render_template(
             "partials/_right_sidebar.html",
@@ -277,6 +323,7 @@ def register_routes(app, store, sim_index):
             stats=stats,
             interpretation=interpretation,
             moa_info=moa_info,
+            channel_importance_bars=channel_importance_bars,
         )
 
     @app.route("/api/attention/<well_id>.png")
@@ -323,6 +370,11 @@ def register_routes(app, store, sim_index):
             "well_id": df["well_id"].tolist(),
             "x": df["umap_x"].tolist(),
             "y": df["umap_y"].tolist(),
+            # Separate 3D UMAP fit (see scripts/prepare_phase1_data.py), additive
+            # alongside x/y above -- powers the webapp's 2D/3D view toggle.
+            "x3d": df["umap_x_3d"].tolist(),
+            "y3d": df["umap_y_3d"].tolist(),
+            "z3d": df["umap_z_3d"].tolist(),
             "moa": df["moa"].fillna("unannotated").apply(title_case).tolist(),
             "broad_sample": df["broad_sample"].fillna("unknown").tolist(),
             "plate": df["plate"].tolist(),

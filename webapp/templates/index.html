@@ -44,6 +44,14 @@
     </div>
 
     <div class="sidebar-section">
+      <h2 class="h6 text-uppercase text-muted">View</h2>
+      <div class="form-check form-switch mb-0">
+        <input type="checkbox" role="switch" class="form-check-input" id="view-3d-toggle">
+        <label class="form-check-label small" for="view-3d-toggle">3D UMAP</label>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="how-to-read-dialog">How to Read This Map</button>
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="about-project-dialog">About the Project</button>
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start" data-dialog-open="technical-details-dialog">Technical Details</button>
@@ -73,6 +81,7 @@
 </div>
 
 <dialog id="how-to-read-dialog" class="info-dialog">
+  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   <h2 class="h5">How to Read This Map</h2>
 
   <h3 class="h6 mt-3">What am I looking at?</h3>
@@ -87,12 +96,17 @@
   </p>
   <p class="small">
     The map is a two-dimensional visualization of a much larger feature space. The goal is to
-    help explore patterns in the model's learned understanding of cellular morphology.
+    help explore patterns in the model's learned representation of cellular morphology.
   </p>
 
   <h3 class="h6 mt-3">What does each point represent?</h3>
   <p class="small">
     Each point represents a single well from a Cell Painting experiment.
+  </p>
+  <p class="small">
+    Each well contains many cells and microscopy images. The model first extracts a visual
+    representation from those images, then summarizes them into a single embedding that
+    represents the overall cellular phenotype observed in that well.
   </p>
   <p class="small">
     The model converts the microscopy images from each well into a numerical representation
@@ -119,29 +133,42 @@
   <p class="small">
     This similarity reflects <em>phenotypic similarity</em> — similarity in observable cellular
     appearance — and should not be interpreted as proof that two compounds have the same
-    biological mechanism.
+    biological mechanism (the biological process a compound affects — for example, disrupting DNA
+    replication or affecting a specific cellular pathway).
   </p>
   <p class="small">
     For example, two compounds may appear close together because they cause similar
     morphological changes, even if they act through different biological pathways.
   </p>
 
-  <h3 class="h6 mt-3">What do the colors represent?</h3>
+  <h3 class="h6 mt-3">How should I interpret clusters?</h3>
   <p class="small">
-    Colors indicate annotated mechanisms of action (MoA) when available.
+    When several points form a visible group, it means the model's learned representation places
+    those wells close together — they share similar visual patterns.
+  </p>
+  <p class="small mb-0">
+    A cluster may suggest that the wells in it share a similar morphological response, which can
+    be a useful starting point for a hypothesis. On its own, it does not prove that those wells
+    share the same biological mechanism — confirming that requires independent biological
+    validation.
+  </p>
+
+  <h3 class="h6 mt-3">What affects the map?</h3>
+  <p class="small">
+    A well's position reflects a mix of influences. Genuine biological signal — differences in
+    cell shape, organelle organization, and other morphological responses to a compound — is
+    part of what the model has learned to represent, and is often the dominant reason two wells
+    land near or far from each other.
   </p>
   <p class="small">
-    A mechanism of action describes the biological process affected by a compound (for example,
-    disrupting DNA replication or affecting a specific cellular pathway).
+    Embeddings can also capture experimental variation: differences between plates, experiments,
+    imaging sessions, or other technical conditions can influence where a well lands on the map,
+    alongside genuine morphological differences.
   </p>
-  <p class="small">
-    Only the most frequent mechanisms are shown as individual colors to keep the map readable.
-    Less common mechanisms are grouped as "Other," and some wells may not have an available
-    annotation.
-  </p>
-  <p class="small">
-    Importantly, the model was not trained using these labels. The colors are added afterward to
-    evaluate whether biologically meaningful patterns emerge in the learned representation.
+  <p class="small mb-0">
+    For this reason, patterns on the map are best read as model-learned similarities rather than
+    guaranteed biological relationships. Switching the "Color by" option to Plate is a quick way
+    to check whether a given pattern lines up with plate identity rather than treatment.
   </p>
 
   <h3 class="h6 mt-3">Why are the axes labeled UMAP 1 and UMAP 2?</h3>
@@ -166,17 +193,10 @@
   </p>
 
   <h3 class="h6 mt-3">How is similarity calculated?</h3>
-  <p class="small">
-    Each well is represented as a numerical embedding. Similarity between wells is calculated
-    using cosine similarity, which compares the orientation of two embedding vectors.
-  </p>
-  <p class="small">
-    Higher similarity means the model considers the wells to have more similar learned visual
-    characteristics.
-  </p>
   <p class="small mb-0">
-    This is a measure of similarity in the model's feature space — not a direct measurement of
-    biological similarity.
+    Similarity between wells is calculated in the original, full-dimensional embedding space —
+    not from the 2D positions shown on this map. See Technical Details for how that calculation
+    works.
   </p>
 
   <h3 class="h6 mt-3">Why don't the closest points on the map always match the neighbor list?</h3>
@@ -193,15 +213,15 @@
 
   <h3 class="h6 mt-3">What does the attention map show?</h3>
   <p class="small">
-    The attention map highlights which regions of the microscopy image most influenced the model's
-    representation of that well. Brighter regions indicate areas where the model placed more
-    emphasis when analyzing the image, while darker regions indicate areas that contributed less.
+    The attention map highlights which regions of the microscopy image the model relied on most
+    when forming its representation of that well. Brighter regions received more emphasis;
+    darker regions contributed less.
   </p>
-  <p class="small">
-    Attention maps provide insight into what visual patterns the model used, but they do not
-    directly identify specific cellular structures or biological mechanisms. A region with
-    high attention is not necessarily the most biologically important feature — it is simply an
-    area that the model relied on when creating its learned representation.
+  <p class="small mb-0">
+    Attention is not a direct explanation of biology. It reflects what the model attended to, not
+    what is biologically important — a highly attended region may or may not correspond to a
+    meaningful cellular structure, and a biologically important structure will not always receive
+    high attention.
   </p>
 
   <div class="text-end mt-3">
@@ -210,7 +230,19 @@
 </dialog>
 
 <dialog id="about-project-dialog" class="info-dialog">
+  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   <h2 class="h5">About the Project</h2>
+
+  <h3 class="h6 mt-3">Project goal</h3>
+  <p class="small">
+    This project tests whether a self-supervised vision model can learn useful representations of
+    Cell Painting images without using compound or mechanism-of-action labels during training.
+  </p>
+  <p class="small">
+    This visualization is a way to explore those learned representations directly — to see what
+    structure the model found in the data on its own, and where that structure does and doesn't
+    line up with known biology.
+  </p>
 
   <h3 class="h6 mt-3">What is Cell Painting?</h3>
   <p class="small">
@@ -249,10 +281,6 @@
   <p class="small">
     These observable characteristics are called phenotypes.
   </p>
-  <p class="small">
-    The goal of this project is to determine whether machine learning can discover meaningful
-    cellular phenotypes directly from images.
-  </p>
 
   <h3 class="h6 mt-3">What did the model learn?</h3>
   <p class="small">
@@ -283,8 +311,39 @@
     labels.
   </p>
   <p class="small">
-    If samples with similar biological effects cluster together after training, it suggests that
-    the model has learned meaningful representations of cellular morphology.
+    If wells with similar morphological responses cluster together after training, it suggests
+    that the model has learned meaningful representations of cellular morphology.
+  </p>
+
+  <h3 class="h6 mt-3">What could this be used for?</h3>
+  <p class="small mb-1">
+    If a model like this reliably captures phenotypic signal without labeled training data, it
+    could support several practical uses in early-stage drug discovery:
+  </p>
+  <ul class="small mb-1">
+    <li>
+      <strong>Hit prioritization</strong> — surfacing which novel compounds look phenotypically
+      similar to ones with a known mechanism.
+    </li>
+    <li>
+      <strong>Drug repurposing</strong> — flagging existing drugs whose morphological profile
+      suggests an unexplored therapeutic use.
+    </li>
+    <li>
+      <strong>Mechanism discovery</strong> — generating hypotheses about an uncharacterized
+      compound's mechanism by comparing it to better-understood compounds and genetic
+      perturbations.
+    </li>
+    <li>
+      <strong>Prioritizing follow-up experiments</strong> — helping decide which hits are worth
+      pursuing with more targeted, costly assays.
+    </li>
+  </ul>
+  <p class="small">
+    This project is a proof of concept for the first step in that pipeline — showing whether
+    self-supervised learning can extract pharmacologically meaningful structure from Cell Painting
+    images at all — not a deployed screening tool itself. See "Limitations" under Technical
+    Details for where the current model falls short of that goal.
   </p>
 
   <h3 class="h6 mt-3">Dataset</h3>
@@ -293,8 +352,11 @@
     large-scale Cell Painting microscopy experiments.
   </p>
   <p class="small">
-    The dataset contains images of cells treated with thousands of compounds across many
-    experimental conditions.
+    Specifically, it uses a subset of that resource focused on compound perturbation experiments
+    — wells treated with a chemical compound, as opposed to genetic perturbations such as CRISPR
+    knockouts or gene overexpression. The model is not trained on the full breadth of the JUMP
+    Cell Painting dataset; current counts for this subset are shown in the "Dataset overview"
+    panel.
   </p>
   <p class="small text-muted mb-0">
     Learn more:
@@ -307,18 +369,31 @@
 </dialog>
 
 <dialog id="technical-details-dialog" class="info-dialog">
+  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   <h2 class="h5">Technical Details</h2>
 
   <h3 class="h6 mt-3">Computational pipeline</h3>
   <p class="small mb-1">The visualization was generated through the following pipeline:</p>
   <p class="small text-center mb-0">
     Cell Painting microscopy images<br>&darr;<br>
+    Image preprocessing and quality control<br>&darr;<br>
     DINO Vision Transformer<br>&darr;<br>
-    384-dimensional embeddings<br>&darr;<br>
+    Learned image representations<br>&darr;<br>
+    Well-level aggregation<br>&darr;<br>
     Embedding postprocessing<br>&darr;<br>
-    Cosine similarity analysis<br>&darr;<br>
-    UMAP dimensionality reduction<br>&darr;<br>
-    Interactive visualization
+    Similarity analysis<br>&darr;<br>
+    UMAP visualization
+  </p>
+
+  <h3 class="h6 mt-3">Training data</h3>
+  <p class="small">
+    The model was trained on a subset of the JUMP Cell Painting dataset consisting of compound
+    perturbation microscopy experiments — wells treated with a chemical compound rather than a
+    genetic perturbation.
+  </p>
+  <p class="small mb-0">
+    Training used no compound or mechanism-of-action labels: the goal was to learn morphology
+    representations directly from the unlabeled images themselves.
   </p>
 
   <h3 class="h6 mt-3">Model architecture</h3>
@@ -338,6 +413,16 @@
     <a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">Vision Transformer paper (Google Research)</a>
   </p>
 
+  <h3 class="h6 mt-3">From images to embeddings</h3>
+  <p class="small">
+    Each well is imaged at multiple sites, producing several microscopy images per well. The
+    model processes each image and produces a numerical feature representation for it.
+  </p>
+  <p class="small mb-0">
+    Those per-image representations are then combined into a single well-level embedding, which
+    is what gets postprocessed, compared for similarity, and ultimately plotted on the map.
+  </p>
+
   <h3 class="h6 mt-3">Embeddings and similarity</h3>
   <p class="small">
     An embedding is a numerical representation produced by the model.
@@ -349,21 +434,35 @@
   <ul class="small mb-0">
     <li>each well is represented by a 384-dimensional vector,</li>
     <li>embeddings summarize learned morphological patterns,</li>
-    <li>similarity is measured using cosine similarity.</li>
+    <li>
+      similarity is measured using cosine similarity, which compares the orientation of two
+      embedding vectors rather than their absolute scale — this is the calculation "How to Read
+      This Map" refers back to.
+    </li>
   </ul>
 
   <h3 class="h6 mt-3">Embedding processing</h3>
   <p class="small mb-1">
-    Before visualization, embeddings are processed to improve comparisons between samples.
-    Processing includes:
+    Before visualization, embeddings are processed to make them more comparable across plates and
+    experiments. Processing includes:
   </p>
   <ul class="small mb-1">
-    <li>median absolute deviation (MAD) normalization,</li>
-    <li>sphering/whitening transformations,</li>
-    <li>normalization before similarity calculations.</li>
+    <li>
+      median absolute deviation (MAD) normalization — reduces variation introduced by differences
+      between plates and imaging batches,
+    </li>
+    <li>
+      sphering/whitening transformations — rebalances the feature space so no single learned
+      pattern dominates comparisons,
+    </li>
+    <li>
+      normalization before similarity calculations — puts every embedding on the same scale so
+      similarity scores are comparable across wells.
+    </li>
   </ul>
   <p class="small mb-0">
-    These steps reduce unwanted variation and improve the structure of the learned feature space.
+    Together, these steps reduce unwanted technical variation and prepare embeddings for
+    consistent similarity comparisons.
   </p>
 
   <h3 class="h6 mt-3">UMAP visualization</h3>
@@ -377,7 +476,23 @@
     rather than a direct biological coordinate system.
   </p>
 
+  <h3 class="h6 mt-3">Evaluation</h3>
+  <p class="small">
+    The learned representation is evaluated by checking whether biologically related samples are
+    enriched near each other in the embedding space more than would be expected by chance.
+  </p>
+  <p class="small mb-0">
+    This includes comparing neighborhood similarity between replicate wells, agreement between a
+    well's nearest neighbors and its annotated mechanism of action, and the amount of variation
+    explained by technical factors such as plate identity. These are research diagnostics, not
+    evidence of a validated drug discovery model — see Limitations below.
+  </p>
+
   <h3 class="h6 mt-3">Limitations</h3>
+  <p class="small mb-1">
+    This is a proof-of-concept model trained on a subset of available Cell Painting data — not a
+    universal morphology foundation model. Specific limitations to keep in mind:
+  </p>
   <ul class="small mb-0">
     <li>
       The compound library behind this map is a single fixed reference set (~300 compounds, one
@@ -432,7 +547,13 @@
 <script>
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.getElementById(btn.dataset.dialogOpen).showModal();
+      const dialog = document.getElementById(btn.dataset.dialogOpen);
+      // <dialog> keeps its scroll position from last time it was open --
+      // without this, reopening after scrolling through a long section
+      // (e.g. Technical Details) drops you back in wherever you left off
+      // instead of at the top.
+      dialog.showModal();
+      dialog.scrollTop = 0;
     });
   });
   document.querySelectorAll("[data-dialog-close]").forEach((btn) => {

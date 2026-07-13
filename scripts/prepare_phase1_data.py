@@ -92,6 +92,15 @@ def main():
     wells["umap_x"] = coords[:, 0]
     wells["umap_y"] = coords[:, 1]
 
+    # Separate 3D fit (not a 3rd axis bolted onto the 2D layout above) so the
+    # webapp's 3D view is additive alongside the existing 2D one.
+    print("Fitting 3D UMAP on well embeddings ...")
+    reducer_3d = umap.UMAP(n_components=3, n_neighbors=15, min_dist=0.1, metric="cosine", random_state=42)
+    coords_3d = reducer_3d.fit_transform(well_embs_post)
+    wells["umap_x_3d"] = coords_3d[:, 0]
+    wells["umap_y_3d"] = coords_3d[:, 1]
+    wells["umap_z_3d"] = coords_3d[:, 2]
+
     args.out.mkdir(parents=True, exist_ok=True)
     wells_path = args.out / "wells.parquet"
     embs_path = args.out / "well_embeddings.npy"

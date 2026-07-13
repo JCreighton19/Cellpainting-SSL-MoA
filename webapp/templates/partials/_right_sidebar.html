@@ -25,6 +25,31 @@
 </div>
 {% endif %}
 
+{% if channel_importance_bars %}
+<div class="channel-importance mb-3">
+  <h3 class="h6 text-muted mb-2 d-flex align-items-center gap-1">
+    Channel Importance
+    <details class="info-tooltip" name="sidebar-tooltip">
+      <summary aria-label="What is channel importance?">?</summary>
+      <div class="info-tooltip-popup small">
+        How much each Cell Painting stain contributed to this well's embedding, estimated by
+        zeroing out one channel at a time and measuring how far the embedding moves. Longer
+        bars mean the model relied on that channel more for this particular image.
+      </div>
+    </details>
+  </h3>
+  {% for ch in channel_importance_bars %}
+  <div class="channel-bar-row d-flex align-items-center small mb-1">
+    <div class="channel-bar-label text-muted">{{ ch.name }}</div>
+    <div class="channel-bar-track flex-grow-1 mx-2">
+      <div class="channel-bar-fill" style="width: {{ ch.pct }}%; background-color: {{ ch.color }};"></div>
+    </div>
+    <div class="channel-bar-value text-muted text-end">{{ "%.2f"|format(ch.importance) }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- SECTION 1: what am I looking at -->
 <h2 class="h5 mb-1">
   {% if well.is_control %}
@@ -53,8 +78,8 @@
 
 <!-- SECTION 2: evidence -->
 <h3 class="h6 text-muted mb-2 d-flex align-items-center gap-1">
-  Neighborhood summary
-  <details class="info-tooltip">
+  Neighborhood Summary
+  <details class="info-tooltip" name="sidebar-tooltip">
     <summary aria-label="How are these neighbors determined?">?</summary>
     <div class="info-tooltip-popup small">
       These neighbors are identified using the model's underlying similarity scores, not their
@@ -78,7 +103,7 @@
 
   <dt class="col-7">
     Neighborhood consistency
-    <details class="info-tooltip">
+    <details class="info-tooltip" name="sidebar-tooltip">
       <summary aria-label="How is neighborhood consistency determined?">?</summary>
       <div class="info-tooltip-popup small">
         Share of the {{ stats.k }} nearest neighbors that share the single most common MoA among
@@ -95,7 +120,7 @@
 <hr>
 
 <!-- SECTION 3: nearest neighbors, summarized before enumerated -->
-<h3 class="h6 text-uppercase text-muted mb-1">Nearest neighbors</h3>
+<h3 class="h6 text-muted mb-1">Nearest Neighbors</h3>
 {% for n in neighbors %}
 <div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small">
   <div>
@@ -110,13 +135,13 @@
 <hr>
 
 <!-- SECTION 4: interpretation, only after the evidence above -->
-<h3 class="h6 text-uppercase text-muted mb-2">Interpretation</h3>
+<h3 class="h6 text-muted mb-2">Interpretation</h3>
 <div class="insight-box rounded p-2 mb-0">
   <p class="small mb-0">{{ interpretation }}</p>
 </div>
 
 <details class="mt-3">
-  <summary class="text-muted small">Technical details</summary>
+  <summary class="text-muted small">Technical Details</summary>
   <table class="table table-sm mt-2">
     <tbody>
       <tr><th scope="row">Plate</th><td>{{ well.plate }}</td></tr>
