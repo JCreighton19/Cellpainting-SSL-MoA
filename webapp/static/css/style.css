@@ -348,6 +348,72 @@ body {
   border-left: 4px solid #0d6efd;
 }
 
+/* Vertical architecture-diagram-style flowchart for the technical-details
+   "Computational pipeline" section: an icon badge + label per stage,
+   connected top-to-bottom by arrows. */
+.pipeline-flow-v {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.25rem 0;
+}
+
+.pipeline-node {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 380px;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  padding: 0.55rem 1rem;
+}
+
+.pipeline-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #eef6ff;
+  color: #0d6efd;
+}
+
+.pipeline-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.pipeline-label {
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.pipeline-connector {
+  flex: 0 0 auto;
+  width: 2px;
+  height: 1.1rem;
+  background-color: #adb5bd;
+  position: relative;
+}
+
+.pipeline-connector::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #adb5bd;
+}
+
 .neighbor-card {
   background-color: #fff;
 }
