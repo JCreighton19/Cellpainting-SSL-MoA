@@ -55,6 +55,9 @@
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="how-to-read-dialog">How to Read This Map</button>
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="about-project-dialog">About the Project</button>
       <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start" data-dialog-open="technical-details-dialog">Technical Details</button>
+      <div class="mt-2 pt-2 border-top">
+        <button type="button" id="restart-tutorial-btn" class="btn btn-sm btn-outline-secondary w-100 text-start">Restart Tutorial</button>
+      </div>
     </div>
   </aside>
 
@@ -624,11 +627,26 @@
   </div>
 </dialog>
 
+<!-- First-run guided tour (see static/js/onboarding.js). Hidden until the
+     script activates it -- either automatically on a visitor's first load,
+     or manually via "Restart Tutorial" above. Purely additive: it only reads
+     from and calls into the existing map (via the already-global functions
+     map.js's classic <script> exposes) rather than changing how the map
+     itself works. -->
+<div id="tour-root" class="tour-root d-none" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+  <div class="tour-overlay" id="tour-overlay"></div>
+  <div class="tour-spotlight d-none" id="tour-spotlight"></div>
+  <div class="tour-card" id="tour-card" tabindex="-1">
+    <div id="tour-card-inner"></div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
 <script>
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
     btn.addEventListener("click", () => {
