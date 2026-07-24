@@ -181,34 +181,85 @@ body {
 
 /* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ---- */
 
+/* Flex column instead of a single scrolling box: .info-dialog-header stays
+   put (flex: 0 0 auto) while .info-dialog-body is the only part that
+   scrolls (flex: 1 1 auto; overflow-y: auto) -- this is what keeps the
+   title and close button visible no matter how far the body is scrolled. */
 .info-dialog {
   position: relative;
   max-width: 700px;
   width: 90%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
   border: none;
   border-radius: 0.5rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .info-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
+.info-dialog-header {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 1.25rem 3rem 0.9rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.info-dialog-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1rem 1.5rem 1.25rem;
+}
+
 /* Breaks each subsection into a visible "chapter" instead of one
    continuous block of text -- the first heading (right under the dialog
    title) is skipped since it doesn't need its own divider. */
-.info-dialog h3 {
+.info-dialog-body h3 {
   margin-top: 1.75rem;
   padding-top: 0.9rem;
   border-top: 1px solid #e9ecef;
 }
 
-.info-dialog h3:first-of-type {
-  margin-top: 1rem;
+.info-dialog-body h3:first-of-type {
+  margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+/* "Jump to section" links at the top of each info dialog: a labeled row of
+   plain inline links (dot-separated, wraps like normal text) rather than a
+   cluster of pill buttons, so it reads as a lightweight table of contents
+   instead of a row of controls. */
+.dialog-toc {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dialog-toc-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.dialog-toc-links {
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: #ced4da;
+}
+
+.dialog-toc-links a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+.dialog-toc-links a:hover {
+  text-decoration: underline;
 }
 
 .dialog-close-x {
@@ -232,6 +283,34 @@ body {
 .dialog-close-x:hover {
   background-color: #e9ecef;
   color: #212529;
+}
+
+/* Small inline SVG diagrams used throughout the info dialogs (plate/well
+   layout, near-vs-far distance, neighbor-lines) -- one shared container
+   style so they read as one consistent visual language. */
+.explainer-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background-color: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+}
+
+.explainer-svg {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+
+.explainer-caption {
+  font-size: 0.75rem;
+  color: #6c757d;
+  text-align: center;
+  max-width: 360px;
 }
 
 .thumbnail-placeholder {
@@ -420,6 +499,13 @@ body {
 
 .neighbor-card-compact {
   background-color: #fff;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.neighbor-card-compact:hover {
+  background-color: #f7f8fa;
+  border-color: #adb5bd;
 }
 
 /* Right-sidebar channel-importance bar chart (see routes.py's

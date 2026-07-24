@@ -164,7 +164,7 @@
       target: () => null,
       html: () => `
         <h2 class="tour-title" id="tour-title">Welcome to the Cell Painting Embedding Explorer</h2>
-        <p class="tour-body">This tool uses AI to automatically organize thousands of microscope images of cells by how visually similar they look.</p>
+        <p class="tour-body">This project tests whether AI can learn which drugs affect cells in similar ways just by looking at microscope images — figuring it out entirely on its own, without ever being told the right answers during training.</p>
         <p class="tour-body mb-0">Don't worry if you don't have a biology or machine learning background—we'll show you how to explore it in under a minute.</p>
       `,
     },

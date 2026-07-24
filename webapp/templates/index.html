@@ -11,9 +11,9 @@
         <button id="search-btn" type="button" class="btn btn-sm btn-primary">Go</button>
       </div>
       <datalist id="search-suggestions">
-        {% for p in plates %}<option value="{{ p }}">{% endfor %}
-        {% for m in moas %}<option value="{{ m|titlecase }}">{% endfor %}
-        {% for c in compounds %}<option value="{{ c|titlecase }}">{% endfor %}
+        {% for p in plates %}<option value="{{ p }}" label="Plate">{% endfor %}
+        {% for m in moas %}<option value="{{ m|titlecase }}" label="MoA">{% endfor %}
+        {% for c in compounds %}<option value="{{ c|titlecase }}" label="Compound">{% endfor %}
       </datalist>
       <div class="d-flex align-items-center gap-2 mt-1">
         <div id="search-message" class="small text-muted mb-0"></div>
@@ -69,7 +69,7 @@
       <p class="small text-muted mb-2">Click a point to select it; click elsewhere to clear selection</p>
     </div>
     <div id="umap-plot" class="umap-plot"></div>
-    <p class="small text-muted map-legend-caption">Click a color to isolate it, click again to restore all. Double-click a color to hide it, and double-click again to restore it.</p>
+    <p class="small text-muted map-legend-caption">Click a color to isolate it — click more colors to isolate several at once, and click all of them again to restore everything. Double-click a color to hide just it, and double-click again to restore it.</p>
     <div id="map-legend" class="map-legend"></div>
   </section>
 
@@ -84,10 +84,28 @@
 </div>
 
 <dialog id="how-to-read-dialog" class="info-dialog">
-  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
-  <h2 class="h5">How to Read This Map</h2>
+  <div class="info-dialog-header">
+    <h2 class="h5 mb-0">How to Read This Map</h2>
+    <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
+  </div>
+  <div class="info-dialog-body">
 
-  <h3 class="h6 mt-3">What am I looking at?</h3>
+  <nav class="dialog-toc" aria-label="Jump to section">
+    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
+    <p class="dialog-toc-links mb-0">
+      <a href="#htr-overview">What am I looking at?</a> &middot;
+      <a href="#htr-point">What does each point represent?</a> &middot;
+      <a href="#htr-distance">What does distance mean?</a> &middot;
+      <a href="#htr-clusters">How should I interpret clusters?</a> &middot;
+      <a href="#htr-influences">What affects the map?</a> &middot;
+      <a href="#htr-axes">Why UMAP 1 / UMAP 2?</a> &middot;
+      <a href="#htr-similarity">How is similarity calculated?</a> &middot;
+      <a href="#htr-neighbor-mismatch">Map vs. neighbor list</a> &middot;
+      <a href="#htr-attention">Attention map</a>
+    </p>
+  </nav>
+
+  <h3 class="h6 mt-3" id="htr-overview">What am I looking at?</h3>
   <p class="small">
     This interactive map shows how a machine learning model organizes microscopy experiments
     based on the visual characteristics of the cells.
@@ -102,10 +120,40 @@
     help explore patterns in the model's learned representation of cellular morphology.
   </p>
 
-  <h3 class="h6 mt-3">What does each point represent?</h3>
+  <h3 class="h6 mt-3" id="htr-point">What does each point represent?</h3>
   <p class="small">
     Each point represents a single well from a Cell Painting experiment.
   </p>
+  <p class="small">
+    A physical <strong>plate</strong> holds many individual <strong>wells</strong> arranged in a grid — each well
+    is one independent mini-experiment (one compound, imaged separately). Every point on the map corresponds to
+    exactly one well.
+  </p>
+  <div class="explainer-figure">
+    <svg viewBox="0 0 300 140" class="explainer-svg" role="img" aria-label="Diagram of a microplate with one well zoomed in. Wells are colored differently to show that each one can hold a different treatment; the zoomed well shows several separate microscopy images, each containing many cells">
+      <rect x="10" y="25" width="150" height="85" rx="6" fill="#f7f8fa" stroke="#6c757d" stroke-width="1.6"/>
+      <circle cx="20" cy="35" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="46" cy="35" r="6" fill="#ff7f0e"/><circle cx="72" cy="35" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="98" cy="35" r="6" fill="#2ca02c"/><circle cx="124" cy="35" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="150" cy="35" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/>
+      <circle cx="20" cy="67.5" r="6" fill="#d62728"/><circle cx="46" cy="67.5" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="72" cy="67.5" r="6" fill="#9467bd"/><circle cx="98" cy="67.5" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="150" cy="67.5" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/>
+      <circle cx="20" cy="100" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="46" cy="100" r="6" fill="#8c564b"/><circle cx="72" cy="100" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="98" cy="100" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="124" cy="100" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/><circle cx="150" cy="100" r="6" fill="#fff" stroke="#adb5bd" stroke-width="1.2"/>
+      <circle cx="124" cy="67.5" r="7" fill="#0d6efd"/>
+      <text x="85" y="123" font-size="11" fill="#495057" text-anchor="middle">Plate</text>
+      <line x1="130" y1="67.5" x2="185" y2="46" stroke="#0d6efd" stroke-width="1.4" stroke-dasharray="2,2"/>
+      <line x1="130" y1="67.5" x2="185" y2="94" stroke="#0d6efd" stroke-width="1.4" stroke-dasharray="2,2"/>
+      <rect x="185" y="12" width="112" height="124" rx="6" fill="#eef6ff" stroke="#0d6efd" stroke-width="1.4"/>
+      <rect x="195" y="25" width="42" height="42" rx="3" fill="#fff" stroke="#adb5bd" stroke-width="1"/>
+      <rect x="243" y="25" width="42" height="42" rx="3" fill="#fff" stroke="#adb5bd" stroke-width="1"/>
+      <rect x="195" y="73" width="42" height="42" rx="3" fill="#fff" stroke="#adb5bd" stroke-width="1"/>
+      <rect x="243" y="73" width="42" height="42" rx="3" fill="#fff" stroke="#adb5bd" stroke-width="1"/>
+      <circle cx="205" cy="35" r="2.2" fill="#495057"/><circle cx="219" cy="39" r="2.2" fill="#495057"/><circle cx="211" cy="51" r="2.2" fill="#495057"/><circle cx="225" cy="53" r="2.2" fill="#495057"/><circle cx="203" cy="57" r="2.2" fill="#495057"/>
+      <circle cx="253" cy="35" r="2.2" fill="#495057"/><circle cx="267" cy="39" r="2.2" fill="#495057"/><circle cx="259" cy="51" r="2.2" fill="#495057"/><circle cx="273" cy="53" r="2.2" fill="#495057"/><circle cx="251" cy="57" r="2.2" fill="#495057"/>
+      <circle cx="205" cy="83" r="2.2" fill="#495057"/><circle cx="219" cy="87" r="2.2" fill="#495057"/><circle cx="211" cy="99" r="2.2" fill="#495057"/><circle cx="225" cy="101" r="2.2" fill="#495057"/><circle cx="203" cy="105" r="2.2" fill="#495057"/>
+      <circle cx="253" cy="83" r="2.2" fill="#495057"/><circle cx="267" cy="87" r="2.2" fill="#495057"/><circle cx="259" cy="99" r="2.2" fill="#495057"/><circle cx="273" cy="101" r="2.2" fill="#495057"/><circle cx="251" cy="105" r="2.2" fill="#495057"/>
+      <text x="241" y="129" font-size="10" fill="#0d6efd" text-anchor="middle" font-weight="600">One well</text>
+    </svg>
+    <p class="explainer-caption mb-0">
+      Each well can hold a different treatment (color) — one well, zoomed in, shows multiple images, each with many cells.
+    </p>
+  </div>
   <p class="small">
     Each well contains many cells and microscopy images. The model first extracts a visual
     representation from those images, then summarizes them into a single embedding that
@@ -125,7 +173,7 @@
     <a href="https://www.tensorflow.org/text/guide/word_embeddings" target="_blank" rel="noopener">Introduction to embeddings (TensorFlow)</a>
   </p>
 
-  <h3 class="h6 mt-3">What does distance mean?</h3>
+  <h3 class="h6 mt-3" id="htr-distance">What does distance mean?</h3>
   <p class="small mb-1">
     The distance between points represents similarity in the model's learned representation.
   </p>
@@ -144,7 +192,7 @@
     morphological changes, even if they act through different biological pathways.
   </p>
 
-  <h3 class="h6 mt-3">How should I interpret clusters?</h3>
+  <h3 class="h6 mt-3" id="htr-clusters">How should I interpret clusters?</h3>
   <p class="small">
     When several points form a visible group, it means the model's learned representation places
     those wells close together — they share similar visual patterns.
@@ -156,7 +204,7 @@
     validation.
   </p>
 
-  <h3 class="h6 mt-3">What affects the map?</h3>
+  <h3 class="h6 mt-3" id="htr-influences">What affects the map?</h3>
   <p class="small">
     A well's position reflects a mix of influences. Genuine biological signal — differences in
     cell shape, organelle organization, and other morphological responses to a compound — is
@@ -174,7 +222,7 @@
     to check whether a given pattern lines up with plate identity rather than treatment.
   </p>
 
-  <h3 class="h6 mt-3">Why are the axes labeled UMAP 1 and UMAP 2?</h3>
+  <h3 class="h6 mt-3" id="htr-axes">Why are the axes labeled UMAP 1 and UMAP 2?</h3>
   <p class="small">
     The original embeddings contain 384 dimensions, which cannot be directly visualized. UMAP
     (Uniform Manifold Approximation and Projection) is a dimensionality reduction method that
@@ -195,14 +243,14 @@
     <a href="https://umap-learn.readthedocs.io/" target="_blank" rel="noopener">UMAP documentation</a>
   </p>
 
-  <h3 class="h6 mt-3">How is similarity calculated?</h3>
+  <h3 class="h6 mt-3" id="htr-similarity">How is similarity calculated?</h3>
   <p class="small mb-0">
     Similarity between wells is calculated in the original, full-dimensional embedding space —
     not from the 2D positions shown on this map. See Technical Details for how that calculation
     works.
   </p>
 
-  <h3 class="h6 mt-3">Why don't the closest points on the map always match the neighbor list?</h3>
+  <h3 class="h6 mt-3" id="htr-neighbor-mismatch">Why don't the closest points on the map always match the neighbor list?</h3>
   <p class="small">
     The "Neighborhood Summary" and "Representative Neighbors" panels are computed directly in the
     full, 384-dimensional embedding space, not from the 2D positions shown on the map.
@@ -213,8 +261,48 @@
     neighbors in the full embedding space, and vice versa. This is an expected property of any 2D
     projection, not an error in the panel.
   </p>
+  <div class="explainer-figure">
+    <svg viewBox="0 0 350 185" class="explainer-svg" role="img" aria-label="Diagram showing two points that are close together in a high-dimensional space, and a third, unrelated point off to the side; after compressing to 2D, the unrelated point lands right next to the selected point while the true neighbor is pushed far away">
+      <rect x="30" y="25" width="60" height="60" rx="3" fill="none" stroke="#adb5bd" stroke-width="1.3"/>
+      <rect x="50" y="45" width="60" height="60" rx="3" fill="none" stroke="#adb5bd" stroke-width="1.3"/>
+      <line x1="30" y1="25" x2="50" y2="45" stroke="#adb5bd" stroke-width="1.3"/>
+      <line x1="90" y1="25" x2="110" y2="45" stroke="#adb5bd" stroke-width="1.3"/>
+      <line x1="90" y1="85" x2="110" y2="105" stroke="#adb5bd" stroke-width="1.3"/>
+      <line x1="30" y1="85" x2="50" y2="105" stroke="#adb5bd" stroke-width="1.3"/>
+      <circle cx="68" cy="68" r="9" fill="none" stroke="#000" stroke-width="1.6"/>
+      <circle cx="68" cy="68" r="6" fill="#0d6efd"/>
+      <circle cx="80" cy="58" r="5" fill="#0d6efd"/>
+      <circle cx="35" cy="70" r="5" fill="#adb5bd"/>
+      <text x="70" y="130" font-size="11" fill="#495057" text-anchor="middle">High-dimensional space</text>
 
-  <h3 class="h6 mt-3">What does the attention map show?</h3>
+      <line x1="118" y1="68" x2="158" y2="68" stroke="#6c757d" stroke-width="1.6"/>
+      <polygon points="158,68 149,63 149,73" fill="#6c757d"/>
+      <text x="138" y="86" font-size="10" fill="#6c757d" text-anchor="middle">compress</text>
+
+      <rect x="178" y="15" width="155" height="130" rx="6" fill="#f7f8fa" stroke="#6c757d" stroke-width="1.4"/>
+      <line x1="216" y1="100" x2="295" y2="45" stroke="#6c757d" stroke-width="1.4" stroke-dasharray="3,3"/>
+      <circle cx="216" cy="100" r="9" fill="none" stroke="#000" stroke-width="1.6"/>
+      <circle cx="216" cy="100" r="6" fill="#0d6efd"/>
+      <circle cx="225" cy="115" r="5" fill="#adb5bd"/>
+      <circle cx="295" cy="45" r="9" fill="none" stroke="#0d6efd" stroke-width="1.6"/>
+      <circle cx="295" cy="45" r="6" fill="#0d6efd"/>
+      <text x="295" y="28" font-size="9" fill="#0d6efd" text-anchor="middle" font-weight="600">true neighbor</text>
+      <text x="255" y="165" font-size="11" fill="#495057" text-anchor="middle">2D map (e.g. UMAP)</text>
+    </svg>
+    <p class="explainer-caption mb-0">
+      Two points close together in the full embedding space can land far apart after compressing
+      to 2D — and an unrelated point can land right next to the selected one instead.
+    </p>
+  </div>
+  <p class="small mb-0">
+    This is also what the dotted lines on the map itself are showing: click any point, and dotted
+    lines are drawn from it to its true nearest neighbors — the same wells listed in the sidebar's
+    "Nearest Neighbors" panel. A neighbor line that stretches far across the map, rather than
+    staying short, is this exact effect made visible — that connected well really is a true
+    neighbor in the full embedding space, even though the 2D layout happened to place it elsewhere.
+  </p>
+
+  <h3 class="h6 mt-3" id="htr-attention">What does the attention map show?</h3>
   <p class="small">
     The attention map highlights which regions of the microscopy image the model relied on most
     when forming its representation of that well. Brighter regions received more emphasis;
@@ -230,13 +318,30 @@
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
+  </div>
 </dialog>
 
 <dialog id="about-project-dialog" class="info-dialog">
-  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
-  <h2 class="h5">About the Project</h2>
+  <div class="info-dialog-header">
+    <h2 class="h5 mb-0">About the Project</h2>
+    <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
+  </div>
+  <div class="info-dialog-body">
 
-  <h3 class="h6 mt-3">Project goal</h3>
+  <nav class="dialog-toc" aria-label="Jump to section">
+    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
+    <p class="dialog-toc-links mb-0">
+      <a href="#abt-goal">Project goal</a> &middot;
+      <a href="#abt-cell-painting">What is Cell Painting?</a> &middot;
+      <a href="#abt-morphology">Why analyze cell morphology?</a> &middot;
+      <a href="#abt-dino">What did the model learn?</a> &middot;
+      <a href="#abt-why-interesting">Why is this interesting?</a> &middot;
+      <a href="#abt-use-cases">What could this be used for?</a> &middot;
+      <a href="#abt-dataset">Dataset</a>
+    </p>
+  </nav>
+
+  <h3 class="h6 mt-3" id="abt-goal">Project goal</h3>
   <p class="small">
     This project tests whether a self-supervised vision model can learn useful representations of
     Cell Painting images without using compound or mechanism-of-action labels during training.
@@ -247,7 +352,7 @@
     line up with known biology.
   </p>
 
-  <h3 class="h6 mt-3">What is Cell Painting?</h3>
+  <h3 class="h6 mt-3" id="abt-cell-painting">What is Cell Painting?</h3>
   <p class="small">
     Cell Painting is a high-content microscopy assay that uses fluorescent stains to visualize
     multiple structures inside cells.
@@ -261,6 +366,54 @@
     <li>cytoskeletal and membrane structures.</li>
   </ul>
   <p class="small">
+    A standard color photo has 3 channels — red, green, and blue — combined into one image. Cell
+    Painting works the same way but with 5 channels instead of 3: each fluorescent stain is
+    captured as its own separate grayscale image, one channel per structure above, rather than one
+    combined color photo.
+  </p>
+  <div class="explainer-figure">
+    <svg viewBox="0 0 440 150" class="explainer-svg" role="img" aria-label="Side-by-side comparison: a standard photo's 3 color channels (red, green, blue) versus Cell Painting's 5 channels, each shown in the color assigned to it elsewhere in this app, next to the cellular structure it corresponds to">
+      <line x1="175" y1="8" x2="175" y2="112" stroke="#dee2e6" stroke-width="1.2" stroke-dasharray="3,3"/>
+
+      <rect x="38" y="33" width="55" height="55" rx="4" fill="#eceef1" stroke="#0d6efd" stroke-width="2"/>
+      <rect x="29" y="24" width="55" height="55" rx="4" fill="#eceef1" stroke="#28a745" stroke-width="2"/>
+      <rect x="20" y="15" width="55" height="55" rx="4" fill="#eceef1" stroke="#dc3545" stroke-width="2"/>
+      <rect x="20" y="104" width="9" height="9" rx="2" fill="#dc3545"/>
+      <text x="33" y="112" font-size="10.5" fill="#495057">R</text>
+      <rect x="55" y="104" width="9" height="9" rx="2" fill="#28a745"/>
+      <text x="68" y="112" font-size="10.5" fill="#495057">G</text>
+      <rect x="90" y="104" width="9" height="9" rx="2" fill="#0d6efd"/>
+      <text x="103" y="112" font-size="10.5" fill="#495057">B</text>
+      <text x="57" y="135" font-size="10.5" fill="#495057" text-anchor="middle">Standard photo</text>
+
+      <rect x="232" y="47" width="55" height="55" rx="4" fill="#eceef1" stroke="#0d6efd" stroke-width="2"/>
+      <rect x="224" y="39" width="55" height="55" rx="4" fill="#eceef1" stroke="#dc3545" stroke-width="2"/>
+      <rect x="216" y="31" width="55" height="55" rx="4" fill="#eceef1" stroke="#28a745" stroke-width="2"/>
+      <rect x="208" y="23" width="55" height="55" rx="4" fill="#eceef1" stroke="#e83e8c" stroke-width="2"/>
+      <rect x="200" y="15" width="55" height="55" rx="4" fill="#eceef1" stroke="#d4a017" stroke-width="2"/>
+      <rect x="300" y="16" width="9" height="9" rx="2" fill="#0d6efd"/>
+      <text x="313" y="24" font-size="10" fill="#495057">Nucleus (DNA)</text>
+      <rect x="300" y="33" width="9" height="9" rx="2" fill="#dc3545"/>
+      <text x="313" y="41" font-size="10" fill="#495057">Mitochondria</text>
+      <rect x="300" y="50" width="9" height="9" rx="2" fill="#28a745"/>
+      <text x="313" y="58" font-size="10" fill="#495057">Endoplasmic reticulum</text>
+      <rect x="300" y="67" width="9" height="9" rx="2" fill="#e83e8c"/>
+      <text x="313" y="75" font-size="10" fill="#495057">RNA</text>
+      <rect x="300" y="84" width="9" height="9" rx="2" fill="#d4a017"/>
+      <text x="313" y="92" font-size="10" fill="#495057">Cytoskeleton &amp; membrane</text>
+      <text x="310" y="135" font-size="10.5" fill="#495057" text-anchor="middle">Cell Painting</text>
+    </svg>
+    <p class="explainer-caption mb-0">
+      Each channel is its own grayscale image; the color on each edge here (and in the sidebar's channel bars) just
+      identifies which stain it is.
+    </p>
+  </div>
+  <p class="small">
+    Those 5 grayscale channels are what the model actually sees. The color composite shown in this
+    app's thumbnails is only for human viewing — a distinct color is assigned to each channel
+    afterward so the different structures can be told apart in one image.
+  </p>
+  <p class="small">
     By capturing many cellular features at once, Cell Painting provides a detailed view of how
     compounds change cell morphology.
   </p>
@@ -269,7 +422,7 @@
     <a href="https://www.broadinstitute.org/imaging/morphological-profiling" target="_blank" rel="noopener">Broad Institute Cell Painting overview</a>
   </p>
 
-  <h3 class="h6 mt-3">Why analyze cell morphology?</h3>
+  <h3 class="h6 mt-3" id="abt-morphology">Why analyze cell morphology?</h3>
   <p class="small">
     Changes in a cell's appearance can reveal how a compound affects cellular processes.
   </p>
@@ -285,7 +438,7 @@
     These observable characteristics are called phenotypes.
   </p>
 
-  <h3 class="h6 mt-3">What did the model learn?</h3>
+  <h3 class="h6 mt-3" id="abt-dino">What did the model learn?</h3>
   <p class="small">
     This project uses a self-supervised vision model called DINO (self-Distillation with No
     Labels).
@@ -304,7 +457,7 @@
     <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO: Emerging Properties in Self-Supervised Vision Transformers (arXiv)</a>
   </p>
 
-  <h3 class="h6 mt-3">Why is this approach interesting?</h3>
+  <h3 class="h6 mt-3" id="abt-why-interesting">Why is this approach interesting?</h3>
   <p class="small">
     Large microscopy datasets contain enormous amounts of information, but manually labeling
     every image with biological annotations is expensive and incomplete.
@@ -318,7 +471,7 @@
     that the model has learned meaningful representations of cellular morphology.
   </p>
 
-  <h3 class="h6 mt-3">What could this be used for?</h3>
+  <h3 class="h6 mt-3" id="abt-use-cases">What could this be used for?</h3>
   <p class="small mb-1">
     If a model like this reliably captures phenotypic signal without labeled training data, it
     could support several practical uses in early-stage drug discovery:
@@ -349,7 +502,7 @@
     Details for where the current model falls short of that goal.
   </p>
 
-  <h3 class="h6 mt-3">Dataset</h3>
+  <h3 class="h6 mt-3" id="abt-dataset">Dataset</h3>
   <p class="small">
     This project uses data from the JUMP Cell Painting Consortium, an open resource containing
     large-scale Cell Painting microscopy experiments.
@@ -369,13 +522,34 @@
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
+  </div>
 </dialog>
 
 <dialog id="technical-details-dialog" class="info-dialog">
-  <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
-  <h2 class="h5">Technical Details</h2>
+  <div class="info-dialog-header">
+    <h2 class="h5 mb-0">Technical Details</h2>
+    <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
+  </div>
+  <div class="info-dialog-body">
 
-  <h3 class="h6 mt-3">Computational pipeline</h3>
+  <nav class="dialog-toc" aria-label="Jump to section">
+    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
+    <p class="dialog-toc-links mb-0">
+      <a href="#tech-pipeline">Computational pipeline</a> &middot;
+      <a href="#tech-training-data">Training data</a> &middot;
+      <a href="#tech-architecture">Model architecture</a> &middot;
+      <a href="#tech-training-objective">How is the model trained?</a> &middot;
+      <a href="#tech-images-to-embeddings">Images to embeddings</a> &middot;
+      <a href="#tech-embeddings-similarity">Embeddings and similarity</a> &middot;
+      <a href="#tech-embedding-processing">Embedding processing</a> &middot;
+      <a href="#tech-umap">UMAP visualization</a> &middot;
+      <a href="#tech-evaluation">Evaluation</a> &middot;
+      <a href="#tech-limitations">Limitations</a> &middot;
+      <a href="#tech-references">References</a>
+    </p>
+  </nav>
+
+  <h3 class="h6 mt-3" id="tech-pipeline">Computational pipeline</h3>
   <p class="small mb-2">The visualization was generated through the following pipeline:</p>
   <div class="pipeline-flow-v">
     <div class="pipeline-node">
@@ -473,7 +647,7 @@
     </div>
   </div>
 
-  <h3 class="h6 mt-3">Training data</h3>
+  <h3 class="h6 mt-3" id="tech-training-data">Training data</h3>
   <p class="small">
     The model was trained on a subset of the JUMP Cell Painting dataset consisting of compound
     perturbation microscopy experiments — wells treated with a chemical compound rather than a
@@ -484,7 +658,7 @@
     representations directly from the unlabeled images themselves.
   </p>
 
-  <h3 class="h6 mt-3">Model architecture</h3>
+  <h3 class="h6 mt-3" id="tech-architecture">Model architecture</h3>
   <p class="small">
     The representation model is a Vision Transformer (ViT) trained using the DINO self-supervised
     learning framework.
@@ -501,7 +675,21 @@
     <a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">Vision Transformer paper (Google Research)</a>
   </p>
 
-  <h3 class="h6 mt-3">From images to embeddings</h3>
+  <h3 class="h6 mt-3" id="tech-training-objective">How is the model trained?</h3>
+  <p class="small">
+    DINO trains with a self-distillation objective: a "student" network and a slower-moving
+    "teacher" network (an exponential moving average of the student's own weights) are shown
+    different augmented crops of the same image. The student is trained to match the teacher's
+    output distribution across those different views using a cross-entropy loss, while the
+    teacher's own outputs are centered and sharpened to prevent the trivial shortcut of every
+    image collapsing to the same output.
+  </p>
+  <p class="small mb-0">
+    Because both sides of this comparison come from the same unlabeled image, no compound or MoA
+    label is ever involved in this training signal — see <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO (arXiv)</a> for the full method.
+  </p>
+
+  <h3 class="h6 mt-3" id="tech-images-to-embeddings">From images to embeddings</h3>
   <p class="small">
     Each well is imaged at multiple sites, producing several microscopy images per well. The
     model processes each image and produces a numerical feature representation for it.
@@ -511,7 +699,7 @@
     is what gets postprocessed, compared for similarity, and ultimately plotted on the map.
   </p>
 
-  <h3 class="h6 mt-3">Embeddings and similarity</h3>
+  <h3 class="h6 mt-3" id="tech-embeddings-similarity">Embeddings and similarity</h3>
   <p class="small">
     An embedding is a numerical representation produced by the model.
   </p>
@@ -529,7 +717,7 @@
     </li>
   </ul>
 
-  <h3 class="h6 mt-3">Embedding processing</h3>
+  <h3 class="h6 mt-3" id="tech-embedding-processing">Embedding processing</h3>
   <p class="small mb-1">
     Before visualization, embeddings are processed to make them more comparable across plates and
     experiments. Processing includes:
@@ -553,7 +741,7 @@
     consistent similarity comparisons.
   </p>
 
-  <h3 class="h6 mt-3">UMAP visualization</h3>
+  <h3 class="h6 mt-3" id="tech-umap">UMAP visualization</h3>
   <p class="small">
     Because the embeddings exist in a 384-dimensional space, they cannot be directly displayed.
     UMAP creates a two-dimensional representation that preserves local relationships between
@@ -564,7 +752,7 @@
     rather than a direct biological coordinate system.
   </p>
 
-  <h3 class="h6 mt-3">Evaluation</h3>
+  <h3 class="h6 mt-3" id="tech-evaluation">Evaluation</h3>
   <p class="small">
     The learned representation is evaluated by checking whether biologically related samples are
     enriched near each other in the embedding space more than would be expected by chance.
@@ -576,7 +764,7 @@
     evidence of a validated drug discovery model — see Limitations below.
   </p>
 
-  <h3 class="h6 mt-3">Limitations</h3>
+  <h3 class="h6 mt-3" id="tech-limitations">Limitations</h3>
   <p class="small mb-1">
     This is a proof-of-concept model trained on a subset of available Cell Painting data — not a
     universal morphology foundation model. Specific limitations to keep in mind:
@@ -604,7 +792,7 @@
     </li>
   </ul>
 
-  <h3 class="h6 mt-3">References and acknowledgements</h3>
+  <h3 class="h6 mt-3" id="tech-references">References and acknowledgements</h3>
   <p class="small mb-1">This project builds upon:</p>
   <ul class="small mb-0">
     <li>
@@ -624,6 +812,7 @@
 
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
+  </div>
   </div>
 </dialog>
 
@@ -651,17 +840,47 @@
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const dialog = document.getElementById(btn.dataset.dialogOpen);
-      // <dialog> keeps its scroll position from last time it was open --
-      // without this, reopening after scrolling through a long section
-      // (e.g. Technical Details) drops you back in wherever you left off
-      // instead of at the top.
+      // .info-dialog-body (not the <dialog> itself) is what actually scrolls
+      // now that the title/close button live in a separate, non-scrolling
+      // .info-dialog-header -- see style.css. It keeps its scroll position
+      // from last time it was open, so reset it here, same as before.
       dialog.showModal();
-      dialog.scrollTop = 0;
+      const body = dialog.querySelector(".info-dialog-body");
+      if (body) body.scrollTop = 0;
     });
   });
   document.querySelectorAll("[data-dialog-close]").forEach((btn) => {
     btn.addEventListener("click", () => {
       btn.closest("dialog").close();
+    });
+  });
+  // Click anywhere outside the dialog's own content (i.e. on the backdrop)
+  // to close it -- a click there still dispatches "click" on the <dialog>
+  // element itself with the dialog as e.target, since the header/body wrap
+  // all the actual content now, so this can't false-trigger from a click on
+  // real content inside.
+  document.querySelectorAll("dialog.info-dialog").forEach((dialog) => {
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+  });
+  // Jump-to-section links at the top of each info dialog (see .dialog-toc).
+  // Deliberately NOT target.scrollIntoView(): a <dialog> shown via
+  // showModal() renders in the browser's top layer, and scrollIntoView()
+  // walks and scrolls every scrollable ancestor it can find to bring the
+  // target into view -- across that top-layer boundary this also drags the
+  // underlying page's own scroll position, leaving the whole app stuck
+  // scrolled away after the dialog closes. Computing the target's offset
+  // within .info-dialog-body ourselves and scrolling only that one element
+  // avoids touching anything outside the dialog.
+  document.querySelectorAll(".dialog-toc a").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const target = document.getElementById(link.getAttribute("href").slice(1));
+      const body = link.closest(".info-dialog-body");
+      if (!target || !body) return;
+      const offset = target.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+      body.scrollTo({ top: Math.max(0, offset - 8), behavior: "smooth" });
     });
   });
 </script>

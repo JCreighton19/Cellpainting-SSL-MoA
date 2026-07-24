@@ -27,6 +27,13 @@ const UNANNOTATED_COLOR = "#e9ecef";
 const MARKER_OPACITY = 0.8;
 const BACKGROUND_MARKER_OPACITY = 0.6;
 
+// Single shared marker size for every real data point (MoA/plate/background/
+// search-match traces alike) -- previously these varied (5/6/7/8) by trace,
+// which made some groups visually more prominent for no meaningful reason.
+// Overlay traces (selection ring, neighbor ring) are a separate concept and
+// keep their own larger sizes -- see buildHighlightTrace/buildNeighborTraces.
+const POINT_SIZE = 6;
+
 // Used to de-emphasize points that don't match the active search filter.
 const FILTERED_OUT_COLOR = "#e9ecef";
 const FILTERED_OUT_OPACITY = 0.25;
@@ -66,10 +73,12 @@ let matchSet = null;
 // toggled off via the custom legend; persists across re-renders since
 // buildMoaTraces/buildPlateTraces rebuild every trace from scratch each call.
 let hiddenLegendKeys = new Set();
-// Key of the single legend item currently isolated (every other key hidden),
-// or null when none is isolated. Lets a second click on the same item tell
-// "isolate this one" apart from "restore all" -- see renderLegend().
-let isolatedLegendKey = null;
+// Set of legend keys currently isolated (every key NOT in this set is
+// hidden); empty when nothing is isolated (every key shown). A single click
+// toggles that key's own membership in the set, so multiple colors can be
+// isolated together at once instead of only ever one -- see
+// isolateLegendKey() below.
+let isolatedLegendKeys = new Set();
 // Pending single-click timer, used to tell a real single click apart from
 // the first half of a double-click -- see handleLegendClick().
 let legendClickTimer = null;
@@ -148,7 +157,14 @@ function makeTrace(g, { name, size, visible }) {
 // matched points are pulled out of their color-group trace entirely and
 // drawn in one shared trace pushed last (see matched/buildMatchedTrace
 // below), so a match can never be hidden under a later group's gray points.
-function buildMoaTraces(data) {
+// Cached the first time it's computed -- the underlying data (and therefore
+// each MoA's frequency rank) never changes over the page's lifetime, and
+// this is also what the sidebar's MoA badge calls (see getMoaColor below) to
+// guarantee it always matches the map's own colors exactly, in whichever
+// mode ("Color by" MoA or Plate) the map currently happens to be in.
+let cachedTopMoaColor = null;
+
+function computeTopMoaColor(data) {
   const counts = {};
   data.moa.forEach((m) => { counts[m] = (counts[m] || 0) + 1; });
   const topMoas = Object.keys(counts)
@@ -157,6 +173,44 @@ function buildMoaTraces(data) {
     .slice(0, TOP_N_MOAS);
   const topMoaColor = {};
   topMoas.forEach((m, i) => { topMoaColor[m] = MOA_PALETTE[i % MOA_PALETTE.length]; });
+  return topMoaColor;
+}
+
+// Looks up the exact color a MoA is drawn in on the map (or the same
+// gray used for "other annotated" MoAs outside the top N), for the
+// sidebar's MoA badge -- see applyMoaBadgeColor().
+function getMoaColor(moa) {
+  if (!umapData) return null;
+  if (!cachedTopMoaColor) cachedTopMoaColor = computeTopMoaColor(umapData);
+  return cachedTopMoaColor[moa] || OTHER_ANNOTATED_COLOR;
+}
+
+// Simple YIQ perceived-brightness check (the common heuristic for "does
+// this background need light or dark text") -- picks black text for the
+// lighter/brighter half of the MoA palette, white for the darker half.
+function pickTextColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness >= 128 ? "#000" : "#fff";
+}
+
+// Colors the sidebar's MoA badge (see partials/_right_sidebar.html) to match
+// its dot color on the map, instead of a fixed color unrelated to the
+// legend. No-op if this well has no MoA badge (control wells, etc.).
+function applyMoaBadgeColor() {
+  const badge = document.querySelector("#sidebar-content .moa-badge");
+  if (!badge) return;
+  const color = getMoaColor(badge.dataset.moa);
+  if (!color) return;
+  badge.style.backgroundColor = color;
+  badge.style.color = pickTextColor(color);
+}
+
+function buildMoaTraces(data) {
+  const topMoaColor = computeTopMoaColor(data);
+  const topMoas = Object.keys(topMoaColor);
 
   const groups = {};
   topMoas.forEach((m) => { groups[m] = { dim: emptyBucket(), bright: emptyBucket() }; });
@@ -193,15 +247,15 @@ function buildMoaTraces(data) {
 
   const traces = [];
   const legendItems = [];
-  [["unannotated", "no annotated MoA", 5, UNANNOTATED_COLOR], ["other-annotated", "other annotated MoA (grouped for readability)", 5, OTHER_ANNOTATED_COLOR]]
-    .forEach(([key, name, size, swatchColor]) => {
+  [["unannotated", "no annotated MoA", UNANNOTATED_COLOR], ["other-annotated", "other annotated MoA (grouped for readability)", OTHER_ANNOTATED_COLOR]]
+    .forEach(([key, name, swatchColor]) => {
       const g = mergeDimBright(groups[key].dim, groups[key].bright);
-      traces.push(makeTrace(g, { name, size, visible: hiddenLegendKeys.has(key) ? "legendonly" : true }));
+      traces.push(makeTrace(g, { name, size: POINT_SIZE, visible: hiddenLegendKeys.has(key) ? "legendonly" : true }));
       legendItems.push({ key, label: name, color: swatchColor });
     });
   topMoas.forEach((m) => {
     const g = mergeDimBright(groups[m].dim, groups[m].bright);
-    traces.push(makeTrace(g, { name: m, size: 7, visible: hiddenLegendKeys.has(m) ? "legendonly" : true }));
+    traces.push(makeTrace(g, { name: m, size: POINT_SIZE, visible: hiddenLegendKeys.has(m) ? "legendonly" : true }));
     legendItems.push({ key: m, label: m, color: topMoaColor[m] });
   });
   pushMatchedTrace(traces, matched);
@@ -214,7 +268,7 @@ function buildMoaTraces(data) {
 // active filter or nothing matched.
 function pushMatchedTrace(traces, matched) {
   if (!matchSet || !matched.x.length) return;
-  traces.push(makeTrace(matched, { name: "search match", size: 8, visible: true }));
+  traces.push(makeTrace(matched, { name: "search match", size: POINT_SIZE, visible: true }));
 }
 
 function buildPlateTraces(data) {
@@ -240,7 +294,7 @@ function buildPlateTraces(data) {
 
   const traces = plates.map((p) => {
     const g = mergeDimBright(groups[p].dim, groups[p].bright);
-    return makeTrace(g, { name: p, size: 6, visible: hiddenLegendKeys.has(p) ? "legendonly" : true });
+    return makeTrace(g, { name: p, size: POINT_SIZE, visible: hiddenLegendKeys.has(p) ? "legendonly" : true });
   });
   const legendItems = plates.map((p) => ({ key: p, label: p, color: plateColor[p] }));
   pushMatchedTrace(traces, matched);
@@ -407,15 +461,20 @@ function defaultLayout() {
   return is3D ? default3DLayout() : default2DLayout();
 }
 
-// Single click: isolate this key (hide every other), or restore all if it's
-// already the isolated one.
+// Single click: toggle this key's membership in the isolated set. Clicking
+// additional keys adds them to the set (isolating several colors together,
+// not just one); clicking an already-isolated key removes it; emptying the
+// set restores every key.
 function isolateLegendKey(key, items) {
-  if (isolatedLegendKey === key) {
-    isolatedLegendKey = null;
+  if (isolatedLegendKeys.has(key)) {
+    isolatedLegendKeys.delete(key);
+  } else {
+    isolatedLegendKeys.add(key);
+  }
+  if (isolatedLegendKeys.size === 0) {
     hiddenLegendKeys.clear();
   } else {
-    isolatedLegendKey = key;
-    hiddenLegendKeys = new Set(items.map((i) => i.key).filter((k) => k !== key));
+    hiddenLegendKeys = new Set(items.map((i) => i.key).filter((k) => !isolatedLegendKeys.has(k)));
   }
   render();
 }
@@ -424,9 +483,9 @@ function isolateLegendKey(key, items) {
 function toggleLegendKeyHidden(key) {
   if (hiddenLegendKeys.has(key)) hiddenLegendKeys.delete(key);
   else hiddenLegendKeys.add(key);
-  // An explicit hide/show of one key no longer matches the "exactly one key
-  // visible" state isolate tracks, so drop it rather than leave it stale.
-  isolatedLegendKey = null;
+  // An explicit hide/show of one key no longer matches the isolated-set
+  // state isolate tracks, so drop it rather than leave it stale.
+  isolatedLegendKeys.clear();
   render();
 }
 
@@ -537,7 +596,7 @@ function setColorBy(mode) {
   // isolated state from the previous mode wouldn't apply to the new one --
   // reset rather than leave a stale, invisible toggle behind.
   hiddenLegendKeys.clear();
-  isolatedLegendKey = null;
+  isolatedLegendKeys.clear();
   render();
 }
 
@@ -685,6 +744,7 @@ function selectWell(wellId, opts) {
     .then((r) => r.text())
     .then((html) => {
       document.getElementById("sidebar-content").innerHTML = html;
+      applyMoaBadgeColor();
       const idsEl = document.getElementById("neighbor-well-ids");
       selectedNeighborIds = idsEl && idsEl.dataset.ids ? idsEl.dataset.ids.split(",") : [];
       updateNeighborHighlights(wellId, selectedNeighborIds);
@@ -885,7 +945,15 @@ function initMap() {
   // re-binding after every render.
   document.getElementById("sidebar-content").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-view]");
-    if (btn) setImageView(btn.dataset.view);
+    if (btn) {
+      setImageView(btn.dataset.view);
+      return;
+    }
+    // Clicking a "Nearest Neighbors" row jumps to that well exactly as if
+    // its point on the map had been clicked directly -- same selectWell()
+    // call, so the sidebar swaps to it and the 2D view recenters on it.
+    const neighborCard = e.target.closest(".neighbor-card-compact[data-well-id]");
+    if (neighborCard) selectWell(neighborCard.dataset.wellId);
   });
 
   // Closes any open "?" help tooltip (.info-tooltip, e.g. Neighborhood

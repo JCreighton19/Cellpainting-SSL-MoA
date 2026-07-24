@@ -60,7 +60,10 @@
 </h2>
 
 {% if well.moa %}
-  <p class="mb-2"><span class="badge bg-primary">{{ well.moa|titlecase }}</span></p>
+  <!-- Colored to match this MoA's dot color on the map -- see applyMoaBadgeColor()
+       in map.js, which reads data-moa and looks it up in the same palette
+       buildMoaTraces() uses, so the two never drift out of sync. -->
+  <p class="mb-2"><span class="badge moa-badge" data-moa="{{ well.moa|titlecase }}">{{ well.moa|titlecase }}</span></p>
 {% else %}
   <p class="text-muted small mb-2">No annotated mechanism of action</p>
 {% endif %}
@@ -122,7 +125,7 @@
 <!-- SECTION 3: nearest neighbors, summarized before enumerated -->
 <h3 class="h6 text-muted mb-1">Nearest Neighbors</h3>
 {% for n in neighbors %}
-<div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small">
+<div class="neighbor-card-compact border rounded px-2 py-1 mb-1 d-flex justify-content-between align-items-center small" data-well-id="{{ n.well_id }}">
   <div>
     <span class="fw-semibold">{{ n.moa|titlecase or "Unannotated" }}</span>
     <span class="text-muted">&middot; {{ n.pert_iname|titlecase or "Unannotated compound" }}</span>
