@@ -22,6 +22,16 @@ def _cap_token(t):
     return t[0].upper() + t[1:]
 
 
+def _title_case_one(s):
+    words = []
+    for w in s.split(" "):
+        if "-" in w:
+            words.append("-".join(_cap_token(p) for p in w.split("-")))
+        else:
+            words.append(_cap_token(w))
+    return " ".join(words)
+
+
 def title_case(s):
     """Display-only title-casing for compound/MoA labels.
 
@@ -33,16 +43,65 @@ def title_case(s):
     uppercase letter (acronyms like HDAC, MAPK, PPAR) and lowercase-led
     scientific notation (p38, p21); capitalizes each hyphen-separated segment
     otherwise (e.g. "non-nucleoside" -> "Non-Nucleoside").
+
+    A handful of raw MoA strings (from the upstream Drug Repurposing Hub
+    annotation file, e.g. thiostrepton's "FOXM1 inhibitor | foxm1 inhibitor,
+    protein synthesis inhibitor | protein synthesis inhibitor") redundantly
+    list the same atomic MoA(s) more than once across "|"- and ","-separated
+    segments, with inconsistent casing. When "|" is present, this splits on
+    both delimiters, deduplicates case-insensitively (keeping the first-seen
+    casing of each), and rejoins with " | " before title-casing each part --
+    collapsing that example to "FOXM1 Inhibitor | Protein Synthesis
+    Inhibitor". A no-op for the vast majority of labels, which have no "|".
     """
     if not s:
         return s
-    words = []
-    for w in s.split(" "):
-        if "-" in w:
-            words.append("-".join(_cap_token(p) for p in w.split("-")))
-        else:
-            words.append(_cap_token(w))
-    return " ".join(words)
+    if "|" in s:
+        seen = set()
+        parts = []
+        for segment in s.split("|"):
+            for part in segment.split(","):
+                part = part.strip()
+                key = part.lower()
+                if part and key not in seen:
+                    seen.add(key)
+                    parts.append(part)
+        return " | ".join(_title_case_one(p) for p in parts)
+    return _title_case_one(s)
+
+
+def trim_plate(plate):
+    """Display-only plate label: raw plate values are full imaging-run folder
+    names (e.g. "BR00116991__2020-11-05T19_51_35-Measurement1"); everything
+    from the first "_" onward is timestamp/run metadata, not part of the
+    plate barcode itself. Only applied at presentation boundaries — the
+    underlying `plate` column (used for well_id, thumbnail/attention file
+    lookup, and search matching) is untouched.
+    """
+    if not plate:
+        return plate
+    return plate.split("_")[0]
+
+
+# Friendly names for moa_descriptions.json's "target_organelles" codes, which
+# are deliberately the same 5 codes as channel_ablation.py's CHANNEL_NAMES
+# (see webapp/routes.py's CHANNEL_DISPLAY) so a MoA's documented target can
+# be compared directly against the channel-importance bar chart.
+ORGANELLE_LABELS = {
+    "Mito": "Mitochondria",
+    "AGP": "Actin / Golgi / Plasma membrane",
+    "RNA": "Nucleolus / RNA",
+    "ER": "Endoplasmic reticulum",
+    "DNA": "Nucleus",
+}
+
+
+def format_organelles(codes):
+    """Display-only: renders a target_organelles code list (e.g. ["DNA"]) as
+    "Nucleus (DNA)" for the channel-importance sidebar section."""
+    if not codes:
+        return ""
+    return ", ".join(f"{ORGANELLE_LABELS.get(c, c)} ({c})" for c in codes)
 
 
 class SimilarityIndex:
@@ -144,17 +203,16 @@ def generate_interpretation(entity_label: str, query_moa, stats) -> str:
 
     if stats["dominant_matches_query"]:
         return (
-            f"This {entity_label}'s phenotypic neighborhood is consistent with its annotated "
-            f"mechanism, {query_moa_display}. This is supporting evidence for — not independent "
-            "confirmation of — the existing annotation."
+            f"This {entity_label}'s neighborhood is consistent with its mechanism of action, "
+            f"{query_moa_display}. This is supporting evidence for, but not "
+            "confirmation of, the existing annotation."
         )
 
     if stats["has_query_moa"]:
         return (
             f"This {entity_label} occupies a neighborhood that is not dominated by other "
             f"{query_moa_display} compounds. This may reflect overlapping cellular phenotypes, "
-            "annotation limitations, or limitations of the learned representation. This observation "
-            "should be treated as a hypothesis rather than evidence of a shared biological mechanism."
+            "annotation limitations, or limitations of the learned embeddings."
         )
 
     return (

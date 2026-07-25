@@ -19,6 +19,23 @@ body {
   flex: 0 0 auto;
 }
 
+/* How to Read This Map / About the Project / Technical Details, top-right of
+   the navbar. No border/outline in the resting state -- just light text on
+   the dark navbar; hovering fills that button's own area white with black
+   text, rather than the outline-then-invert look of a Bootstrap outline
+   button. */
+.navbar-help-btn {
+  border: none;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.navbar-help-btn:hover {
+  background-color: #fff;
+  color: #000;
+}
+
 .app-main {
   flex: 1 1 auto;
   min-height: 0; /* let children scroll instead of pushing the page taller */
@@ -52,6 +69,9 @@ body {
 
 .sidebar-left {
   border-right: 1px solid #e9ecef;
+  /* Slightly wider than the shared 20% default -- still draggable within
+     the usual MIN_SIDEBAR_WIDTH/MAX_SIDEBAR_WIDTH bounds in map.js. */
+  flex-basis: 22%;
 }
 
 .sidebar-right {
@@ -154,6 +174,21 @@ body {
   text-decoration: line-through;
 }
 
+.top-moa-item {
+  cursor: pointer;
+  user-select: none;
+}
+
+.top-moa-item:hover {
+  color: #212529;
+  text-decoration: underline;
+}
+
+.top-moa-item.top-moa-item-active {
+  font-weight: 600;
+  color: #212529;
+}
+
 .legend-swatch {
   width: 10px;
   height: 10px;
@@ -175,19 +210,49 @@ body {
     max-width: none;
     border: none;
     border-top: 1px solid #e9ecef;
+    /* Desktop's min-width (220-300px) + flex-basis percentage assume a row
+       layout; in this column layout flex-basis-as-percentage would size
+       *height* instead of width, and the min-widths alone are wide enough
+       to force horizontal overflow on phone-width screens. Reset both so
+       each stacked panel just uses the full available width. */
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
   }
   .umap-plot { height: 60vh; }
+  /* Dragging a horizontal divider makes no sense once panels are stacked
+     vertically (see .resize-handle below for the touch-device version of
+     this same rule) -- hide rather than leave a dead 6px strip in the flow. */
+  .resize-handle { display: none; }
+  /* 2 columns gets cramped at phone widths; 1 keeps each MoA/plate label
+     fully readable instead of wrapping mid-word. */
+  .map-legend { column-count: 1; }
+  /* The help-button row has no room to stay on one line next to the brand
+     text at phone widths -- let both wrap onto their own rows instead of
+     overflowing off the right edge. */
+  .app-navbar .container-fluid { flex-wrap: wrap; row-gap: 0.5rem; }
+  .navbar-help-actions { flex-wrap: wrap; }
 }
 
-/* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ---- */
+/* Resize handles are a mouse-drag interaction (see makeResizable in map.js,
+   which only listens for mousedown/mousemove/mouseup); on a touch device
+   they'd just be a dead 6px strip that can't actually be dragged, regardless
+   of viewport width (e.g. a touchscreen laptop wider than 900px). Hiding
+   them removes that dead UI without touching the drag logic itself -- no
+   touch-event handling was added because none was needed. */
+@media (hover: none) and (pointer: coarse) {
+  .resize-handle { display: none; }
+}
 
-/* Flex column instead of a single scrolling box: .info-dialog-header stays
-   put (flex: 0 0 auto) while .info-dialog-body is the only part that
-   scrolls (flex: 1 1 auto; overflow-y: auto) -- this is what keeps the
-   title and close button visible no matter how far the body is scrolled. */
+/* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ----
+   Modern 2-pane docs layout: a fixed left nav (.info-dialog-sidebar) and a
+   scrolling content pane (.info-dialog-content) side by side inside
+   .info-dialog-layout, which itself doesn't scroll -- only the content pane
+   does. .info-dialog-header stays outside both, so the title/close button
+   stay put regardless of scroll position or which pane is active. */
 .info-dialog {
   position: relative;
-  max-width: 700px;
+  max-width: 900px;
   width: 90%;
   max-height: 85vh;
   overflow: hidden;
@@ -209,8 +274,53 @@ body {
   border-bottom: 1px solid #e9ecef;
 }
 
-.info-dialog-body {
+.info-dialog-layout {
   flex: 1 1 auto;
+  display: flex;
+  /* Without this, a flex item's default min-height:auto lets it grow to fit
+     its content instead of respecting the dialog's max-height, which would
+     break internal scrolling for both the sidebar and content panes below. */
+  min-height: 0;
+  overflow: hidden;
+}
+
+.info-dialog-sidebar {
+  flex: 0 0 210px;
+  overflow-y: auto;
+  padding: 1rem 0.65rem;
+  background-color: #f8f9fa;
+  border-right: 1px solid #e9ecef;
+}
+
+.info-dialog-sidebar-link {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.1rem;
+  border-radius: 0.375rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  color: #495057;
+  text-decoration: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.info-dialog-sidebar-link:hover {
+  background-color: #e9ecef;
+  color: #212529;
+}
+
+/* Active subsection (set by the IntersectionObserver in index.html's script
+   block as the user scrolls, and immediately on click) -- same blue used for
+   primary buttons/links elsewhere in the app, so it reads as "selected". */
+.info-dialog-sidebar-link.active {
+  background-color: #0d6efd;
+  color: #fff;
+  font-weight: 600;
+}
+
+.info-dialog-content {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-y: auto;
   padding: 1rem 1.5rem 1.25rem;
 }
@@ -218,48 +328,33 @@ body {
 /* Breaks each subsection into a visible "chapter" instead of one
    continuous block of text -- the first heading (right under the dialog
    title) is skipped since it doesn't need its own divider. */
-.info-dialog-body h3 {
+.info-dialog-content h3 {
   margin-top: 1.75rem;
   padding-top: 0.9rem;
   border-top: 1px solid #e9ecef;
+  /* Anchor-scroll target for the sidebar links and the IntersectionObserver
+     highlighting -- offset so a heading doesn't land flush against the
+     content pane's top edge. */
+  scroll-margin-top: 0.5rem;
 }
 
-.info-dialog-body h3:first-of-type {
+.info-dialog-content h3:first-of-type {
   margin-top: 0;
   padding-top: 0;
   border-top: none;
 }
 
-/* "Jump to section" links at the top of each info dialog: a labeled row of
-   plain inline links (dot-separated, wraps like normal text) rather than a
-   cluster of pill buttons, so it reads as a lightweight table of contents
-   instead of a row of controls. */
-.dialog-toc {
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid #e9ecef;
-}
+@media (max-width: 576px) {
+  .info-dialog-layout {
+    flex-direction: column;
+  }
 
-.dialog-toc-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.35rem;
-}
-
-.dialog-toc-links {
-  font-size: 0.8rem;
-  line-height: 1.7;
-  color: #ced4da;
-}
-
-.dialog-toc-links a {
-  color: #0d6efd;
-  text-decoration: none;
-}
-
-.dialog-toc-links a:hover {
-  text-decoration: underline;
+  .info-dialog-sidebar {
+    flex: 0 0 auto;
+    max-height: 30vh;
+    border-right: none;
+    border-bottom: 1px solid #e9ecef;
+  }
 }
 
 .dialog-close-x {
@@ -313,6 +408,27 @@ body {
   max-width: 360px;
 }
 
+.moa-badge {
+  font-size: 0.9rem;
+  padding: 0.4em 0.65em;
+  /* Bootstrap's .badge is inline-block with no wrapping guard, and as a flex
+     item it defaults to min-width:auto -- both let long combined MoA labels
+     ("A | B | C") force the badge past the sidebar's edge instead of
+     wrapping. Override both so long labels wrap onto multiple lines within
+     the badge itself. */
+  display: inline-block;
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+.compound-name-inline {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
 .thumbnail-placeholder {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -347,55 +463,54 @@ body {
   filter: brightness(1.5);
 }
 
-/* Tiny click-to-open explainer next to a stat label. Plain <details>/<summary>
-   (no JS) so it keeps working after the sidebar is swapped in via innerHTML. */
+/* Tiny hover-based explainer next to a stat label: shows on hover/keyboard
+   focus, hides as soon as the mouse leaves or focus moves elsewhere -- no
+   click/open state involved (unlike the real click-to-expand <details> for
+   "Technical Details" further down in this partial, which is a different
+   pattern on purpose). */
 .info-tooltip {
   position: relative;
   display: inline-block;
   margin-left: 0.15rem;
 }
 
-.info-tooltip > summary {
+.info-tooltip-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;
+  padding: 0;
+  border: none;
   border-radius: 50%;
   background-color: #dee2e6;
   color: #495057;
   font-size: 10px;
   line-height: 1;
-  cursor: pointer;
-  list-style: none;
+  cursor: help;
   user-select: none;
 }
 
-.info-tooltip > summary::-webkit-details-marker {
-  display: none;
-}
-
-.info-tooltip[open] > summary {
+.info-tooltip:hover .info-tooltip-trigger,
+.info-tooltip:focus-within .info-tooltip-trigger {
   background-color: #adb5bd;
 }
 
+/* position: fixed (not absolute) with top/left computed in JS -- see the
+   "?" trigger's mouseover/focusin handler in map.js -- rather than
+   absolute + percentage-centered under the trigger. Both .sidebar-left and
+   .sidebar-right use overflow-y: auto, which forces overflow-x to compute
+   as auto too (a well-known CSS quirk), silently clipping any
+   absolutely-positioned descendant that visually extends past the
+   sidebar's own edge -- which is exactly what "the plot covers half the
+   popup" was: the popup wasn't covered, it was clipped at the sidebar
+   boundary before painting. A fixed-position element is placed relative to
+   the viewport instead, so it can never be clipped by an ancestor's
+   overflow, and always paints above the plot regardless of z-index
+   quirks in Plotly's own layers. */
 .info-tooltip-popup {
-  position: absolute;
-  top: 130%;
-  /* Centered under the trigger rather than right-anchored: right:0 made the
-     popup extend leftward from wherever the trigger happened to sit (e.g.
-     mid-row for "Neighborhood consistency"), which could push it past the
-     sidebar's own left edge -- .sidebar-right's overflow-y:auto clips
-     overflow-x too (a well-known CSS quirk: a non-visible overflow-y forces
-     overflow-x to compute as auto as well), so the popup got silently cut
-     off rather than simply covered. Centering keeps overflow risk
-     symmetric regardless of where the trigger sits. */
-  left: 50%;
-  transform: translateX(-50%);
-  /* Well above anything else on the page (Plotly's plot, cards below it in
-     the DOM, etc.) in case it ever still needs to render outside the
-     sidebar's own bounds. */
-  z-index: 2000;
+  position: fixed;
+  z-index: 3000;
   width: 180px;
   max-width: calc(100vw - 2rem);
   padding: 0.5rem 0.6rem;
@@ -404,8 +519,23 @@ body {
   border-radius: 0.375rem;
   box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.12);
   font-weight: normal;
+  /* Resets any text-transform (e.g. text-uppercase on an ancestor heading
+     like "Strongest MoA Clustering") inherited down into the popup -- the
+     popup's own text should always read in normal case regardless of what
+     it's nested inside. */
+  text-transform: none;
   color: #495057;
   line-height: 1.3;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.info-tooltip:hover .info-tooltip-popup,
+.info-tooltip:focus-within .info-tooltip-popup {
+  opacity: 1;
+  visibility: visible;
 }
 
 .thumbnail-sm {

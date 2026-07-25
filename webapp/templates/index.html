@@ -11,7 +11,7 @@
         <button id="search-btn" type="button" class="btn btn-sm btn-primary">Go</button>
       </div>
       <datalist id="search-suggestions">
-        {% for p in plates %}<option value="{{ p }}" label="Plate">{% endfor %}
+        {% for p in plates %}<option value="{{ p|trimplate }}" label="Plate">{% endfor %}
         {% for m in moas %}<option value="{{ m|titlecase }}" label="MoA">{% endfor %}
         {% for c in compounds %}<option value="{{ c|titlecase }}" label="Compound">{% endfor %}
       </datalist>
@@ -21,6 +21,14 @@
       </div>
 
       <p class="small text-muted mt-2 mb-0">Examples: {{ examples|join(", ") }}</p>
+    </div>
+
+    <div class="sidebar-section">
+      <h2 class="h6 text-uppercase text-muted">Color by</h2>
+      <div class="btn-group btn-group-sm w-100" role="group">
+        <button type="button" id="color-by-moa" class="btn btn-outline-secondary active">MoA</button>
+        <button type="button" id="color-by-plate" class="btn btn-outline-secondary">Plate</button>
+      </div>
     </div>
 
     <div class="sidebar-section">
@@ -36,28 +44,57 @@
     </div>
 
     <div class="sidebar-section">
-      <h2 class="h6 text-uppercase text-muted">Color by</h2>
-      <div class="btn-group btn-group-sm w-100" role="group">
-        <button type="button" id="color-by-moa" class="btn btn-outline-secondary active">MoA</button>
-        <button type="button" id="color-by-plate" class="btn btn-outline-secondary">Plate</button>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <h2 class="h6 text-uppercase text-muted">View</h2>
-      <div class="form-check form-switch mb-0">
-        <input type="checkbox" role="switch" class="form-check-input" id="view-3d-toggle">
-        <label class="form-check-label small" for="view-3d-toggle">3D UMAP</label>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="how-to-read-dialog">How to Read This Map</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" data-dialog-open="about-project-dialog">About the Project</button>
-      <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start" data-dialog-open="technical-details-dialog">Technical Details</button>
-      <div class="mt-2 pt-2 border-top">
-        <button type="button" id="restart-tutorial-btn" class="btn btn-sm btn-outline-secondary w-100 text-start">Restart Tutorial</button>
-      </div>
+      <h2 class="h6 text-uppercase text-muted">Model evaluation</h2>
+      <table class="table table-sm mb-2">
+        <tbody>
+          <tr>
+            <td class="d-flex align-items-center gap-1">
+              Neighbor MoA agreement
+              <div class="info-tooltip">
+                <button type="button" class="info-tooltip-trigger" aria-label="What does neighbor MoA agreement mean?">?</button>
+                <div class="info-tooltip-popup small">
+                  On average, this is the share of a well's nearest neighbors that share its MoA,
+                  compared to about {{ "%.0f"|format(metrics.chance_consistency * 100) }}% you'd
+                  expect from random chance alone.
+                </div>
+              </div>
+            </td>
+            <td class="text-end">{{ "%.0f"|format(metrics.neighbor_consistency * 100) }}%</td>
+          </tr>
+          {% if metrics.replicate_enrichment %}
+          <tr>
+            <td class="d-flex align-items-center gap-1">
+              Replicate enrichment
+              <div class="info-tooltip">
+                <button type="button" class="info-tooltip-trigger" aria-label="What does replicate enrichment mean?">?</button>
+                <div class="info-tooltip-popup small">
+                  Wells testing the same compound (on different plates) look about
+                  {{ "%.0f"|format(metrics.replicate_enrichment) }}&times; more alike than two
+                  random, unrelated wells.
+                </div>
+              </div>
+            </td>
+            <td class="text-end">{{ "%.1f"|format(metrics.replicate_enrichment) }}&times;</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% if metrics.top_moas %}
+      <h2 class="h6 text-uppercase text-muted mt-3 d-flex align-items-center gap-1">
+        Strongest MoA clustering
+        <div class="info-tooltip">
+          <button type="button" class="info-tooltip-trigger" aria-label="What do these percentages mean?">?</button>
+          <div class="info-tooltip-popup small">
+            Percentages indicate the share of each well's nearest neighbors that have the same mechanism of action. Higher percentages indicate that the model more consistently groups wells with that mechanism together.
+          </div>
+        </div>
+      </h2>
+      <ol class="small ps-3 mb-0" id="top-moas-list">
+        {% for m in metrics.top_moas %}
+        <li class="top-moa-item" data-moa="{{ m.moa|titlecase }}" role="button" tabindex="0" title="Filter map to this MoA">{{ m.moa|titlecase }} <span class="text-muted">{{ "%.0f"|format(m.consistency * 100) }}%</span></li>
+        {% endfor %}
+      </ol>
+      {% endif %}
     </div>
   </aside>
 
@@ -66,10 +103,16 @@
   <section class="center-panel">
     <div class="plot-header">
       <h1 class="h5 mb-1">Embedding Map</h1>
-      <p class="small text-muted mb-2">Click a point to select it; click elsewhere to clear selection</p>
+      <div class="d-flex justify-content-between align-items-center">
+        <p class="small text-muted mb-2">Click a point to select it. Click elsewhere to clear the selection.</p>
+        <div class="form-check form-switch mb-0 flex-shrink-0 ms-3">
+          <input type="checkbox" role="switch" class="form-check-input" id="view-3d-toggle">
+          <label class="form-check-label small" for="view-3d-toggle">3D UMAP</label>
+        </div>
+      </div>
     </div>
     <div id="umap-plot" class="umap-plot"></div>
-    <p class="small text-muted map-legend-caption">Click a color to isolate it — click more colors to isolate several at once, and click all of them again to restore everything. Double-click a color to hide just it, and double-click again to restore it.</p>
+    <p class="small text-muted map-legend-caption">Click a color to isolate it or double-click to hide it. Click or double-click again to restore it.</p>
     <div id="map-legend" class="map-legend"></div>
   </section>
 
@@ -77,7 +120,7 @@
 
   <aside class="sidebar-right" id="sidebar-right">
     <div id="sidebar-content">
-      <p class="text-muted small">Click a point on the map, or search, to explore a phenotype.</p>
+      <p class="text-muted small">Click a point on the map to explore its embedding.</p>
     </div>
   </aside>
 
@@ -88,22 +131,18 @@
     <h2 class="h5 mb-0">How to Read This Map</h2>
     <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   </div>
-  <div class="info-dialog-body">
-
-  <nav class="dialog-toc" aria-label="Jump to section">
-    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
-    <p class="dialog-toc-links mb-0">
-      <a href="#htr-overview">What am I looking at?</a> &middot;
-      <a href="#htr-point">What does each point represent?</a> &middot;
-      <a href="#htr-distance">What does distance mean?</a> &middot;
-      <a href="#htr-clusters">How should I interpret clusters?</a> &middot;
-      <a href="#htr-influences">What affects the map?</a> &middot;
-      <a href="#htr-axes">Why UMAP 1 / UMAP 2?</a> &middot;
-      <a href="#htr-similarity">How is similarity calculated?</a> &middot;
-      <a href="#htr-neighbor-mismatch">Map vs. neighbor list</a> &middot;
-      <a href="#htr-attention">Attention map</a>
-    </p>
-  </nav>
+  <div class="info-dialog-layout">
+    <nav class="info-dialog-sidebar" aria-label="Jump to section">
+      <a class="info-dialog-sidebar-link" href="#htr-overview">What am I looking at?</a>
+      <a class="info-dialog-sidebar-link" href="#htr-point">What does each point represent?</a>
+      <a class="info-dialog-sidebar-link" href="#htr-distance">What does distance mean?</a>
+      <a class="info-dialog-sidebar-link" href="#htr-clusters">How should I interpret clusters?</a>
+      <a class="info-dialog-sidebar-link" href="#htr-influences">What affects the map?</a>
+      <a class="info-dialog-sidebar-link" href="#htr-axes">Axes meaning</a>
+      <a class="info-dialog-sidebar-link" href="#htr-neighbor-mismatch">Map vs. neighbor list</a>
+      <a class="info-dialog-sidebar-link" href="#htr-attention">Attention map</a>
+    </nav>
+    <div class="info-dialog-content">
 
   <h3 class="h6 mt-3" id="htr-overview">What am I looking at?</h3>
   <p class="small">
@@ -116,8 +155,9 @@
     different learned representations.
   </p>
   <p class="small">
-    The map is a two-dimensional visualization of a much larger feature space. The goal is to
-    help explore patterns in the model's learned representation of cellular morphology.
+    The model compares each well using a numerical summary of the images it analyzed. This
+    map is a simplified visualization that helps explore patterns in the model's understanding of
+    the wells it analyzed.
   </p>
 
   <h3 class="h6 mt-3" id="htr-point">What does each point represent?</h3>
@@ -125,9 +165,9 @@
     Each point represents a single well from a Cell Painting experiment.
   </p>
   <p class="small">
-    A physical <strong>plate</strong> holds many individual <strong>wells</strong> arranged in a grid — each well
-    is one independent mini-experiment (one compound, imaged separately). Every point on the map corresponds to
-    exactly one well.
+    A physical <strong>plate</strong> holds many individual <strong>wells</strong> arranged in a grid. Each well
+    is one independent mini-experiment containing cells treated with a specific compound. Every point on the map
+    corresponds to exactly one well.
   </p>
   <div class="explainer-figure">
     <svg viewBox="0 0 300 140" class="explainer-svg" role="img" aria-label="Diagram of a microplate with one well zoomed in. Wells are colored differently to show that each one can hold a different treatment; the zoomed well shows several separate microscopy images, each containing many cells">
@@ -155,14 +195,9 @@
     </p>
   </div>
   <p class="small">
-    Each well contains many cells and microscopy images. The model first extracts a visual
-    representation from those images, then summarizes them into a single embedding that
-    represents the overall cellular phenotype observed in that well.
-  </p>
-  <p class="small">
-    The model converts the microscopy images from each well into a numerical representation
-    called an embedding — a compact "fingerprint" of the cell images that captures important
-    visual features learned by the model.
+    Each well contains many cells and microscopy images. The model processes those images
+    and combines them into a single numerical representation called an embedding — a
+    compact "fingerprint" that captures the visual patterns of the cells in that well.
   </p>
   <p class="small">
     In this visualization, each well is represented by a 384-dimensional embedding that has been
@@ -178,14 +213,13 @@
     The distance between points represents similarity in the model's learned representation.
   </p>
   <ul class="small mb-1">
-    <li>Nearby points &rarr; cells with similar visual characteristics according to the model.</li>
-    <li>Distant points &rarr; cells with more different visual characteristics.</li>
+    <li>Nearby points &rarr; the model considers the cell images to have similar visual patterns.</li>
+    <li>Distant points &rarr; the model considers the cell images to have different visual patterns.</li>
   </ul>
   <p class="small">
-    This similarity reflects <em>phenotypic similarity</em> — similarity in observable cellular
-    appearance — and should not be interpreted as proof that two compounds have the same
-    biological mechanism (the biological process a compound affects — for example, disrupting DNA
-    replication or affecting a specific cellular pathway).
+    This similarity reflects <em>phenotypic similarity</em> (i.e., similarity in observable cellular
+    appearance) and should not be interpreted as proof that two compounds have the same
+    biological mechanism of action.
   </p>
   <p class="small">
     For example, two compounds may appear close together because they cause similar
@@ -194,22 +228,21 @@
 
   <h3 class="h6 mt-3" id="htr-clusters">How should I interpret clusters?</h3>
   <p class="small">
-    When several points form a visible group, it means the model's learned representation places
-    those wells close together — they share similar visual patterns.
+    When multiple points form a visible group, it means the model's learned representation of
+    those wells is similar. In other words, the model observed similar visual patterns in
+    the images corresponding to those wells.
   </p>
   <p class="small mb-0">
     A cluster may suggest that the wells in it share a similar morphological response, which can
     be a useful starting point for a hypothesis. On its own, it does not prove that those wells
-    share the same biological mechanism — confirming that requires independent biological
-    validation.
+    share the same biological mechanism.
   </p>
 
   <h3 class="h6 mt-3" id="htr-influences">What affects the map?</h3>
   <p class="small">
-    A well's position reflects a mix of influences. Genuine biological signal — differences in
-    cell shape, organelle organization, and other morphological responses to a compound — is
-    part of what the model has learned to represent, and is often the dominant reason two wells
-    land near or far from each other.
+    A well's position reflects the visual patterns the model learned from the cell images.
+    These patterns can include biological differences such as changes in cell shape, organelle
+    organization, and other morphological responses caused by compounds.
   </p>
   <p class="small">
     Embeddings can also capture experimental variation: differences between plates, experiments,
@@ -222,7 +255,7 @@
     to check whether a given pattern lines up with plate identity rather than treatment.
   </p>
 
-  <h3 class="h6 mt-3" id="htr-axes">Why are the axes labeled UMAP 1 and UMAP 2?</h3>
+  <h3 class="h6 mt-3" id="htr-axes">What do the axes mean?</h3>
   <p class="small">
     The original embeddings contain 384 dimensions, which cannot be directly visualized. UMAP
     (Uniform Manifold Approximation and Projection) is a dimensionality reduction method that
@@ -234,20 +267,13 @@
     information is:
   </p>
   <ul class="small mb-1">
-    <li>which points are close together,</li>
-    <li>which groups form clusters,</li>
+    <li>which points are close together</li>
+    <li>which groups form clusters</li>
     <li>and how samples relate to each other.</li>
   </ul>
   <p class="small text-muted mb-0">
     Learn more:
     <a href="https://umap-learn.readthedocs.io/" target="_blank" rel="noopener">UMAP documentation</a>
-  </p>
-
-  <h3 class="h6 mt-3" id="htr-similarity">How is similarity calculated?</h3>
-  <p class="small mb-0">
-    Similarity between wells is calculated in the original, full-dimensional embedding space —
-    not from the 2D positions shown on this map. See Technical Details for how that calculation
-    works.
   </p>
 
   <h3 class="h6 mt-3" id="htr-neighbor-mismatch">Why don't the closest points on the map always match the neighbor list?</h3>
@@ -256,10 +282,11 @@
     full, 384-dimensional embedding space, not from the 2D positions shown on the map.
   </p>
   <p class="small">
-    UMAP is built to preserve local structure, but compressing 384 dimensions down to 2 is lossy:
-    a point can land visually near others on the map without being one of its true nearest
-    neighbors in the full embedding space, and vice versa. This is an expected property of any 2D
-    projection, not an error in the panel.
+    UMAP is built to preserve local structure, but compressing 384 dimensions down to 2 can visually
+    change some relationships; a point may appear visually close to another point on the map without
+    being its true nearest neighbor, and a true neighbor may appear farther away. The dotted lines on
+    the map show this directly: they connect a selected point to its true nearest neighbors in the full
+    embedding space. Note that this is expected behavior for a 2D projection and is not an error.
   </p>
   <div class="explainer-figure">
     <svg viewBox="0 0 350 185" class="explainer-svg" role="img" aria-label="Diagram showing two points that are close together in a high-dimensional space, and a third, unrelated point off to the side; after compressing to 2D, the unrelated point lands right next to the selected point while the true neighbor is pushed far away">
@@ -294,30 +321,27 @@
       to 2D — and an unrelated point can land right next to the selected one instead.
     </p>
   </div>
-  <p class="small mb-0">
-    This is also what the dotted lines on the map itself are showing: click any point, and dotted
-    lines are drawn from it to its true nearest neighbors — the same wells listed in the sidebar's
-    "Nearest Neighbors" panel. A neighbor line that stretches far across the map, rather than
-    staying short, is this exact effect made visible — that connected well really is a true
-    neighbor in the full embedding space, even though the 2D layout happened to place it elsewhere.
-  </p>
 
   <h3 class="h6 mt-3" id="htr-attention">What does the attention map show?</h3>
   <p class="small">
     The attention map highlights which regions of the microscopy image the model relied on most
-    when forming its representation of that well. Brighter regions received more emphasis;
+    when forming its representation of that well. Brighter regions received more attention and
     darker regions contributed less.
   </p>
   <p class="small mb-0">
-    Attention is not a direct explanation of biology. It reflects what the model attended to, not
-    what is biologically important — a highly attended region may or may not correspond to a
-    meaningful cellular structure, and a biologically important structure will not always receive
-    high attention.
+    Attention is not a direct explanation of biology. It shows what the model focused on,
+    not necessarily what is biologically important. A highly attended region may or may
+    not correspond to a meaningful cellular structure, and an important structure may not
+    always receive high attention. For example, because the model processes images as small patches,
+    attention maps may show a faint grid or increased attention near patch boundaries. This is a
+    visualization artifact of Vision Transformers and should not be interpreted as a biologically
+    meaningful pattern.
   </p>
 
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
+    </div>
   </div>
 </dialog>
 
@@ -326,30 +350,23 @@
     <h2 class="h5 mb-0">About the Project</h2>
     <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   </div>
-  <div class="info-dialog-body">
-
-  <nav class="dialog-toc" aria-label="Jump to section">
-    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
-    <p class="dialog-toc-links mb-0">
-      <a href="#abt-goal">Project goal</a> &middot;
-      <a href="#abt-cell-painting">What is Cell Painting?</a> &middot;
-      <a href="#abt-morphology">Why analyze cell morphology?</a> &middot;
-      <a href="#abt-dino">What did the model learn?</a> &middot;
-      <a href="#abt-why-interesting">Why is this interesting?</a> &middot;
-      <a href="#abt-use-cases">What could this be used for?</a> &middot;
-      <a href="#abt-dataset">Dataset</a>
-    </p>
-  </nav>
+  <div class="info-dialog-layout">
+    <nav class="info-dialog-sidebar" aria-label="Jump to section">
+      <a class="info-dialog-sidebar-link" href="#abt-goal">Project goal</a>
+      <a class="info-dialog-sidebar-link" href="#abt-cell-painting">What is Cell Painting?</a>
+      <a class="info-dialog-sidebar-link" href="#abt-morphology">Why analyze cell morphology?</a>
+      <a class="info-dialog-sidebar-link" href="#abt-dino">How did the model learn?</a>
+      <a class="info-dialog-sidebar-link" href="#abt-why-interesting">Why is this interesting?</a>
+      <a class="info-dialog-sidebar-link" href="#abt-use-cases">What could this be used for?</a>
+    </nav>
+    <div class="info-dialog-content">
 
   <h3 class="h6 mt-3" id="abt-goal">Project goal</h3>
   <p class="small">
     This project tests whether a self-supervised vision model can learn useful representations of
     Cell Painting images without using compound or mechanism-of-action labels during training.
-  </p>
-  <p class="small">
-    This visualization is a way to explore those learned representations directly — to see what
-    structure the model found in the data on its own, and where that structure does and doesn't
-    line up with known biology.
+    This visualization lets you explore what the model discovered from the images alone and
+    examine whether those patterns correspond to known biological effects
   </p>
 
   <h3 class="h6 mt-3" id="abt-cell-painting">What is Cell Painting?</h3>
@@ -359,17 +376,16 @@
   </p>
   <p class="small mb-1">Cells are stained to highlight features including:</p>
   <ul class="small mb-1">
-    <li>nucleus,</li>
-    <li>mitochondria,</li>
-    <li>endoplasmic reticulum,</li>
-    <li>RNA,</li>
+    <li>nucleus</li>
+    <li>mitochondria</li>
+    <li>endoplasmic reticulum</li>
+    <li>RNA</li>
     <li>cytoskeletal and membrane structures.</li>
   </ul>
   <p class="small">
-    A standard color photo has 3 channels — red, green, and blue — combined into one image. Cell
-    Painting works the same way but with 5 channels instead of 3: each fluorescent stain is
-    captured as its own separate grayscale image, one channel per structure above, rather than one
-    combined color photo.
+    A standard digital image has three channels: red, green, and blue (RGB). Cell Painting works similarly,
+    but captures five separate grayscale channels instead of three. Each channel corresponds to a different
+    fluorescent stain and highlights a different aspect of the cell.
   </p>
   <div class="explainer-figure">
     <svg viewBox="0 0 440 150" class="explainer-svg" role="img" aria-label="Side-by-side comparison: a standard photo's 3 color channels (red, green, blue) versus Cell Painting's 5 channels, each shown in the color assigned to it elsewhere in this app, next to the cellular structure it corresponds to">
@@ -403,16 +419,7 @@
       <text x="313" y="92" font-size="10" fill="#495057">Cytoskeleton &amp; membrane</text>
       <text x="310" y="135" font-size="10.5" fill="#495057" text-anchor="middle">Cell Painting</text>
     </svg>
-    <p class="explainer-caption mb-0">
-      Each channel is its own grayscale image; the color on each edge here (and in the sidebar's channel bars) just
-      identifies which stain it is.
-    </p>
   </div>
-  <p class="small">
-    Those 5 grayscale channels are what the model actually sees. The color composite shown in this
-    app's thumbnails is only for human viewing — a distinct color is assigned to each channel
-    afterward so the different structures can be told apart in one image.
-  </p>
   <p class="small">
     By capturing many cellular features at once, Cell Painting provides a detailed view of how
     compounds change cell morphology.
@@ -424,51 +431,39 @@
 
   <h3 class="h6 mt-3" id="abt-morphology">Why analyze cell morphology?</h3>
   <p class="small">
-    Changes in a cell's appearance can reveal how a compound affects cellular processes.
-  </p>
-  <p class="small mb-1">Different perturbations may alter features such as:</p>
+    Changes in a cell's appearance can reveal how a compound affects cellular processes. Compounds
+    may alter features such as:</p>
   <ul class="small mb-1">
-    <li>cell shape,</li>
-    <li>organelle organization,</li>
-    <li>nuclear morphology,</li>
-    <li>texture,</li>
+    <li>cell shape</li>
+    <li>organelle organization</li>
+    <li>nuclear morphology</li>
+    <li>texture</li>
     <li>and overall cellular state.</li>
   </ul>
   <p class="small">
-    These observable characteristics are called phenotypes.
+    These observable changes are called phenotypes. By measuring these phenotypes, Cell Painting
+    provides a way to compare how different compounds affect cells.
   </p>
 
-  <h3 class="h6 mt-3" id="abt-dino">What did the model learn?</h3>
+  <h3 class="h6 mt-3" id="abt-dino">How did the model learn?</h3>
   <p class="small">
-    This project uses a self-supervised vision model called DINO (self-Distillation with No
-    Labels).
+    This project uses a self-supervised AI model, meaning the model learns patterns directly from the images without
+    being given labels about what those images represent. During training, the model is not told which drug treated
+    each sample or what biological process that drug affects. Instead, it learns to identify visual patterns
+    that consistently appear across cell images.
   </p>
   <p class="small">
-    Traditional supervised learning requires examples with known labels, such as: "This image
-    came from a compound affecting pathway X."
-  </p>
-  <p class="small">
-    Self-supervised learning instead allows a model to learn patterns directly from unlabeled
-    data. During training, DINO learns a representation of microscopy images by identifying
-    consistent visual patterns across different views of the same data.
-  </p>
-  <p class="small text-muted mb-0">
-    Learn more:
-    <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO: Emerging Properties in Self-Supervised Vision Transformers (arXiv)</a>
+    After training, the model's learned patterns can be compared with known biology to see whether it discovered
+    meaningful relationships between cellular appearance and drug effects.
   </p>
 
   <h3 class="h6 mt-3" id="abt-why-interesting">Why is this approach interesting?</h3>
   <p class="small">
     Large microscopy datasets contain enormous amounts of information, but manually labeling
-    every image with biological annotations is expensive and incomplete.
-  </p>
-  <p class="small">
-    Self-supervised learning provides a way to discover patterns without requiring predefined
-    labels.
-  </p>
-  <p class="small">
-    If wells with similar morphological responses cluster together after training, it suggests
-    that the model has learned meaningful representations of cellular morphology.
+    every image with biological annotations is expensive and incomplete. Self-supervised learning
+    provides a way to discover patterns without requiring predefined labels, reducing the need
+    for costly manual annotation and allowing researchers to explore much larger datasets than
+    would be practical through traditional approaches.
   </p>
 
   <h3 class="h6 mt-3" id="abt-use-cases">What could this be used for?</h3>
@@ -478,50 +473,26 @@
   </p>
   <ul class="small mb-1">
     <li>
-      <strong>Hit prioritization</strong> — surfacing which novel compounds look phenotypically
-      similar to ones with a known mechanism.
+      <strong>Hit prioritization:</strong> identifying new compounds that produce similar cellular effects to compounds with known mechanisms.
     </li>
     <li>
-      <strong>Drug repurposing</strong> — flagging existing drugs whose morphological profile
-      suggests an unexplored therapeutic use.
+      <strong>Drug repurposing:</strong> finding existing drugs whose cellular profiles suggest potential new uses.
     </li>
     <li>
-      <strong>Mechanism discovery</strong> — generating hypotheses about an uncharacterized
-      compound's mechanism by comparing it to better-understood compounds and genetic
-      perturbations.
+      <strong>Mechanism discovery:</strong> generating hypotheses about how an uncharacterized compound works by comparing it to better-understood compounds.
     </li>
     <li>
-      <strong>Prioritizing follow-up experiments</strong> — helping decide which hits are worth
-      pursuing with more targeted, costly assays.
+      <strong>Prioritizing follow-up experiments:</strong> helping researchers decide which compounds are most worth testing with more targeted and expensive assays.
     </li>
   </ul>
   <p class="small">
-    This project is a proof of concept for the first step in that pipeline — showing whether
-    self-supervised learning can extract pharmacologically meaningful structure from Cell Painting
-    images at all — not a deployed screening tool itself. See "Limitations" under Technical
-    Details for where the current model falls short of that goal.
-  </p>
-
-  <h3 class="h6 mt-3" id="abt-dataset">Dataset</h3>
-  <p class="small">
-    This project uses data from the JUMP Cell Painting Consortium, an open resource containing
-    large-scale Cell Painting microscopy experiments.
-  </p>
-  <p class="small">
-    Specifically, it uses a subset of that resource focused on compound perturbation experiments
-    — wells treated with a chemical compound, as opposed to genetic perturbations such as CRISPR
-    knockouts or gene overexpression. The model is not trained on the full breadth of the JUMP
-    Cell Painting dataset; current counts for this subset are shown in the "Dataset overview"
-    panel.
-  </p>
-  <p class="small text-muted mb-0">
-    Learn more:
-    <a href="https://jump-cellpainting.broadinstitute.org/" target="_blank" rel="noopener">JUMP Cell Painting Consortium</a>
+    This project is a proof of concept for the first step in that pipeline: testing whether self-supervised learning can extract pharmacologically meaningful structure from Cell Painting images. It is not a deployed drug discovery tool, and the current model has important limitations described in the Technical Details section.
   </p>
 
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
+    </div>
   </div>
 </dialog>
 
@@ -530,24 +501,23 @@
     <h2 class="h5 mb-0">Technical Details</h2>
     <button type="button" class="dialog-close-x" data-dialog-close aria-label="Close">&times;</button>
   </div>
-  <div class="info-dialog-body">
-
-  <nav class="dialog-toc" aria-label="Jump to section">
-    <div class="dialog-toc-label text-uppercase text-muted">Jump to section</div>
-    <p class="dialog-toc-links mb-0">
-      <a href="#tech-pipeline">Computational pipeline</a> &middot;
-      <a href="#tech-training-data">Training data</a> &middot;
-      <a href="#tech-architecture">Model architecture</a> &middot;
-      <a href="#tech-training-objective">How is the model trained?</a> &middot;
-      <a href="#tech-images-to-embeddings">Images to embeddings</a> &middot;
-      <a href="#tech-embeddings-similarity">Embeddings and similarity</a> &middot;
-      <a href="#tech-embedding-processing">Embedding processing</a> &middot;
-      <a href="#tech-umap">UMAP visualization</a> &middot;
-      <a href="#tech-evaluation">Evaluation</a> &middot;
-      <a href="#tech-limitations">Limitations</a> &middot;
-      <a href="#tech-references">References</a>
-    </p>
-  </nav>
+  <div class="info-dialog-layout">
+    <nav class="info-dialog-sidebar" aria-label="Jump to section">
+      <a class="info-dialog-sidebar-link" href="#tech-pipeline">Computational pipeline</a>
+      <a class="info-dialog-sidebar-link" href="#tech-training-data">Training data</a>
+      <a class="info-dialog-sidebar-link" href="#tech-architecture">Model architecture</a>
+      <a class="info-dialog-sidebar-link" href="#tech-training-objective">How is the model trained?</a>
+      <a class="info-dialog-sidebar-link" href="#tech-images-to-embeddings">Images to embeddings</a>
+      <a class="info-dialog-sidebar-link" href="#tech-embeddings-similarity">Embeddings and similarity</a>
+      <a class="info-dialog-sidebar-link" href="#tech-embedding-processing">Embedding processing</a>
+      <a class="info-dialog-sidebar-link" href="#tech-umap">UMAP visualization</a>
+      <a class="info-dialog-sidebar-link" href="#tech-evaluation">Evaluation</a>
+      <a class="info-dialog-sidebar-link" href="#tech-channel-importance">Channel importance</a>
+      <a class="info-dialog-sidebar-link" href="#tech-limitations">Limitations</a>
+      <a class="info-dialog-sidebar-link" href="#tech-references">References</a>
+      <a class="info-dialog-sidebar-link" href="#tech-source">Source code</a>
+    </nav>
+    <div class="info-dialog-content">
 
   <h3 class="h6 mt-3" id="tech-pipeline">Computational pipeline</h3>
   <p class="small mb-2">The visualization was generated through the following pipeline:</p>
@@ -597,7 +567,7 @@
           <circle cx="20" cy="10" r="1.6" fill="currentColor" stroke="none"/>
         </svg>
       </div>
-      <div class="pipeline-label">Learned image representations</div>
+      <div class="pipeline-label">Learned image embeddings</div>
     </div>
     <div class="pipeline-connector"></div>
 
@@ -651,23 +621,15 @@
   <p class="small">
     The model was trained on a subset of the JUMP Cell Painting dataset consisting of compound
     perturbation microscopy experiments — wells treated with a chemical compound rather than a
-    genetic perturbation.
-  </p>
-  <p class="small mb-0">
-    Training used no compound or mechanism-of-action labels: the goal was to learn morphology
-    representations directly from the unlabeled images themselves.
+    genetic perturbation. Training used no compound or mechanism-of-action labels: the goal was to
+    learn morphological patterns directly from the unlabeled images themselves.
   </p>
 
   <h3 class="h6 mt-3" id="tech-architecture">Model architecture</h3>
   <p class="small">
-    The representation model is a Vision Transformer (ViT) trained using the DINO self-supervised
-    learning framework.
-  </p>
-  <p class="small">
-    A Vision Transformer divides images into smaller regions and learns relationships between
-    those regions to build a representation of the image.
-  </p>
-  <p class="small">
+    The embedding model is a Vision Transformer (ViT) trained using the DINO self-supervised
+    learning framework. A Vision Transformer divides images into smaller regions and learns relationships between
+    those regions to build a numerical representation, or embedding, of the image.
     The model outputs a 384-dimensional embedding representing learned visual features.
   </p>
   <p class="small text-muted mb-0">
@@ -677,43 +639,38 @@
 
   <h3 class="h6 mt-3" id="tech-training-objective">How is the model trained?</h3>
   <p class="small">
-    DINO trains with a self-distillation objective: a "student" network and a slower-moving
-    "teacher" network (an exponential moving average of the student's own weights) are shown
-    different augmented crops of the same image. The student is trained to match the teacher's
-    output distribution across those different views using a cross-entropy loss, while the
-    teacher's own outputs are centered and sharpened to prevent the trivial shortcut of every
-    image collapsing to the same output.
+    DINO trains with a self-distillation objective using two networks: a "student"
+    network and a slower-moving "teacher" network (an exponential moving average of
+    the student's weights). Both networks are shown different augmented views of the
+    same image. The student learns to match the teacher's output distribution across
+    these views using a cross-entropy loss, while the teacher's outputs are centered
+    and sharpened to prevent the model from collapsing to the same output for every image.
   </p>
   <p class="small mb-0">
     Because both sides of this comparison come from the same unlabeled image, no compound or MoA
-    label is ever involved in this training signal — see <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO (arXiv)</a> for the full method.
+    label is ever involved in this training signal. See <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">DINO (arXiv)</a> for the full method.
   </p>
 
   <h3 class="h6 mt-3" id="tech-images-to-embeddings">From images to embeddings</h3>
   <p class="small">
     Each well is imaged at multiple sites, producing several microscopy images per well. The
-    model processes each image and produces a numerical feature representation for it.
-  </p>
-  <p class="small mb-0">
-    Those per-image representations are then combined into a single well-level embedding, which
-    is what gets postprocessed, compared for similarity, and ultimately plotted on the map.
+    model processes each image and produces a numerical embedding for it. These per-image
+    embeddings are then combined into a single well-level embedding, which is what gets
+    postprocessed, compared for similarity, and ultimately plotted on the map.
   </p>
 
   <h3 class="h6 mt-3" id="tech-embeddings-similarity">Embeddings and similarity</h3>
   <p class="small">
-    An embedding is a numerical representation produced by the model.
-  </p>
-  <p class="small mb-1">
-    Instead of comparing images directly pixel-by-pixel, embeddings allow the model to compare
+    An embedding is a numerical representation produced by the model. Instead of
+    comparing images directly pixel-by-pixel, embeddings allow the model to compare
     images based on learned features. For this project:
   </p>
   <ul class="small mb-0">
-    <li>each well is represented by a 384-dimensional vector,</li>
-    <li>embeddings summarize learned morphological patterns,</li>
+    <li>each well is represented by a 384-dimensional vector</li>
+    <li>embeddings summarize learned morphological patterns</li>
     <li>
       similarity is measured using cosine similarity, which compares the orientation of two
-      embedding vectors rather than their absolute scale — this is the calculation "How to Read
-      This Map" refers back to.
+      embedding vectors rather than their absolute scale.
     </li>
   </ul>
 
@@ -724,15 +681,14 @@
   </p>
   <ul class="small mb-1">
     <li>
-      median absolute deviation (MAD) normalization — reduces variation introduced by differences
-      between plates and imaging batches,
+      <strong>Median absolute deviation (MAD) normalization:</strong> reduces variation introduced by
+      differences between plates and imaging batches
     </li>
     <li>
-      sphering/whitening transformations — rebalances the feature space so no single learned
-      pattern dominates comparisons,
+      <strong>Sphering/whitening transformations:</strong> rebalances the embedding space so no single dimension or learned pattern dominates comparisons
     </li>
     <li>
-      normalization before similarity calculations — puts every embedding on the same scale so
+      <strong>Normalization before similarity calculations:</strong> puts every embedding on the same scale so
       similarity scores are comparable across wells.
     </li>
   </ul>
@@ -744,17 +700,17 @@
   <h3 class="h6 mt-3" id="tech-umap">UMAP visualization</h3>
   <p class="small">
     Because the embeddings exist in a 384-dimensional space, they cannot be directly displayed.
-    UMAP creates a two-dimensional representation that preserves local relationships between
+    UMAP creates a two (or three) dimensional representation that preserves local relationships between
     samples as much as possible.
   </p>
   <p class="small mb-0">
-    The final map is therefore an interactive window into the model's learned feature space
+    The final map is therefore an interactive window into the model's learned embedding space
     rather than a direct biological coordinate system.
   </p>
 
   <h3 class="h6 mt-3" id="tech-evaluation">Evaluation</h3>
   <p class="small">
-    The learned representation is evaluated by checking whether biologically related samples are
+    The learned embeddings are evaluated by checking whether biologically related samples are
     enriched near each other in the embedding space more than would be expected by chance.
   </p>
   <p class="small mb-0">
@@ -764,17 +720,44 @@
     evidence of a validated drug discovery model — see Limitations below.
   </p>
 
+  <h3 class="h6 mt-3" id="tech-channel-importance">Channel importance</h3>
+  <p class="small">
+    Cell Painting images have 5 fluorescent channels, each highlighting different cell
+    structures: Mito (mitochondria), AGP (actin cytoskeleton, Golgi apparatus, and plasma
+    membrane), RNA (nucleolus/RNA), ER (endoplasmic reticulum), and DNA (nucleus). When you
+    select a well, the right sidebar's "Channel Importance" bars estimate how much each of these
+    5 channels contributed to that specific well's embedding.
+  </p>
+  <p class="small mb-1">
+    This is computed by channel ablation: for the well's representative image, the model embeds
+    the original 5-channel image to get a baseline embedding, then re-embeds 5 variants with one
+    channel at a time zeroed out. Each channel's raw importance is
+    <code>1 &minus; cosine similarity</code> between the baseline embedding and that channel's
+    ablated embedding. The more the embedding shifts when a channel is removed, the more the
+    model relied on it. The 5 raw scores are then normalized to percentages that sum to 100%, so
+    the bars are directly comparable to one another.
+  </p>
+  <p class="small mb-0">
+    This matters because it's a per-well, data-driven check on which stains actually drove the
+    model's representation of that image, rather than relying only on what's pharmacologically
+    documented about a compound. Where a MoA has a well-established target organelle (shown
+    alongside the bars when one exists), it's worth comparing the two: rough agreement is a small
+    piece of evidence the model picked up on a biologically meaningful signal, while disagreement
+    doesn't necessarily mean the model is wrong — it may be relying on a real but less-obvious
+    morphological cue instead.
+  </p>
+
   <h3 class="h6 mt-3" id="tech-limitations">Limitations</h3>
   <p class="small mb-1">
-    This is a proof-of-concept model trained on a subset of available Cell Painting data — not a
-    universal morphology foundation model. Specific limitations to keep in mind:
+    This is a proof-of-concept model trained on a subset of available Cell Painting data, It is
+    <strong>not</strong> a universal morphology foundation model. The following are the key
+    limitations of the model:
   </p>
   <ul class="small mb-0">
     <li>
       The compound library behind this map is a single fixed reference set (~300 compounds, one
-      plate design) imaged across multiple replicate plates — not the broad chemical diversity
-      used in larger benchmark studies, so results should not be read as a general test of the
-      model's chemistry coverage.
+      plate design) imaged across multiple replicate plates, so results should not be read as a
+      general test of the model's chemistry coverage.
     </li>
     <li>
       The learned representation still shows a measurable plate/batch effect: which plate a well
@@ -783,12 +766,12 @@
     </li>
     <li>
       Agreement between a well's neighbors and its annotated MoA is well above random chance, but
-      modest in absolute terms — treat clustering patterns as suggestive, not diagnostic.
+      modest in absolute terms. Treat clustering patterns as suggestive, not diagnostic.
     </li>
     <li>
-      The 2D UMAP layout is for visualization only. Similarity and neighbor calculations are
+      The UMAP layout is for visualization only. Similarity and neighbor calculations are
       performed in the full, high-dimensional embedding space and can disagree with what looks
-      closest on the 2D map (see "How to Read This Map").
+      closest on the map (see "How to Read This Map").
     </li>
   </ul>
 
@@ -805,20 +788,57 @@
       for cellular morphology.
     </li>
     <li>
+      Bray et al. (2016), <a href="https://www.nature.com/articles/nprot.2016.105" target="_blank" rel="noopener">"Cell Painting, a high-content image-based assay for morphological profiling using multiplexed fluorescent dyes"</a>
+      — the imaging protocol behind the 5 fluorescent channels (Mito, AGP, RNA, ER, DNA) referenced
+      throughout this app, including the Channel Importance section above.
+    </li>
+    <li>
+      Caicedo et al. (2022), <a href="https://www.biorxiv.org/content/10.1101/2022.01.05.475090" target="_blank" rel="noopener">JUMP Cell Painting dataset: morphological impact of 136,000 chemical and genetic perturbations</a>
+      — describes the JUMP-Target-1 compound plate design and imaging protocol used here.
+    </li>
+    <li>
+      <a href="https://www.broadinstitute.org/repurposing" target="_blank" rel="noopener">The Drug Repurposing Hub, Broad Institute</a>
+      (Corsello et al., <em>Nature Medicine</em>, 2017) — source of the compound mechanism-of-action
+      (MoA), target, and clinical-phase annotations shown throughout this app.
+    </li>
+    <li>
+      Caron et al. (2021), <a href="https://arxiv.org/abs/2104.14294" target="_blank" rel="noopener">"Emerging Properties in Self-Supervised Vision Transformers"</a> (DINO)
+      — the self-supervised training method used for the representation model.
+    </li>
+    <li>
+      Dosovitskiy et al. (2020), <a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">"An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"</a> (Vision Transformer)
+      — the model architecture DINO is trained on.
+    </li>
+    <li>
+      McInnes, Healy &amp; Melville (2018), <a href="https://arxiv.org/abs/1802.03426" target="_blank" rel="noopener">"UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction"</a>
+      — the dimensionality-reduction algorithm behind the 2D/3D map.
+    </li>
+    <li>
+      <a href="https://github.com/facebookresearch/faiss" target="_blank" rel="noopener">FAISS</a> (Johnson, Douze &amp; Jégou, Meta AI)
+      — the similarity search library used to find each well's nearest neighbors.
+    </li>
+    <li>
       <a href="https://projector.tensorflow.org/" target="_blank" rel="noopener">TensorFlow Embedding Projector</a>
       — inspiration for interactive exploration of high-dimensional embeddings.
     </li>
   </ul>
 
+  <h3 class="h6 mt-3" id="tech-source">Source code</h3>
+  <p class="small mb-0">
+    For more detailed technical information, check out the project's
+    <a href="https://github.com/JCreighton19/Cellpainting-SSL-MoA" target="_blank" rel="noopener">README on GitHub</a>.
+  </p>
+
   <div class="text-end mt-3">
     <button type="button" class="btn btn-sm btn-primary" data-dialog-close>Close</button>
   </div>
+    </div>
   </div>
 </dialog>
 
 <!-- First-run guided tour (see static/js/onboarding.js). Hidden until the
      script activates it -- either automatically on a visitor's first load,
-     or manually via "Restart Tutorial" above. Purely additive: it only reads
+     or manually via "Restart Tour" in the navbar. Purely additive: it only reads
      from and calls into the existing map (via the already-global functions
      map.js's classic <script> exposes) rather than changing how the map
      itself works. -->
@@ -837,16 +857,110 @@
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
 <script>
+  // Wires up one info dialog's 2-pane docs nav: clicking a sidebar link
+  // smooth-scrolls .info-dialog-content to that subsection (deliberately NOT
+  // target.scrollIntoView() -- a <dialog> shown via showModal() renders in
+  // the browser's top layer, and scrollIntoView() walks and scrolls every
+  // scrollable ancestor it can find to bring the target into view, which
+  // across that top-layer boundary also drags the underlying page's own
+  // scroll position, leaving the whole app stuck scrolled away after the
+  // dialog closes -- and an IntersectionObserver keeps the sidebar's
+  // "active" highlight in sync with whichever subsection is actually
+  // scrolled into view. Returns a `reset()` used to restore the initial
+  // scroll position/highlight each time the dialog is (re)opened.
+  function initDocsNav(dialog) {
+    const content = dialog.querySelector(".info-dialog-content");
+    const sidebar = dialog.querySelector(".info-dialog-sidebar");
+    if (!content || !sidebar) return { reset() {} };
+
+    const headings = Array.from(content.querySelectorAll("h3[id]"));
+    const lastHeading = headings[headings.length - 1];
+
+    function setActive(id) {
+      sidebar.querySelectorAll(".info-dialog-sidebar-link.active").forEach((a) => a.classList.remove("active"));
+      const link = sidebar.querySelector(`a[href="#${id}"]`);
+      if (link) link.classList.add("active");
+    }
+
+    // While a sidebar-link click is smooth-scrolling the content into place,
+    // the observer below fires once for every heading the animated scroll
+    // passes over, flickering the highlight through each of them before
+    // landing on the real target -- suppressed here since the click handler
+    // already set the correct active state immediately, and cleared once
+    // the scroll actually settles (native "scrollend" where supported, a
+    // short debounce on "scroll" as a fallback everywhere else).
+    let suppressObserver = false;
+    let scrollSettleTimer = null;
+    function markScrollSettled() {
+      suppressObserver = false;
+    }
+    content.addEventListener("scrollend", markScrollSettled);
+    content.addEventListener("scroll", () => {
+      // A heading can only be "current" up to the point its own top can
+      // reach the observer's top-30% band -- if the last section is short,
+      // its top may never climb that high even scrolled all the way down,
+      // so the intersection-based logic below can never select it. Scroll
+      // position is unambiguous, so it overrides that logic once truly at
+      // the bottom, regardless of whether observer updates are suppressed.
+      const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 2;
+      if (atBottom && lastHeading) setActive(lastHeading.id);
+
+      clearTimeout(scrollSettleTimer);
+      scrollSettleTimer = setTimeout(markScrollSettled, 120);
+    });
+
+    sidebar.querySelectorAll(".info-dialog-sidebar-link").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const target = document.getElementById(link.getAttribute("href").slice(1));
+        if (!target) return;
+        suppressObserver = true;
+        setActive(target.id);
+        const offset = target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop;
+        content.scrollTo({ top: Math.max(0, offset - 8), behavior: "smooth" });
+      });
+    });
+
+    // A heading counts as "current" once it crosses into the top 30% of the
+    // content pane (rootMargin's -70% bottom shrinks the effective
+    // intersection area to just that top band); among however many
+    // headings are within that band at once, the last one in document
+    // order is the one closest to the top -- i.e. the section actually
+    // being read.
+    const isVisible = new Map();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => isVisible.set(entry.target.id, entry.isIntersecting));
+        if (suppressObserver) return;
+        const currentId = headings.map((h) => h.id).filter((id) => isVisible.get(id)).pop();
+        if (currentId) setActive(currentId);
+      },
+      { root: content, rootMargin: "0px 0px -70% 0px", threshold: 0 }
+    );
+    headings.forEach((h) => observer.observe(h));
+
+    return {
+      reset() {
+        suppressObserver = false;
+        content.scrollTop = 0;
+        if (headings.length) setActive(headings[0].id);
+      },
+    };
+  }
+
+  const docsNavByDialog = new Map();
+  document.querySelectorAll(".info-dialog").forEach((dialog) => {
+    docsNavByDialog.set(dialog, initDocsNav(dialog));
+  });
+
   document.querySelectorAll("[data-dialog-open]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const dialog = document.getElementById(btn.dataset.dialogOpen);
-      // .info-dialog-body (not the <dialog> itself) is what actually scrolls
-      // now that the title/close button live in a separate, non-scrolling
-      // .info-dialog-header -- see style.css. It keeps its scroll position
-      // from last time it was open, so reset it here, same as before.
       dialog.showModal();
-      const body = dialog.querySelector(".info-dialog-body");
-      if (body) body.scrollTop = 0;
+      // Keeps its scroll position/active highlight from last time it was
+      // open otherwise, same as the old single-pane version did.
+      const nav = docsNavByDialog.get(dialog);
+      if (nav) nav.reset();
     });
   });
   document.querySelectorAll("[data-dialog-close]").forEach((btn) => {
@@ -856,31 +970,12 @@
   });
   // Click anywhere outside the dialog's own content (i.e. on the backdrop)
   // to close it -- a click there still dispatches "click" on the <dialog>
-  // element itself with the dialog as e.target, since the header/body wrap
+  // element itself with the dialog as e.target, since the header/layout wrap
   // all the actual content now, so this can't false-trigger from a click on
   // real content inside.
   document.querySelectorAll("dialog.info-dialog").forEach((dialog) => {
     dialog.addEventListener("click", (e) => {
       if (e.target === dialog) dialog.close();
-    });
-  });
-  // Jump-to-section links at the top of each info dialog (see .dialog-toc).
-  // Deliberately NOT target.scrollIntoView(): a <dialog> shown via
-  // showModal() renders in the browser's top layer, and scrollIntoView()
-  // walks and scrolls every scrollable ancestor it can find to bring the
-  // target into view -- across that top-layer boundary this also drags the
-  // underlying page's own scroll position, leaving the whole app stuck
-  // scrolled away after the dialog closes. Computing the target's offset
-  // within .info-dialog-body ourselves and scrolling only that one element
-  // avoids touching anything outside the dialog.
-  document.querySelectorAll(".dialog-toc a").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const target = document.getElementById(link.getAttribute("href").slice(1));
-      const body = link.closest(".info-dialog-body");
-      if (!target || !body) return;
-      const offset = target.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
-      body.scrollTo({ top: Math.max(0, offset - 8), behavior: "smooth" });
     });
   });
 </script>

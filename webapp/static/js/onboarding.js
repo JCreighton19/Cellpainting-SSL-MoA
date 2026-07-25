@@ -126,15 +126,19 @@
     );
   }
 
-  // Combined bounding box of the 3 documentation buttons in the left
-  // sidebar, used by the final slide to point at all 3 at once without
-  // needing 3 separate spotlights. Deliberately excludes the "Restart
-  // Tutorial" button just below them, even though it shares the same
-  // sidebar section, since it isn't one of the "learn more" pages.
+  // Combined bounding box of the 3 documentation buttons plus Restart Tour
+  // (all in the top navbar -- see base.html), used by the final slide to
+  // point at all of them at once without needing separate spotlights.
+  // Located purely by their data-dialog-open attribute (+ restart button id),
+  // so this keeps working wherever they live in the page.
   function helpButtonsRect() {
     const els = ["how-to-read-dialog", "about-project-dialog", "technical-details-dialog"]
       .map((id) => document.querySelector(`[data-dialog-open="${id}"]`))
       .filter(Boolean);
+    // Restart Tour sits right beside these 3 in the navbar, and the closing
+    // slide now mentions it too, so it's included in the same spotlight.
+    const restartBtn = document.getElementById("restart-tutorial-btn");
+    if (restartBtn) els.push(restartBtn);
     if (!els.length) return null;
     const rects = els.map((el) => el.getBoundingClientRect());
     const top = Math.min(...rects.map((r) => r.top));
@@ -164,7 +168,7 @@
       target: () => null,
       html: () => `
         <h2 class="tour-title" id="tour-title">Welcome to the Cell Painting Embedding Explorer</h2>
-        <p class="tour-body">This project tests whether AI can learn which drugs affect cells in similar ways just by looking at microscope images — figuring it out entirely on its own, without ever being told the right answers during training.</p>
+        <p class="tour-body">This project explores whether AI can learn which drugs have similar effects on cells by looking only at microscope images. Instead of being told which drug each image represents, the AI must discover these patterns on its own.</p>
         <p class="tour-body mb-0">Don't worry if you don't have a biology or machine learning background—we'll show you how to explore it in under a minute.</p>
       `,
     },
@@ -172,27 +176,27 @@
       group: 1,
       target: () => getPlotEl(),
       html: () => `
-        <h3 class="tour-title">What's a dot?</h3>
+        <h3 class="tour-title">What's a point?</h3>
         ${dotDiagram("single")}
-        <p class="tour-body mb-0">Every dot represents one experimental well, each of which is a sample containing thousands of cells treated with a specific drug.</p>
+        <p class="tour-body mb-0">Every point represents one experimental well, each of which is a sample containing thousands of cells treated with a specific drug.</p>
       `,
     },
     {
       group: 1,
       target: () => getPlotEl(),
       html: () => `
-        <h3 class="tour-title">Nearby dots</h3>
+        <h3 class="tour-title">Nearby points</h3>
         ${dotDiagram("near")}
-        <p class="tour-body mb-0">Dots that sit close together look visually similar.</p>
+        <p class="tour-body mb-0">Points that sit close together represent images that the AI found similar.</p>
       `,
     },
     {
       group: 1,
       target: () => getPlotEl(),
       html: () => `
-        <h3 class="tour-title">Distant dots</h3>
+        <h3 class="tour-title">Distant points</h3>
         ${dotDiagram("far")}
-        <p class="tour-body mb-0">Dots that sit far apart look different.</p>
+        <p class="tour-body mb-0">Points that sit far apart represent images that the AI interpreted as having different patterns.</p>
       `,
     },
     {
@@ -208,14 +212,14 @@
       target: () => document.getElementById("map-legend"),
       html: () => `
         <h3 class="tour-title">Clustering reveals learned biology</h3>
-        <p class="tour-body mb-0">When dots of the same color cluster together, it suggests the AI found a meaningful biological pattern.</p>
+        <p class="tour-body mb-0">Clusters of points indicate that the AI found groups of images with similar patterns. When those clusters correspond to a specific MoA, it suggests the AI learned meaningful biology.</p>
       `,
     },
     {
       group: 3,
       target: () => getPlotEl(),
       html: () => `
-        <h3 class="tour-title">Clicking a dot</h3>
+        <h3 class="tour-title">Clicking a point</h3>
         <p class="tour-body mb-0">To learn more about a point, simply click it to reveal its details.</p>
       `,
     },
@@ -235,11 +239,31 @@
       `,
     },
     {
+      group: 3,
+      target: () => document.getElementById("sidebar-left"),
+      html: () => `
+        <h3 class="tour-title">The left sidebar</h3>
+        <p class="tour-body mb-2">Alongside the map, the left sidebar gives you:</p>
+        <ul class="tour-bullets mb-0">
+          <li>a search bar to jump to a compound, MoA, plate, or well</li>
+          <li>buttons to recolor the map by MoA or by plate</li>
+          <li>basic dataset stats (wells, compounds, MoAs, plates)</li>
+          <li>model evaluation metrics, including the strongest MoA clusters</li>
+        </ul>
+      `,
+    },
+    {
       group: 4,
       target: () => helpButtonsRect(),
       html: () => `
         <h2 class="tour-title">You're ready to explore!</h2>
-        <p class="tour-body mb-0">To learn more, explore the <strong>How to Read This Map</strong>, <strong>About the Project</strong>, and <strong>Technical Details</strong> sections in the left sidebar.</p>
+        <p class="tour-body mb-2">To learn more, check out the sections at the top of the page:</p>
+        <ul class="tour-bullets mb-2">
+          <li><strong>About the Project</strong> &ndash; project background, motivation, and goals</li>
+          <li><strong>How to Read This Map</strong> &ndash; navigating and interpreting the app</li>
+          <li><strong>Technical Details</strong> &ndash; pipeline, model, and evaluation</li>
+        </ul>
+        <p class="tour-body mb-0">You can restart this tour anytime with the <strong>Restart Tour</strong> button.</p>
       `,
     },
   ];
@@ -382,11 +406,30 @@
     card.style.left = `${left}px`;
   }
 
+  // Brings a slide's target on-screen before it's measured for spotlight/card
+  // positioning -- only needed on the stacked mobile layout (see the
+  // matching breakpoint in style.css), where #sidebar-right/#map-legend/etc.
+  // can sit far below the fold and the navbar (helpButtonsRect's target, not
+  // a real element) can itself have scrolled out of view. Explicitly gated
+  // to that breakpoint rather than assumed to be a no-op on desktop:
+  // .app-body's overflow:hidden blocks user scrolling but NOT programmatic
+  // scrollIntoView(), so calling this unconditionally could still nudge the
+  // desktop layout's scroll position and throw off spotlight placement
+  // (this caused the legend step's tour card to mis-position on desktop).
+  function ensureTargetVisible(targetEl) {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (targetEl && typeof targetEl.scrollIntoView === "function") {
+      targetEl.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }
+
   function renderSlide(index) {
     currentIndex = index;
     const slide = SLIDES[index];
     const targetEl = slide.target ? slide.target() : null;
     currentTargetFn = slide.target || null;
+    ensureTargetVisible(targetEl);
 
     const inner = document.getElementById("tour-card-inner");
     const html =

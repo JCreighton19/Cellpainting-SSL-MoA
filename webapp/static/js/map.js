@@ -20,7 +20,7 @@ const PLATE_PALETTE = [
   "#aec7e8", "#ffbb78", "#98df8a", "#ff9896",
 ];
 const OTHER_ANNOTATED_COLOR = "#adb5bd";
-const UNANNOTATED_COLOR = "#e9ecef";
+const UNANNOTATED_COLOR = "#495057";
 
 // Sub-1 opacity so overlapping points in dense clusters stay distinguishable
 // instead of flattening into a single opaque blob.
@@ -32,7 +32,13 @@ const BACKGROUND_MARKER_OPACITY = 0.6;
 // which made some groups visually more prominent for no meaningful reason.
 // Overlay traces (selection ring, neighbor ring) are a separate concept and
 // keep their own larger sizes -- see buildHighlightTrace/buildNeighborTraces.
-const POINT_SIZE = 6;
+// Kept separate so a 2D-only size tweak can't accidentally affect 3D (or
+// vice versa) -- pointSize() below picks the right one based on `is3D`.
+const POINT_SIZE_2D = 7;
+const POINT_SIZE_3D = 6;
+function pointSize() {
+  return is3D ? POINT_SIZE_3D : POINT_SIZE_2D;
+}
 
 // Used to de-emphasize points that don't match the active search filter.
 const FILTERED_OUT_COLOR = "#e9ecef";
@@ -69,6 +75,11 @@ let currentColorBy = "moa";
 // Set of well_id strings matching the active search filter, or null when no
 // filter is active (i.e. every point renders in its normal color).
 let matchSet = null;
+// Tracks which "Strongest MoA clustering" entry (if any) is the active
+// filter, so clicking it again toggles the filter off instead of
+// re-applying it -- see applyMoaFilter/clearFilter and the click handler
+// on #top-moas-list in initMap().
+let activeMoaFilter = null;
 // Legend keys (MoA name, "other-annotated", "unannotated", or plate name)
 // toggled off via the custom legend; persists across re-renders since
 // buildMoaTraces/buildPlateTraces rebuild every trace from scratch each call.
@@ -89,8 +100,18 @@ const LEGEND_DBLCLICK_MS = 300;
 const CLICK_MAX_DURATION_MS = 400;
 const CLICK_MAX_MOVE_PX = 5;
 
+// Display-only: raw plate values are full imaging-run folder names (e.g.
+// "BR00116991__2020-11-05T19_51_35-Measurement1"); everything from the
+// first "_" onward is timestamp/run metadata, not the plate barcode itself.
+// Mirrors webapp/similarity.py's trim_plate. Underlying data.plate values
+// (used for search matching, grouping keys) are left untouched.
+function trimPlate(plate) {
+  if (!plate) return plate;
+  return plate.split("_")[0];
+}
+
 function hoverText(data, i) {
-  return `Plate: ${data.plate[i]}<br>MoA: ${data.moa[i]}`;
+  return `Plate: ${trimPlate(data.plate[i])}<br>MoA: ${data.moa[i]}`;
 }
 
 // Coordinate source for point i: the 2D UMAP (x/y) or the separate 3D UMAP
@@ -217,6 +238,10 @@ function buildMoaTraces(data) {
   groups["other-annotated"] = { dim: emptyBucket(), bright: emptyBucket() };
   groups["unannotated"] = { dim: emptyBucket(), bright: emptyBucket() };
   const matched = emptyBucket();
+  // Tracked so the "Unannotated" legend entry/trace can be omitted entirely
+  // when every well in the current dataset actually has a MoA -- no point
+  // showing a legend swatch for a bucket with zero points in it.
+  let hasUnannotated = false;
 
   for (let i = 0; i < data.well_id.length; i++) {
     const moa = data.moa[i];
@@ -229,6 +254,7 @@ function buildMoaTraces(data) {
       key = "unannotated";
       baseColor = UNANNOTATED_COLOR;
       baseOpacity = BACKGROUND_MARKER_OPACITY;
+      hasUnannotated = true;
     } else {
       key = "other-annotated";
       baseColor = OTHER_ANNOTATED_COLOR;
@@ -247,18 +273,30 @@ function buildMoaTraces(data) {
 
   const traces = [];
   const legendItems = [];
-  [["unannotated", "no annotated MoA", UNANNOTATED_COLOR], ["other-annotated", "other annotated MoA (grouped for readability)", OTHER_ANNOTATED_COLOR]]
-    .forEach(([key, name, swatchColor]) => {
-      const g = mergeDimBright(groups[key].dim, groups[key].bright);
-      traces.push(makeTrace(g, { name, size: POINT_SIZE, visible: hiddenLegendKeys.has(key) ? "legendonly" : true }));
-      legendItems.push({ key, label: name, color: swatchColor });
-    });
+
+  // Trace push order controls z-order (later = drawn on top), not display
+  // order: catch-all buckets first so they sit under the colored top-MoA
+  // points, which sit under the matched-highlight trace (pushed last, below).
+  const catchAllBuckets = [["other-annotated", "Other", OTHER_ANNOTATED_COLOR]];
+  if (hasUnannotated) catchAllBuckets.unshift(["unannotated", "Unannotated", UNANNOTATED_COLOR]);
+  catchAllBuckets.forEach(([key, name]) => {
+    const g = mergeDimBright(groups[key].dim, groups[key].bright);
+    traces.push(makeTrace(g, { name, size: pointSize(), visible: hiddenLegendKeys.has(key) ? "legendonly" : true }));
+  });
   topMoas.forEach((m) => {
     const g = mergeDimBright(groups[m].dim, groups[m].bright);
-    traces.push(makeTrace(g, { name: m, size: POINT_SIZE, visible: hiddenLegendKeys.has(m) ? "legendonly" : true }));
-    legendItems.push({ key: m, label: m, color: topMoaColor[m] });
+    traces.push(makeTrace(g, { name: m, size: pointSize(), visible: hiddenLegendKeys.has(m) ? "legendonly" : true }));
   });
   pushMatchedTrace(traces, matched);
+
+  // Legend display order (independent of trace z-order above): MoA names
+  // alphabetical, with the two catch-all buckets pinned last.
+  [...topMoas].sort((a, b) => a.localeCompare(b)).forEach((m) => {
+    legendItems.push({ key: m, label: m, color: topMoaColor[m] });
+  });
+  legendItems.push({ key: "other-annotated", label: "Other", color: OTHER_ANNOTATED_COLOR });
+  if (hasUnannotated) legendItems.push({ key: "unannotated", label: "Unannotated", color: UNANNOTATED_COLOR });
+
   return { traces, legendItems };
 }
 
@@ -268,7 +306,7 @@ function buildMoaTraces(data) {
 // active filter or nothing matched.
 function pushMatchedTrace(traces, matched) {
   if (!matchSet || !matched.x.length) return;
-  traces.push(makeTrace(matched, { name: "search match", size: POINT_SIZE, visible: true }));
+  traces.push(makeTrace(matched, { name: "search match", size: pointSize(), visible: true }));
 }
 
 function buildPlateTraces(data) {
@@ -294,9 +332,9 @@ function buildPlateTraces(data) {
 
   const traces = plates.map((p) => {
     const g = mergeDimBright(groups[p].dim, groups[p].bright);
-    return makeTrace(g, { name: p, size: POINT_SIZE, visible: hiddenLegendKeys.has(p) ? "legendonly" : true });
+    return makeTrace(g, { name: trimPlate(p), size: pointSize(), visible: hiddenLegendKeys.has(p) ? "legendonly" : true });
   });
-  const legendItems = plates.map((p) => ({ key: p, label: p, color: plateColor[p] }));
+  const legendItems = plates.map((p) => ({ key: p, label: trimPlate(p), color: plateColor[p] }));
   pushMatchedTrace(traces, matched);
   return { traces, legendItems };
 }
@@ -823,14 +861,57 @@ function applyFilter(query) {
     ? `${matchSet.size.toLocaleString()} point${matchSet.size === 1 ? "" : "s"} match "${query}".`
     : `No points match "${query}".`;
   document.getElementById("clear-filter-btn").classList.remove("d-none");
+  activeMoaFilter = null;
+  setActiveMoaItem(null);
 }
 
 function clearFilter() {
   document.getElementById("clear-filter-btn").classList.add("d-none");
+  activeMoaFilter = null;
+  setActiveMoaItem(null);
   if (!matchSet) return;
   matchSet = null;
   document.getElementById("search-message").textContent = "";
   render();
+}
+
+// Highlights the clicked "Strongest MoA clustering" entry (left sidebar) so
+// it's clear which filter is currently active; cleared on any other
+// filter/search action. `moa` may be null to clear the highlight only.
+function setActiveMoaItem(moa) {
+  document.querySelectorAll("#top-moas-list .top-moa-item-active").forEach((el) => {
+    el.classList.remove("top-moa-item-active");
+  });
+  if (!moa) return;
+  const el = document.querySelector(`#top-moas-list .top-moa-item[data-moa="${CSS.escape(moa)}"]`);
+  if (el) el.classList.add("top-moa-item-active");
+}
+
+// Clicking a "Strongest MoA clustering" entry filters the map to exactly
+// that MoA (exact match against umapData.moa, which is already
+// title-cased server-side -- see routes.py's /api/umap -- so it lines up
+// with the `m.moa|titlecase` value rendered into data-moa). Unlike the
+// free-text search's substring match, this must be exact: MoA names can be
+// substrings of other MoA names (e.g. "HDAC Inhibitor" vs "HDAC Inhibitor,
+// Class I").
+function applyMoaFilter(moa) {
+  const matched = new Set();
+  for (let i = 0; i < umapData.well_id.length; i++) {
+    if (umapData.moa[i] === moa) matched.add(umapData.well_id[i]);
+  }
+  matchSet = matched;
+  render();
+
+  const msgEl = document.getElementById("search-message");
+  msgEl.textContent = matched.size
+    ? `${matched.size.toLocaleString()} point${matched.size === 1 ? "" : "s"} match "${moa}".`
+    : `No points match "${moa}".`;
+  document.getElementById("clear-filter-btn").classList.remove("d-none");
+  activeMoaFilter = moa;
+  setActiveMoaItem(moa);
+
+  const input = document.getElementById("search-input");
+  if (input) input.value = moa;
 }
 
 // Search now filters the map in place (matches turn bright green, everything
@@ -956,19 +1037,33 @@ function initMap() {
     if (neighborCard) selectWell(neighborCard.dataset.wellId);
   });
 
-  // Closes any open "?" help tooltip (.info-tooltip, e.g. Neighborhood
-  // Summary / Neighborhood consistency) on a click outside it -- native
-  // <details> has no built-in click-outside-to-close. This also covers
-  // "click the other help button": that click's default action (opening
-  // the clicked tooltip) runs after this listener, so the previously open
-  // one is already closed by the time the other one opens. A single
-  // document-level listener works for both current and future tooltips
-  // without needing to rebind after _right_sidebar.html is swapped in.
-  document.addEventListener("click", (e) => {
-    document.querySelectorAll(".info-tooltip[open]").forEach((details) => {
-      if (!details.contains(e.target)) details.removeAttribute("open");
-    });
+  // Positions a "?" tooltip's popup (see .info-tooltip-popup in style.css,
+  // now position: fixed) just below its trigger, clamped so it can't run
+  // past the right/left edge of the viewport. Computed fresh on every
+  // hover/focus rather than once, since the trigger can be anywhere --
+  // left sidebar (static) or right sidebar (swapped in via innerHTML on
+  // every well selection) -- a single document-level listener covers both
+  // without needing to rebind after that swap.
+  function positionTooltipPopup(trigger) {
+    const popup = trigger.nextElementSibling;
+    if (!popup || !popup.classList.contains("info-tooltip-popup")) return;
+    const rect = trigger.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth || 180;
+    const margin = 8;
+    let left = rect.left + rect.width / 2 - popupWidth / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - popupWidth - margin));
+    popup.style.left = `${left}px`;
+    popup.style.top = `${rect.bottom + 6}px`;
+  }
+  document.addEventListener("mouseover", (e) => {
+    const trigger = e.target.closest(".info-tooltip-trigger");
+    if (trigger) positionTooltipPopup(trigger);
   });
+  document.addEventListener("focusin", (e) => {
+    const trigger = e.target.closest(".info-tooltip-trigger");
+    if (trigger) positionTooltipPopup(trigger);
+  });
+
 
   const input = document.getElementById("search-input");
   document.getElementById("search-btn").addEventListener("click", () => performSearch(input.value));
@@ -985,8 +1080,50 @@ function initMap() {
     clearFilter();
   });
 
+  // Clicking the already-active MoA again toggles the filter off, rather
+  // than just re-applying the same filter.
+  const toggleMoaFilter = (moa) => {
+    if (activeMoaFilter === moa) {
+      input.value = "";
+      clearFilter();
+    } else {
+      applyMoaFilter(moa);
+    }
+  };
+
+  const topMoasList = document.getElementById("top-moas-list");
+  if (topMoasList) {
+    topMoasList.addEventListener("click", (e) => {
+      const item = e.target.closest(".top-moa-item");
+      if (item) toggleMoaFilter(item.dataset.moa);
+    });
+    topMoasList.addEventListener("keydown", (e) => {
+      const item = e.target.closest(".top-moa-item");
+      if (item && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        toggleMoaFilter(item.dataset.moa);
+      }
+    });
+  }
+
   makeResizable(document.getElementById("resize-handle-left"), document.getElementById("sidebar-left"), "left");
   makeResizable(document.getElementById("resize-handle-right"), document.getElementById("sidebar-right"), "right");
+
+  // Previously only re-fit on the desktop drag-resize handles' own mousemove
+  // (see makeResizable above); a phone rotating orientation resizes the
+  // window without ever touching those, which left the plot the wrong size
+  // until some other interaction happened to trigger a redraw. Debounced --
+  // "resize" fires continuously while a window is being dragged, and calling
+  // Plotly.Plots.resize() (a full WebGL relayout) on every single tick was
+  // visibly janky; waiting for resizing to pause briefly fixes that while
+  // still catching the one-shot rotation case.
+  let resizeDebounceTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeDebounceTimer);
+    resizeDebounceTimer = setTimeout(() => {
+      if (plotEl) Plotly.Plots.resize(plotEl);
+    }, 150);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", initMap);

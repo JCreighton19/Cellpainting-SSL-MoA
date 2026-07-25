@@ -35,13 +35,13 @@ def _hot_colormap(norm):
     b = np.clip(norm * 3.0 - 2.0, 0, 1)
     return (np.stack([r, g, b], axis=-1) * 255).astype(np.uint8)
 
-# A few curated searches shown in the left sidebar. Picked from the moa/broad_sample
-# columns actually present in wells.parquet.
+# A few curated searches shown in the left sidebar -- one plate, one MoA, one
+# compound, so users see all 3 searchable field types at a glance. Picked
+# from the plate/moa/broad_sample columns actually present in wells.parquet.
 EXAMPLE_QUERIES = [
+    "BR00116991",
     "HDAC inhibitor",
-    "adrenergic receptor agonist",
     "dexamethasone",
-    "amlodipine",
 ]
 
 MAX_DISAMBIGUATION_WELLS = 30
@@ -77,20 +77,26 @@ CHANNEL_DISPLAY = [
 
 
 def build_channel_importance_bars(well_id):
-    """Returns [{name, color, importance, pct}, ...] for the sidebar's
-    channel-importance bar chart, with pct scaled relative to this well's
-    most important channel -- or None if this well has no precomputed
-    channel-ablation scores yet."""
+    """Returns [{name, color, pct}, ...] for the sidebar's channel-importance
+    bar chart, or None if this well has no precomputed channel-ablation
+    scores yet.
+
+    `pct` is each channel's share of this well's TOTAL ablation-sensitivity
+    (importance / sum of all 5 channels' importance) * 100, so the 5 values
+    always sum to ~100% and both the bar width and the printed number read
+    as a direct, comparable percentage -- unlike the raw 1-cosine_similarity
+    "importance" score (previously shown), which has no fixed scale and was
+    hard to interpret in isolation.
+    """
     scores = _CHANNEL_IMPORTANCE.get(well_id)
     if not scores:
         return None
-    max_importance = max(s["importance"] for s in scores.values()) or 1.0
+    total_importance = sum(s["importance"] for s in scores.values()) or 1.0
     return [
         {
             "name": name,
             "color": color,
-            "importance": scores[name]["importance"],
-            "pct": 100.0 * scores[name]["importance"] / max_importance,
+            "pct": 100.0 * scores[name]["importance"] / total_importance,
         }
         for name, color in CHANNEL_DISPLAY
         if name in scores
@@ -114,7 +120,7 @@ def describe_moa(moa_name: str):
         entry = _MOA_DESCRIPTIONS.get(part)
         if entry:
             return {"name": part, **entry}
-    return {"name": parts[0], "description": None, "pathway": None, "typically_affects": None, "sources": []}
+    return {"name": parts[0], "description": None, "pathway": None, "typically_affects": None, "target_organelles": [], "sources": []}
 
 
 def _compound_matches(df):
@@ -218,7 +224,7 @@ def resolve_query(store, query: str):
     }
 
 
-def register_routes(app, store, sim_index):
+def register_routes(app, store, sim_index, model_metrics):
     def _search_context():
         # Powers the left sidebar's <datalist> search suggestions.
         return {
@@ -251,7 +257,11 @@ def register_routes(app, store, sim_index):
         # The entire application lives on this one page — search, map, and
         # detail panel all update in place via the JSON/partial APIs below.
         return render_template(
-            "index.html", examples=EXAMPLE_QUERIES, stats=_dataset_stats(), **_search_context()
+            "index.html",
+            examples=EXAMPLE_QUERIES,
+            stats=_dataset_stats(),
+            metrics=model_metrics,
+            **_search_context()
         )
 
     @app.route("/api/search")
