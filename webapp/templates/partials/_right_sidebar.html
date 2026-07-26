@@ -116,8 +116,8 @@
       <button type="button" class="info-tooltip-trigger" aria-label="What is channel importance?">?</button>
       <div class="info-tooltip-popup small">
         Each stain's share of this well's total embedding sensitivity, where a higher share means the model
-        relied on that channel more for this particular image, relative to the other 4. See Technical Details for the full
-        calculation.
+        relied on that channel more for this particular image, relative to the other 4. The gray tick on each
+        bar marks that channel's average share across every well. See Technical Details for more details.
       </div>
     </div>
   </h3>
@@ -132,6 +132,7 @@
     <div class="channel-bar-label text-muted">{{ ch.name }}</div>
     <div class="channel-bar-track flex-grow-1 mx-2">
       <div class="channel-bar-fill" style="width: {{ ch.pct }}%; background-color: {{ ch.color }};"></div>
+      <div class="channel-bar-avg-marker" style="left: {{ ch.avg_pct }}%;" title="Dataset average for {{ ch.name }}: {{ '%.0f'|format(ch.avg_pct) }}%"></div>
     </div>
     <div class="channel-bar-value text-muted text-end">{{ "%.0f"|format(ch.pct) }}%</div>
   </div>

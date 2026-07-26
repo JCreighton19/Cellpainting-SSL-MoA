@@ -168,8 +168,33 @@
       target: () => null,
       html: () => `
         <h2 class="tour-title" id="tour-title">Welcome to the Cell Painting Embedding Explorer</h2>
-        <p class="tour-body">This project explores whether AI can learn which drugs have similar effects on cells by looking only at microscope images. Instead of being told which drug each image represents, the AI must discover these patterns on its own.</p>
+        <p class="tour-body">This project explores whether AI can learn which drugs have similar effects on cells by looking only at microscope images. The model learned by examining the images themselves, without being told which drugs they represented, and discovered patterns in how cells respond to different treatments.</p>
         <p class="tour-body mb-0">Don't worry if you don't have a biology or machine learning background—we'll show you how to explore it in under a minute.</p>
+      `,
+    },
+    {
+      group: 0,
+      target: () => null,
+      // Wider card: the animated diagram bakes its own caption text into
+      // the SVG (so the diagram stays a single self-contained asset,
+      // reusable outside the tour too), which needs more room than the
+      // standard 380px card to stay readable -- see .tour-card-wide in
+      // style.css. The heading itself, though, is a real .tour-title
+      // element (not baked into the SVG) so it's guaranteed to render in
+      // the exact same font as every other slide's title, and so it can
+      // sit above the image in normal document flow.
+      wide: true,
+      // The cache-busting query param is regenerated fresh every time this
+      // function runs (Back, Restart Tour, or forward navigation all call
+      // renderSlide -> slide.html() again). Without it, re-inserting an
+      // <img> with the exact same src can just repaint the browser's
+      // already-decoded copy instead of loading it anew, leaving the SVG's
+      // internal CSS animation mid-cycle from whenever it was last shown
+      // rather than restarting at 0%; a unique URL each time forces a fresh
+      // decode, which restarts the animation.
+      html: () => `
+        <h2 class="tour-title">First, some background</h2>
+        <img src="/static/img/tour-plate-to-cells.svg?r=${Date.now()}" alt="Animated diagram: a plate holds many wells; one highlighted well is imaged as multiple microscope fields, shown as a magnified callout, each field containing many individual cells" style="width:100%;height:auto;display:block;">
       `,
     },
     {
@@ -178,7 +203,7 @@
       html: () => `
         <h3 class="tour-title">What's a point?</h3>
         ${dotDiagram("single")}
-        <p class="tour-body mb-0">Every point represents one experimental well, each of which is a sample containing thousands of cells treated with a specific drug.</p>
+        <p class="tour-body mb-0">Every point represents one well.</p>
       `,
     },
     {
@@ -187,7 +212,7 @@
       html: () => `
         <h3 class="tour-title">Nearby points</h3>
         ${dotDiagram("near")}
-        <p class="tour-body mb-0">Points that sit close together represent images that the AI found similar.</p>
+        <p class="tour-body mb-0">Points that sit close together represent wells whose images appeared similar to the AI.</p>
       `,
     },
     {
@@ -196,7 +221,7 @@
       html: () => `
         <h3 class="tour-title">Distant points</h3>
         ${dotDiagram("far")}
-        <p class="tour-body mb-0">Points that sit far apart represent images that the AI interpreted as having different patterns.</p>
+        <p class="tour-body mb-0">Points that sit far apart represent wells whose images appeared different to the AI.</p>
       `,
     },
     {
@@ -204,7 +229,7 @@
       target: () => document.getElementById("map-legend"),
       html: () => `
         <h3 class="tour-title">What do the colors mean?</h3>
-        <p class="tour-body mb-0">By default, colors indicate the drug's mechanism of action, or MoA. Points treated with drugs that work in similar ways share the same color.</p>
+        <p class="tour-body mb-0">By default, colors indicate the drug's mechanism of action (MoA), or how the drug works. Points treated with drugs that work in similar ways share the same color.</p>
       `,
     },
     {
@@ -212,7 +237,7 @@
       target: () => document.getElementById("map-legend"),
       html: () => `
         <h3 class="tour-title">Clustering reveals learned biology</h3>
-        <p class="tour-body mb-0">Clusters of points indicate that the AI found groups of images with similar patterns. When those clusters correspond to a specific MoA, it suggests the AI learned meaningful biology.</p>
+        <p class="tour-body mb-0">Clusters of points indicate that the AI found groups of wells with similar patterns. When those clusters correspond to a specific MoA, it suggests the AI learned meaningful biology.</p>
       `,
     },
     {
@@ -231,10 +256,10 @@
         <h3 class="tour-title">Sample details</h3>
         <p class="tour-body mb-2">Clicking a point shows:</p>
         <ul class="tour-bullets mb-0">
-          <li>its microscope image</li>
-          <li>the compound tested</li>
-          <li>its nearest neighbors</li>
-          <li>experimental details</li>
+          <li>Its microscope image</li>
+          <li>The compound tested and its MoA</li>
+          <li>Its neighboring points</li>
+          <li>Sample details</li>
         </ul>
       `,
     },
@@ -245,10 +270,10 @@
         <h3 class="tour-title">The left sidebar</h3>
         <p class="tour-body mb-2">Alongside the map, the left sidebar gives you:</p>
         <ul class="tour-bullets mb-0">
-          <li>a search bar to jump to a compound, MoA, plate, or well</li>
-          <li>buttons to recolor the map by MoA or by plate</li>
-          <li>basic dataset stats (wells, compounds, MoAs, plates)</li>
-          <li>model evaluation metrics, including the strongest MoA clusters</li>
+          <li>A search bar to jump to a compound, MoA, or plate</li>
+          <li>Buttons to recolor the map by MoA or by plate</li>
+          <li>Basic dataset stats (wells, compounds, MoAs, plates)</li>
+          <li>Model evaluation metrics, including the strongest MoA clusters</li>
         </ul>
       `,
     },
@@ -430,6 +455,8 @@
     const targetEl = slide.target ? slide.target() : null;
     currentTargetFn = slide.target || null;
     ensureTargetVisible(targetEl);
+
+    document.getElementById("tour-card").classList.toggle("tour-card-wide", !!slide.wide);
 
     const inner = document.getElementById("tour-card-inner");
     const html =

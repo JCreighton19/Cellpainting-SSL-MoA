@@ -63,6 +63,27 @@ if CHANNEL_IMPORTANCE_PATH.exists():
 else:
     _CHANNEL_IMPORTANCE = {}
 
+
+def _compute_channel_importance_avg(channel_importance):
+    """Dataset-wide average pct per channel (same per-well normalization as
+    build_channel_importance_bars: importance / sum-of-5 * 100), computed
+    once at startup so the sidebar can plot each well's bars against a fixed
+    baseline -- e.g. a well's DNA bar barely tops 15% dataset-wide, so a
+    given well sitting at 12% is notable relative to a ~4% average even
+    though it never approaches the max."""
+    sums = {}
+    counts = {}
+    for scores in channel_importance.values():
+        total = sum(s["importance"] for s in scores.values()) or 1.0
+        for name, s in scores.items():
+            pct = 100.0 * s["importance"] / total
+            sums[name] = sums.get(name, 0.0) + pct
+            counts[name] = counts.get(name, 0) + 1
+    return {name: sums[name] / counts[name] for name in sums}
+
+
+_CHANNEL_IMPORTANCE_AVG = _compute_channel_importance_avg(_CHANNEL_IMPORTANCE)
+
 # Order and (muted, readable-on-white) colors intentionally echo the
 # thumbnail composite's channel coloring (scripts/generate_web_thumbnails.py's
 # CHANNEL_COLORS), so the sidebar's channel-importance bars visually tie back
@@ -97,6 +118,7 @@ def build_channel_importance_bars(well_id):
             "name": name,
             "color": color,
             "pct": 100.0 * scores[name]["importance"] / total_importance,
+            "avg_pct": _CHANNEL_IMPORTANCE_AVG.get(name, 0.0),
         }
         for name, color in CHANNEL_DISPLAY
         if name in scores

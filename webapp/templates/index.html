@@ -85,7 +85,7 @@
         <div class="info-tooltip">
           <button type="button" class="info-tooltip-trigger" aria-label="What do these percentages mean?">?</button>
           <div class="info-tooltip-popup small">
-            Percentages indicate the share of each well's nearest neighbors that have the same mechanism of action. Higher percentages indicate that the model more consistently groups wells with that mechanism together.
+            Percentages indicate the share of each well's nearest neighbors that have the same mechanism of action.
           </div>
         </div>
       </h2>
@@ -624,6 +624,10 @@
     genetic perturbation. Training used no compound or mechanism-of-action labels: the goal was to
     learn morphological patterns directly from the unlabeled images themselves.
   </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://jump-cellpainting.broadinstitute.org/" target="_blank" rel="noopener">JUMP Cell Painting Consortium</a>
+  </p>
 
   <h3 class="h6 mt-3" id="tech-architecture">Model architecture</h3>
   <p class="small">
@@ -663,16 +667,48 @@
   <p class="small">
     An embedding is a numerical representation produced by the model. Instead of
     comparing images directly pixel-by-pixel, embeddings allow the model to compare
-    images based on learned features. For this project:
+    images based on learned features. For this project, each well is represented by a
+    384-dimensional embedding vector.
   </p>
-  <ul class="small mb-0">
-    <li>each well is represented by a 384-dimensional vector</li>
-    <li>embeddings summarize learned morphological patterns</li>
-    <li>
-      similarity is measured using cosine similarity, which compares the orientation of two
-      embedding vectors rather than their absolute scale.
-    </li>
-  </ul>
+  <p class="small">
+    Similarity is measured using cosine similarity, which compares the orientation of two
+    embedding vectors rather than their absolute length.
+  </p>
+
+  <div class="explainer-figure">
+    <svg viewBox="0 0 320 170" class="explainer-svg" role="img" aria-label="Diagram of three embedding vectors plotted against coordinate axes from a common origin: A and B point in similar, though not identical, directions despite very different lengths, while C points in a clearly different direction">
+      <line x1="8" y1="150" x2="312" y2="150" stroke="#ced4da" stroke-width="1.2"/>
+      <polygon points="312,150 304,146 304,154" fill="#ced4da"/>
+      <text x="315" y="154" font-size="11" fill="#adb5bd">x</text>
+
+      <line x1="160" y1="165" x2="160" y2="12" stroke="#ced4da" stroke-width="1.2"/>
+      <polygon points="160,12 156,20 164,20" fill="#ced4da"/>
+      <text x="165" y="14" font-size="11" fill="#adb5bd">y</text>
+
+      <line x1="160" y1="150" x2="260" y2="104" stroke="#0d6efd" stroke-width="1.8"/>
+      <polygon points="260,104 253,113 249,104" fill="#0d6efd"/>
+      <text x="268" y="102" font-size="12" fill="#0d6efd" font-weight="600">A</text>
+
+      <line x1="160" y1="150" x2="273" y2="15" stroke="#0d6efd" stroke-width="1.8"/>
+      <polygon points="273,15 270,26 263,19" fill="#0d6efd"/>
+      <text x="281" y="12" font-size="12" fill="#0d6efd" font-weight="600">B</text>
+
+      <line x1="160" y1="150" x2="47" y2="109" stroke="#adb5bd" stroke-width="1.8"/>
+      <polygon points="47,109 58,108 55,117" fill="#adb5bd"/>
+      <text x="47" y="96" font-size="12" fill="#6c757d" font-weight="600" text-anchor="middle">C</text>
+
+      <circle cx="160" cy="150" r="3.5" fill="#495057"/>
+    </svg>
+    <p class="explainer-caption mb-0">
+      Three embedding vectors, drawn from the same origin against ordinary x/y coordinate axes.
+    </p>
+  </div>
+  <p class="small">
+    In the example above, embeddings A and B point in similar directions, so their cosine similarity
+    is high despite B being longer than A. C points in a different direction, so its similarity to A and B is low.
+    In the full embedding space, the same principle applies across all 384 dimensions: only the direction of each
+    vector matters, not its size.
+  </p>
 
   <h3 class="h6 mt-3" id="tech-embedding-processing">Embedding processing</h3>
   <p class="small mb-1">
@@ -710,14 +746,45 @@
 
   <h3 class="h6 mt-3" id="tech-evaluation">Evaluation</h3>
   <p class="small">
-    The learned embeddings are evaluated by checking whether biologically related samples are
-    enriched near each other in the embedding space more than would be expected by chance.
+    The learned embeddings are evaluated by checking whether biologically related samples
+    (such as replicate experiments or compounds with the same mechanism of action) are placed near each
+    other more often than would be expected by chance. Neighbor
+    MoA agreement ({{ "%.0f"|format(metrics.neighbor_consistency * 100) }}%) and replicate
+    enrichment
+    {%- if metrics.replicate_enrichment %} ({{ "%.1f"|format(metrics.replicate_enrichment) }}&times;){% endif %}
+    are already shown in the left sidebar's "Model evaluation" panel; the metrics below examine additional aspects
+    of how the model organizes images.
   </p>
+
+  <p class="small mb-1">
+    <strong>MoA classification accuracy.</strong> Predicting a well's MoA by majority vote among
+    its 5 nearest neighbors gets it exactly right
+    {{ "%.0f"|format(metrics.moa_topk_accuracy * 100) }}% of the time, versus
+    {{ "%.0f"|format(metrics.moa_majority_baseline * 100) }}% for a baseline that always guesses
+    the single most common MoA ("control vehicle").  This is a more demanding test than neighbor agreement: it
+    requires the single most common MoA among nearby samples to exactly match the well's true MoA. The modest
+    improvement over this baseline shows that the model captures some biological signal, but is not yet a
+    standalone MoA classifier.
+  </p>
+
+  <p class="small mb-1">
+    <strong>Plate/batch effect.</strong>
+    {{ "%.0f"|format(metrics.plate_neighbor_agreement * 100) }}% of a well's 5 nearest neighbors
+    come from the same physical plate, versus
+    {{ "%.0f"|format(metrics.plate_chance_agreement * 100) }}% expected by chance alone
+    {%- if metrics.plate_enrichment %} — about {{ "%.0f"|format(metrics.plate_enrichment) }}&times;
+    more than chance{% endif %}. This quantifies the plate/batch effect discussed in the Limitations
+    section: at this stage of training, experimental batch information remains a substantially stronger
+    signal in the embedding space than the biological relationships being evaluated.
+  </p>
+
   <p class="small mb-0">
-    This includes comparing neighborhood similarity between replicate wells, agreement between a
-    well's nearest neighbors and its annotated mechanism of action, and the amount of variation
-    explained by technical factors such as plate identity. These are research diagnostics, not
-    evidence of a validated drug discovery model — see Limitations below.
+    <strong>Embedding health.</strong> The entropy effective rank is {{ "%.0f"|format(metrics.effective_rank) }}
+    of {{ metrics.embedding_dims }} output dimensions, meaning the model uses a broad range of its embedding space rather than
+    collapsing information into only a few directions. As an additional collapse check, the
+    mean cosine similarity between random, unrelated wells is {{ "%.2f"|format(metrics.random_pair_mean_similarity) }}, close to the ideal value
+    of 0 expected when embeddings preserve meaningful differences between samples. A value
+    near 1 would indicate that nearly all embeddings are becoming indistinguishable.
   </p>
 
   <h3 class="h6 mt-3" id="tech-channel-importance">Channel importance</h3>
@@ -728,19 +795,21 @@
     select a well, the right sidebar's "Channel Importance" bars estimate how much each of these
     5 channels contributed to that specific well's embedding.
   </p>
-  <p class="small mb-1">
-    This is computed by channel ablation: for the well's representative image, the model embeds
-    the original 5-channel image to get a baseline embedding, then re-embeds 5 variants with one
+  <p class="small">
+    Channel importance is computed by channel ablation: for the well's representative image, the model
+    embeds the original 5-channel image to get a baseline embedding, then re-embeds 5 variants with one
     channel at a time zeroed out. Each channel's raw importance is
     <code>1 &minus; cosine similarity</code> between the baseline embedding and that channel's
     ablated embedding. The more the embedding shifts when a channel is removed, the more the
     model relied on it. The 5 raw scores are then normalized to percentages that sum to 100%, so
-    the bars are directly comparable to one another.
+    the bars are directly comparable to one another. Because some channels consistently contribute more
+    than others across the dataset, each bar also includes a gray tick marking that channel's average importance,
+    providing a more meaningful baseline for comparison than the percentage alone.
   </p>
-  <p class="small mb-0">
-    This matters because it's a per-well, data-driven check on which stains actually drove the
-    model's representation of that image, rather than relying only on what's pharmacologically
-    documented about a compound. Where a MoA has a well-established target organelle (shown
+  <p class="small">
+    This provides a per-well, data-driven check on which stains actually drove the model's
+    representation of an image, rather than relying only on what's pharmacologically documented
+    about a compound. Where a MoA has a well-established target organelle (shown
     alongside the bars when one exists), it's worth comparing the two: rough agreement is a small
     piece of evidence the model picked up on a biologically meaningful signal, while disagreement
     doesn't necessarily mean the model is wrong — it may be relying on a real but less-obvious
@@ -756,7 +825,7 @@
   <ul class="small mb-0">
     <li>
       The compound library behind this map is a single fixed reference set (~300 compounds, one
-      plate design) imaged across multiple replicate plates, so results should not be read as a
+      plate design, one cell line) imaged across multiple replicate plates, so results should not be read as a
       general test of the model's chemistry coverage.
     </li>
     <li>

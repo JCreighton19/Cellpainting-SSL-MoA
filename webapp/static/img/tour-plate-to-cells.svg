@@ -1,0 +1,428 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 450" role="img" aria-labelledby="cpee-anim-title cpee-anim-desc">
+  <title id="cpee-anim-title">From plate to cells</title>
+  <desc id="cpee-anim-desc">Animated diagram: a plate holds many wells; one highlighted well is imaged as multiple microscope fields, shown as a magnified callout, each field containing many individual cells.</desc>
+
+  <!--
+    Self-contained, JS-free explainer animation (CSS animations only).
+    One shared 16s timeline drives every element below, matching 3 held
+    scenes (plate / one well / magnified images) connected by slow
+    (~1s) cross-fades, plus a pause-then-fade-back before the loop repeats.
+    Two elements persist and *transform* across a scene boundary rather
+    than cross-fading (#well-highlight growing into the "one well"
+    close-up, then shrinking + shifting left into the magnifying-callout
+    position) so the highlighted sample reads as continuous through each
+    zoom. First/last keyframe values are identical on every animation so
+    the loop has no visible seam.
+  -->
+  <style>
+    text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* ---- Scene 1 (~0-3s): plate of wells, one highlighted. Its hold is
+       1s longer than a plain 15/16 split of this timeline would give it,
+       so newcomers get a beat longer to orient before anything moves. ---- */
+    #plate-wells {
+      animation: plateWellsFade 16s ease-in-out infinite;
+    }
+    @keyframes plateWellsFade {
+      0%      { opacity: 1; }
+      12.81%  { opacity: 1; }
+      18.44%  { opacity: 0; }
+      90.63%  { opacity: 0; }
+      96.25%  { opacity: 1; }
+      100%    { opacity: 1; }
+    }
+
+    /* Persists through every scene: sits small in the grid, grows in place
+       into the "one well" close-up, then shrinks back down while shifting
+       left to sit beside the magnified callout, then resets (while
+       invisible) for the next loop. transform-origin is its own center, so
+       scaling never drifts the circle off its own position; the later
+       translate() is what actually moves it, by a fixed pixel amount
+       regardless of the current scale (see the code comment in
+       onboarding.js's tour for why translate must come before scale in the
+       function list to get a scale-independent offset). */
+    #well-highlight {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: wellHighlightAnim 16s ease-in-out infinite;
+    }
+    @keyframes wellHighlightAnim {
+      0%      { transform: translate(0,    0) scale(1);     opacity: 1; }
+      12.81%  { transform: translate(0,    0) scale(1);     opacity: 1; }
+      18.44%  { transform: translate(0,    0) scale(9.8);   opacity: 1; }
+      43.75%  { transform: translate(0,    0) scale(9.8);   opacity: 1; }
+      50.31%  { transform: translate(-172px, 0) scale(4.923); opacity: 1; }
+      78.44%  { transform: translate(-172px, 0) scale(4.923); opacity: 1; }
+      85%     { transform: translate(0,    0) scale(1);     opacity: 0; }
+      90.63%  { transform: translate(0,    0) scale(1);     opacity: 0; }
+      96.25%  { transform: translate(0,    0) scale(1);     opacity: 1; }
+      100%    { transform: translate(0,    0) scale(1);     opacity: 1; }
+    }
+
+    /* A pipette dispensing into the well -- shown only once the well has
+       grown large (scene 2 has much more clear space around it than the
+       dense plate grid in scene 1), to make it visually explicit that each
+       well is treated with a specific compound, not just "a sample". Fades
+       with the same schedule as #label-well since both belong to that
+       scene. */
+    #pipette-group {
+      animation: pipetteFade 16s ease-in-out infinite;
+    }
+    @keyframes pipetteFade {
+      0%      { opacity: 0; }
+      19.38%  { opacity: 0; }
+      23.13%  { opacity: 1; }
+      40.94%  { opacity: 1; }
+      43.75%  { opacity: 0; }
+      100%    { opacity: 0; }
+    }
+
+    /* Arrow shaft "draws itself" from the pipette to the well: pathLength="100"
+       (set on the element itself) normalizes the path's length to exactly
+       100 units regardless of its actual on-screen geometry, so
+       stroke-dasharray/-dashoffset can animate a clean 0-100% reveal
+       without needing to compute the real curve length. Tied to the same
+       16s timeline as #pipette-group (drawing in shortly after that group
+       starts fading in, fully drawn well before it fades out), rather than
+       looping independently. */
+    #pipette-arrow-shaft {
+      stroke-dasharray: 100;
+      animation: pipetteArrowDraw 16s ease-in-out infinite;
+    }
+    @keyframes pipetteArrowDraw {
+      0%      { stroke-dashoffset: 100; }
+      23.13%  { stroke-dashoffset: 100; }
+      29.69%  { stroke-dashoffset: 0; }
+      43.75%  { stroke-dashoffset: 0; }
+      44.69%  { stroke-dashoffset: 100; }
+      100%    { stroke-dashoffset: 100; }
+    }
+
+    /* Arrowhead only appears once the shaft has actually finished drawing to
+       it, instead of sitting there from the start of the scene. */
+    #pipette-arrowhead {
+      opacity: 0;
+      animation: pipetteArrowheadFade 16s ease-in-out infinite;
+    }
+    @keyframes pipetteArrowheadFade {
+      0%      { opacity: 0; }
+      23.13%  { opacity: 0; }
+      29.69%  { opacity: 1; }
+      43.75%  { opacity: 1; }
+      44.69%  { opacity: 0; }
+      100%    { opacity: 0; }
+    }
+
+    /* ---- Combined scene (~8-12s): magnifying-callout connector + panel of
+       4 cell-filled microscope images: textbook/microscopy convention for
+       "this larger view is a magnified detail of the highlighted region". */
+    #magnify-group {
+      animation: magnifyFade 16s ease-in-out infinite;
+    }
+    @keyframes magnifyFade {
+      0%      { opacity: 0; }
+      47.5%   { opacity: 0; }
+      52.19%  { opacity: 1; }
+      74.69%  { opacity: 1; }
+      80.31%  { opacity: 0; }
+      100%    { opacity: 0; }
+    }
+
+    /* ---- Scene labels: 3 stacked captions, one visible at a time ---- */
+    #label-plate {
+      animation: labelPlateFade 16s ease-in-out infinite;
+    }
+    @keyframes labelPlateFade {
+      0%      { opacity: 1; }
+      10%     { opacity: 1; }
+      12.81%  { opacity: 0; }
+      90.63%  { opacity: 0; }
+      96.25%  { opacity: 1; }
+      100%    { opacity: 1; }
+    }
+
+    #label-well {
+      animation: labelWellFade 16s ease-in-out infinite;
+    }
+    @keyframes labelWellFade {
+      0%      { opacity: 0; }
+      19.38%  { opacity: 0; }
+      23.13%  { opacity: 1; }
+      40.94%  { opacity: 1; }
+      43.75%  { opacity: 0; }
+      100%    { opacity: 0; }
+    }
+
+    #label-magnify {
+      animation: labelMagnifyFade 16s ease-in-out infinite;
+    }
+    @keyframes labelMagnifyFade {
+      0%      { opacity: 0; }
+      49.38%  { opacity: 0; }
+      55%     { opacity: 1; }
+      71.88%  { opacity: 1; }
+      76.56%  { opacity: 0; }
+      100%    { opacity: 0; }
+    }
+  </style>
+
+  <!-- Pure white background, guaranteed regardless of embedding context -->
+  <rect id="background" x="0" y="0" width="500" height="450" fill="#FFFFFF"/>
+
+  <!-- Reusable well-dot template for the plate grid -->
+  <defs>
+    <circle id="well-dot" r="6.5" fill="#FFFFFF" stroke="#D6D6D6" stroke-width="1.2"/>
+  </defs>
+
+  <!-- ================= Scene 1: the plate ================= -->
+  <g id="plate-wells">
+    <!-- Physical plate boundary -->
+    <rect x="115" y="30" width="270" height="220" rx="10" fill="none" stroke="#D6D6D6" stroke-width="1.5"/>
+
+    <!-- row y=56 -->
+    <use href="#well-dot" x="142" y="56"/>
+    <use href="#well-dot" x="166" y="56"/>
+    <use href="#well-dot" x="190" y="56"/>
+    <use href="#well-dot" x="214" y="56"/>
+    <use href="#well-dot" x="238" y="56"/>
+    <use href="#well-dot" x="262" y="56"/>
+    <use href="#well-dot" x="286" y="56"/>
+    <use href="#well-dot" x="310" y="56"/>
+    <use href="#well-dot" x="334" y="56"/>
+    <use href="#well-dot" x="358" y="56"/>
+    <!-- row y=80 -->
+    <use href="#well-dot" x="142" y="80"/>
+    <use href="#well-dot" x="166" y="80"/>
+    <use href="#well-dot" x="190" y="80"/>
+    <use href="#well-dot" x="214" y="80"/>
+    <use href="#well-dot" x="238" y="80"/>
+    <use href="#well-dot" x="262" y="80"/>
+    <use href="#well-dot" x="286" y="80"/>
+    <use href="#well-dot" x="310" y="80"/>
+    <use href="#well-dot" x="334" y="80"/>
+    <use href="#well-dot" x="358" y="80"/>
+    <!-- row y=104 -->
+    <use href="#well-dot" x="142" y="104"/>
+    <use href="#well-dot" x="166" y="104"/>
+    <use href="#well-dot" x="190" y="104"/>
+    <use href="#well-dot" x="214" y="104"/>
+    <use href="#well-dot" x="238" y="104"/>
+    <use href="#well-dot" x="262" y="104"/>
+    <use href="#well-dot" x="286" y="104"/>
+    <use href="#well-dot" x="310" y="104"/>
+    <use href="#well-dot" x="334" y="104"/>
+    <use href="#well-dot" x="358" y="104"/>
+    <!-- row y=128 -->
+    <use href="#well-dot" x="142" y="128"/>
+    <use href="#well-dot" x="166" y="128"/>
+    <use href="#well-dot" x="190" y="128"/>
+    <use href="#well-dot" x="214" y="128"/>
+    <use href="#well-dot" x="238" y="128"/>
+    <use href="#well-dot" x="262" y="128"/>
+    <use href="#well-dot" x="286" y="128"/>
+    <use href="#well-dot" x="310" y="128"/>
+    <use href="#well-dot" x="334" y="128"/>
+    <use href="#well-dot" x="358" y="128"/>
+    <!-- row y=152 (x=262 skipped, that's #well-highlight below) -->
+    <use href="#well-dot" x="142" y="152"/>
+    <use href="#well-dot" x="166" y="152"/>
+    <use href="#well-dot" x="190" y="152"/>
+    <use href="#well-dot" x="214" y="152"/>
+    <use href="#well-dot" x="238" y="152"/>
+    <use href="#well-dot" x="286" y="152"/>
+    <use href="#well-dot" x="310" y="152"/>
+    <use href="#well-dot" x="334" y="152"/>
+    <use href="#well-dot" x="358" y="152"/>
+    <!-- row y=176 -->
+    <use href="#well-dot" x="142" y="176"/>
+    <use href="#well-dot" x="166" y="176"/>
+    <use href="#well-dot" x="190" y="176"/>
+    <use href="#well-dot" x="214" y="176"/>
+    <use href="#well-dot" x="238" y="176"/>
+    <use href="#well-dot" x="262" y="176"/>
+    <use href="#well-dot" x="286" y="176"/>
+    <use href="#well-dot" x="310" y="176"/>
+    <use href="#well-dot" x="334" y="176"/>
+    <use href="#well-dot" x="358" y="176"/>
+    <!-- row y=200 -->
+    <use href="#well-dot" x="142" y="200"/>
+    <use href="#well-dot" x="166" y="200"/>
+    <use href="#well-dot" x="190" y="200"/>
+    <use href="#well-dot" x="214" y="200"/>
+    <use href="#well-dot" x="238" y="200"/>
+    <use href="#well-dot" x="262" y="200"/>
+    <use href="#well-dot" x="286" y="200"/>
+    <use href="#well-dot" x="310" y="200"/>
+    <use href="#well-dot" x="334" y="200"/>
+    <use href="#well-dot" x="358" y="200"/>
+    <!-- row y=224 -->
+    <use href="#well-dot" x="142" y="224"/>
+    <use href="#well-dot" x="166" y="224"/>
+    <use href="#well-dot" x="190" y="224"/>
+    <use href="#well-dot" x="214" y="224"/>
+    <use href="#well-dot" x="238" y="224"/>
+    <use href="#well-dot" x="262" y="224"/>
+    <use href="#well-dot" x="286" y="224"/>
+    <use href="#well-dot" x="310" y="224"/>
+    <use href="#well-dot" x="334" y="224"/>
+    <use href="#well-dot" x="358" y="224"/>
+  </g>
+
+  <!-- The one highlighted well: stays blue and persists (via transform,
+       not a cross-fade) through every scene so it reads as "the same
+       sample" at every zoom level. -->
+  <circle id="well-highlight" cx="262" cy="152" r="6.5" fill="#0d6efd"/>
+
+  <!-- Pipette dispensing a compound into the well (scene 2 only): positioned
+       top-left of the well, angled to face it, and a bit farther from it
+       than a first pass had it (the local shape below is built from simple
+       capsule/stadium shapes, pointing straight down with its fine tip at
+       the local origin, then translated + rotated as a whole so the tip
+       sits northwest of the well's edge, aimed at its center). The arrow
+       draws itself from tip to well (see #pipette-arrow's animation above)
+       and is labeled so the mechanism is explicit rather than only implied
+       by the icon; makes "each well is treated with a specific compound"
+       visually clear. -->
+  <g id="pipette-group">
+    <!-- Pipette icon, built entirely from capsules/rounded-rects/lines: a
+         long white body, a much bigger solid black half-capsule bulb at its
+         top, a flange line at the bulb/body seam, and the body+taper+tip
+         combined into ONE path so there's no seam anywhere below the
+         flange: one continuous outline narrowing to a tip that rounds
+         OUTWARD, away from the body (the arc bulges toward the local
+         origin/tip direction, not back up toward the body). -->
+    <g transform="translate(178,88) rotate(-48)">
+      <!-- body + taper + tip: one continuous outline, no internal seam.
+           The tip arc sweeps so it bulges toward y>-14 (down, i.e. toward
+           the actual tip point at the local origin below): convex
+           outward, not a dimple back into the shaft. -->
+      <path d="M -8.5,-82 L -8.5,-42 L -2.5,-14 A 2.5,2.5 0 0 0 2.5,-14 L 8.5,-42 L 8.5,-82 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.8"/>
+      <!-- bulb: only marginally wider than the body, but noticeably taller
+           than it is wide; built as a capsule (straight-sided rectangle
+           topped with a semicircular cap), matching the same
+           rectangle+semicircle construction as the rest of the pipette,
+           rather than a single gradually-rounding ellipse. -->
+      <path d="M -10,-82 L -10,-97 A 10,10 0 0 1 10,-97 L 10,-82 Z" fill="#000000"/>
+      <!-- divider/flange line at the bulb-body seam, extending past the bulb -->
+      <line x1="-13" y1="-82" x2="13" y2="-82" stroke="#000000" stroke-width="1.8"/>
+    </g>
+
+    <!-- Fill line: indicates the pipette is loaded with liquid. Drawn OUTSIDE
+         the rotated <g> above, as a truly horizontal line in screen space
+         (like a real liquid surface leveling under gravity, regardless of
+         the tool's -48deg tilt) rather than a line horizontal only in the
+         pipette's own tilted local frame. Its endpoints are computed as the
+         intersection of a horizontal line, lowered a bit toward the tip
+         from the body's exact vertical midpoint, with the body's two
+         (tilted) side walls, so it still reads as crossing the tube cleanly. -->
+    <line x1="128" y1="54.5" x2="154" y2="54.5" stroke="#000000" stroke-width="1.8"/>
+
+    <!-- Small blue drop, hanging directly below the tip with a bit of white
+         space in between. Deliberately drawn OUTSIDE the rotated <g> above
+         and placed with plain (unrotated) coordinates, so it hangs upright
+         (point at top, like the water-drop emoji) regardless of the
+         pipette's -48deg tilt, the way an actual drop would hang under
+         gravity rather than along the tool's own angled axis. -->
+    <path transform="translate(169,84)" d="M 0,0 C 0,0 -5,6.25 -5,10 a 5,5 0 0 0 10,0 c 0,-3.75 -5,-10 -5,-10 z" fill="#0d6efd"/>
+
+    <!-- Arrow: a clean, moderate-weight pale-blue stroke with a slim,
+         precise chevron head; a technical-diagram look (flat butt caps,
+         narrow head) rather than a cartoonish thick/rounded one. A single
+         true circular arc (SVG "A" command, constant radius) rather than a
+         quadratic Bezier, so the bend is smooth and even rather than
+         tightening/loosening along its length. Tail sits well clear of the
+         pipette body (~19 units) and higher up (near the fill line's
+         height); the head sits well clear of the well surface (~18 units)
+         and is aimed at the top of the well rather than its upper-left
+         side, so it reads as dropping down into the well from above.
+         "Draws itself" via pathLength=100 + stroke-dasharray/-dashoffset on
+         the shaft (works on strokes, not fills), with the head fading in
+         once the shaft finishes drawing. -->
+    <path id="pipette-arrow-shaft" pathLength="100"
+          d="M 160,36 A 46.4,46.4 0 0,1 226.5,63.2"
+          fill="none" stroke="#A8C8F0" stroke-width="8" stroke-linecap="butt"/>
+    <polygon id="pipette-arrowhead" fill="#A8C8F0"
+             points="219.8,65.3 233.2,61.2 232.5,75.9"/>
+
+    <text x="95" y="130" font-size="13" font-weight="500" fill="#333333">Compound</text>
+  </g>
+
+  <!-- ================= Combined scene: magnifying-callout + 4 cell-filled images =================
+       Classic textbook/microscopy-figure convention: 2 thin gray leader
+       lines widen from the highlighted (now shifted-left) well out to a
+       larger panel, indicating "this panel is a magnified view of that
+       region". -->
+  <g id="magnify-group">
+    <!-- Leader lines: well (shifted-left, centered ~90,152, r~32) to the
+         panel's left edge -->
+    <line x1="114" y1="130" x2="230" y2="60" stroke="#D6D6D6" stroke-width="1.3"/>
+    <line x1="114" y1="174" x2="230" y2="250" stroke="#D6D6D6" stroke-width="1.3"/>
+
+    <!-- Magnified panel -->
+    <rect x="230" y="60" width="230" height="190" rx="6" fill="#FFFFFF" stroke="#D6D6D6" stroke-width="1.5"/>
+
+    <!-- 4 microscope-image thumbnails, each with its own small cells -->
+    <g id="magnify-thumbs">
+      <rect x="245" y="75" width="94" height="74" rx="3" fill="#FAFAFA" stroke="#0d6efd" stroke-width="1.3"/>
+      <rect x="351" y="75" width="94" height="74" rx="3" fill="#FAFAFA" stroke="#0d6efd" stroke-width="1.3"/>
+      <rect x="245" y="161" width="94" height="74" rx="3" fill="#FAFAFA" stroke="#0d6efd" stroke-width="1.3"/>
+      <rect x="351" y="161" width="94" height="74" rx="3" fill="#FAFAFA" stroke="#0d6efd" stroke-width="1.3"/>
+    </g>
+
+    <!-- Stylized mini cells (not realistic biology): pale orange bodies,
+         pale purple nuclei; 3 per thumbnail, same relative layout in each
+         so all 4 images read as "this well's cells". -->
+    <g id="magnify-cells">
+      <!-- top-left thumbnail: 4 cells -->
+      <g><circle cx="265" cy="93" r="6" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="266.8" cy="91.2" r="2.4" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="300" cy="91" r="5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="301.5" cy="89.5" r="2.0" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="315" cy="121" r="6.5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="313.05" cy="119.05" r="2.6" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="273" cy="127" r="5.5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="274.65" cy="125.35" r="2.2" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <!-- top-right thumbnail: 2 cells (sparse) -->
+      <g><circle cx="386" cy="105" r="8" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="388.4" cy="102.6" r="3.2" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="416" cy="125" r="7" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="413.9" cy="122.9" r="2.8" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <!-- bottom-left thumbnail: 5 cells (dense) -->
+      <g><circle cx="259" cy="175" r="5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="260.5" cy="173.5" r="2.0" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="289" cy="171" r="4.5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="290.35" cy="169.65" r="1.8" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="317" cy="181" r="5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="318.5" cy="179.5" r="2.0" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="269" cy="207" r="5.5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="267.35" cy="205.35" r="2.2" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="303" cy="211" r="5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="304.5" cy="209.5" r="2.0" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <!-- bottom-right thumbnail: 3 cells, different spots from the others -->
+      <g><circle cx="373" cy="183" r="7" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="375.1" cy="180.9" r="2.8" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="413" cy="193" r="5.5" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="414.65" cy="191.35" r="2.2" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+      <g><circle cx="393" cy="216" r="6" fill="#FBDDBB" stroke="#E8B98C" stroke-width="0.8"/><circle cx="391.2" cy="214.2" r="2.4" fill="#DDD0F0" stroke="#CBB8E8" stroke-width="0.6"/></g>
+    </g>
+  </g>
+
+  <!-- ================= Scene labels (stacked, one visible at a time) =================
+       Slightly lighter than the body/caption text below (#5A5A5A vs
+       #333333) since these are secondary, per-scene captions rather than
+       the slide's primary reading content. -->
+  <text id="label-plate" x="250" y="278" font-size="15" font-weight="500" fill="#5A5A5A" text-anchor="middle">One plate contains many wells</text>
+  <text id="label-well" x="250" y="278" font-size="15" font-weight="500" fill="#5A5A5A" text-anchor="middle">Each well is treated with a compound, or drug</text>
+  <text id="label-magnify" x="250" y="278" font-size="15" font-weight="500" fill="#5A5A5A" text-anchor="middle">Each well has multiple microscope images, each full of cells</text>
+
+  <!-- ================= Static caption (does not animate) =================
+       The block as a whole is horizontally centered on the canvas (each
+       line's shared x=66 is (500 - widest-line-width) / 2, the widest line
+       being "Multiple microscope images..." at ~368px), but text within the
+       block is still left-aligned/ragged-right, not each line individually
+       centered: like a centered paragraph, not like a poem. Also pushed
+       down from the scene labels above (y=326 vs the
+       labels' y=278) for more breathing room between the animation and
+       this static text; the viewBox/background grew from 430 to 450 tall
+       to keep the last line comfortably clear of the bottom edge. The
+       heading that used to sit above this ("First, some background") now
+       lives as a real HTML .tour-title in onboarding.js instead, above the
+       <img>, so it matches every other slide's title font exactly. -->
+  <text font-size="14" fill="#333333" text-anchor="start">
+    <tspan x="66" y="326">A </tspan><tspan font-weight="700">plate</tspan><tspan> is a tray containing many </tspan><tspan font-weight="700">wells,</tspan><tspan> where each well</tspan>
+    <tspan x="66" y="347">contains cells treated with a single </tspan><tspan font-weight="700">compound</tspan><tspan>, or drug.</tspan>
+    <tspan x="66" y="368">Multiple microscope images are captured from each well,</tspan>
+    <tspan x="66" y="389">and each image contains many individual cells. The AI</tspan>
+    <tspan x="66" y="410">looks across all images in each well to understand how</tspan>
+    <tspan x="66" y="431">each treatment changes the cells.</tspan>
+  </text>
+</svg>

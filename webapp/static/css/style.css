@@ -648,15 +648,34 @@ body {
 }
 
 .channel-bar-track {
+  position: relative;
   background-color: #e9ecef;
   border-radius: 3px;
   height: 10px;
-  overflow: hidden;
+  /* No overflow:hidden -- the avg marker below deliberately extends a
+     couple px past this box's own top/bottom edge, so it reads as a
+     reference tick sitting "on top of" the bar rather than a segment
+     of the bar itself. */
 }
 
 .channel-bar-fill {
   height: 100%;
   border-radius: 3px;
+}
+
+/* Dataset-wide average for this channel (see routes.py's
+   _compute_channel_importance_avg), so a bar reads against a baseline
+   instead of in isolation -- e.g. DNA rarely tops 15% for any well, but if
+   its average is ~6%, a well at 12% is notably above typical, not just
+   "not the max". A native title tooltip explains it on hover without
+   adding visible clutter. */
+.channel-bar-avg-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 0;
+  border-left: 1.5px solid #6c757d;
+  pointer-events: none;
 }
 
 /* ---- First-run guided tour (see static/js/onboarding.js) ---- */
@@ -709,6 +728,15 @@ body {
 
 .tour-card:focus {
   outline: none;
+}
+
+/* Toggled by onboarding.js's renderSlide() for slides whose content needs
+   more room than the standard 380px (currently just the animated
+   plate-to-cells diagram, whose title/caption text is baked into the SVG
+   itself) -- still capped by the same max-width as .tour-card above, so it
+   never overflows a narrow viewport. */
+.tour-card-wide {
+  width: 480px;
 }
 
 @keyframes tour-pop {
