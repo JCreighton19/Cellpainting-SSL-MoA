@@ -365,8 +365,12 @@
   <p class="small">
     This project tests whether a self-supervised vision model can learn useful representations of
     Cell Painting images without using compound or mechanism-of-action labels during training.
-    This visualization lets you explore what the model discovered from the images alone and
-    examine whether those patterns correspond to known biological effects
+    This visualization lets you explore what the model discovered from the microscopy images alone and
+    examine whether those patterns correspond to known biological effects.
+  </p>
+  <p class="small text-muted mb-0">
+    Learn more:
+    <a href="https://www.ibm.com/think/topics/self-supervised-learning" target="_blank" rel="noopener">What is self-supervised learning? (IBM)</a>
   </p>
 
   <h3 class="h6 mt-3" id="abt-cell-painting">What is Cell Painting?</h3>
@@ -431,8 +435,8 @@
 
   <h3 class="h6 mt-3" id="abt-morphology">Why analyze cell morphology?</h3>
   <p class="small">
-    Changes in a cell's appearance can reveal how a compound affects cellular processes. Compounds
-    may alter features such as:</p>
+    Changes in a cell's structure, or morphology, can reveal how a compound affects cellular processes.
+    Compounds may alter features such as:</p>
   <ul class="small mb-1">
     <li>cell shape</li>
     <li>organelle organization</li>
@@ -621,8 +625,13 @@
   <p class="small">
     The model was trained on a subset of the JUMP Cell Painting dataset consisting of compound
     perturbation microscopy experiments — wells treated with a chemical compound rather than a
-    genetic perturbation. Training used no compound or mechanism-of-action labels: the goal was to
-    learn morphological patterns directly from the unlabeled images themselves.
+    genetic perturbation. Specifically, it uses 23 of the 52 compound-treatment plates available in
+    the JUMP Cell Painting <strong>Pilot</strong> dataset, drawn from 3 separate experimental
+    batches, for a total of 8,243 wells, 306 compounds, and 211 annotated mechanisms of action.
+    Training used no compound or mechanism-of-action labels: the goal was to learn morphological
+    patterns directly from the unlabeled images themselves. As discussed in Limitations below, this
+    is a small slice of the full JUMP Cell Painting resource (which spans far more plates, cell
+    lines, and compounds), and it's the single biggest constraint on how well this model generalizes.
   </p>
   <p class="small text-muted mb-0">
     Learn more:
@@ -824,23 +833,31 @@
   </p>
   <ul class="small mb-0">
     <li>
-      The compound library behind this map is a single fixed reference set (~300 compounds, one
-      plate design, one cell line) imaged across multiple replicate plates, so results should not be read as a
-      general test of the model's chemistry coverage.
+      <strong>Dataset size is almost certainly the biggest limiting factor</strong> This map's
+      compound library is a single fixed reference set (~300 compounds, one plate design, one cell
+      line) drawn from just 23 of the 52 compound-treatment plates in the JUMP Cell Painting Pilot
+      dataset. Although the training dataset was comprised of nearly 2 TB of data, this is still
+      a small slice of the full JUMP Cell Painting resource, which spans many more plates,
+      cell lines, and compounds. This relatively small dataset limits opportunities for the model
+      to learn compound effects that hold up across different plates and batches, rather
+      than picking up on incidental technical variation.
     </li>
     <li>
       The learned representation still shows a measurable plate/batch effect: which plate a well
       came from is more predictable from the embedding than one might expect from morphology
-      alone.
+      alone. This is likely compounded by the relatively small number of plates, as there's less
+      opportunity for technical variation to average out.
     </li>
     <li>
       Agreement between a well's neighbors and its annotated MoA is well above random chance, but
       modest in absolute terms. Treat clustering patterns as suggestive, not diagnostic.
     </li>
     <li>
-      The UMAP layout is for visualization only. Similarity and neighbor calculations are
-      performed in the full, high-dimensional embedding space and can disagree with what looks
-      closest on the map (see "How to Read This Map").
+      The model uses a modified pretrained backbone. Although it was originally trained on everyday
+      3-channel RGB images, it was adapted to process the 5-channel Cell Painting images used in this
+      project. Even with this modification, microscopy images differ substantially from natural photographs,
+      making it more challenging for the model to extract meaningful biological features and potentially
+      limiting its performance.
     </li>
   </ul>
 
@@ -852,9 +869,11 @@
       — open microscopy dataset.
     </li>
     <li>
-      Kim et al. (2025), "Self-supervised learning of morphological representations from
-      large-scale Cell Painting data" — demonstration of self-supervised representation learning
-      for cellular morphology.
+      Kim et al. (2025), <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11811211/" target="_blank" rel="noopener">"Self-supervision advances morphological profiling by unlocking powerful image representations"</a>
+      — much of this project's model architecture and training hyperparameters (foreground-cropping,
+      multi-crop augmentation, loss/temperature schedule, learning-rate and weight-decay schedules,
+      and the post-processing/normalization steps) were directly inspired by this paper's DINO
+      methodology for Cell Painting data.
     </li>
     <li>
       Bray et al. (2016), <a href="https://www.nature.com/articles/nprot.2016.105" target="_blank" rel="noopener">"Cell Painting, a high-content image-based assay for morphological profiling using multiplexed fluorescent dyes"</a>

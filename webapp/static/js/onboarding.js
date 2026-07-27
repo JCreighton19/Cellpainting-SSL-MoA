@@ -193,7 +193,7 @@
       // rather than restarting at 0%; a unique URL each time forces a fresh
       // decode, which restarts the animation.
       html: () => `
-        <h2 class="tour-title">First, some background</h2>
+        <h2 class="tour-title">First, some terminology</h2>
         <img src="/static/img/tour-plate-to-cells.svg?r=${Date.now()}" alt="Animated diagram: a plate holds many wells; one highlighted well is imaged as multiple microscope fields, shown as a magnified callout, each field containing many individual cells" style="width:100%;height:auto;display:block;">
       `,
     },
