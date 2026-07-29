@@ -168,7 +168,7 @@
       target: () => null,
       html: () => `
         <h2 class="tour-title" id="tour-title">Welcome to the Cell Painting Embedding Explorer</h2>
-        <p class="tour-body">This project explores whether AI can learn which drugs have similar effects on cells by looking only at microscope images. The model learned by examining the images themselves, without being told which drugs they represented, and discovered patterns in how cells respond to different treatments.</p>
+        <p class="tour-body">This project explores whether AI can learn which drugs affect cells in similar ways using only microscope images. Without being told which drug each image came from, the model learned patterns in how cells respond to different treatments. This could help researchers identify drugs with similar effects.</p>
         <p class="tour-body mb-0">Don't worry if you don't have a biology or machine learning background—we'll show you how to explore it in under a minute.</p>
       `,
     },

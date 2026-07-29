@@ -2388,5 +2388,161 @@
         "url": "https://en.wikipedia.org/wiki/Vitamin_K_antagonist"
       }
     ]
+  },
+  "glucose dependent insulinotropic receptor ligand": {
+    "description": "The glucose-dependent insulinotropic polypeptide (GIP) receptor is a class B (secretin-like) G-protein-coupled receptor found mainly on pancreatic beta cells, adipocytes, and bone cells. Its natural ligand, GIP, is an incretin hormone released from intestinal K-cells after a meal. Ligands at this receptor amplify glucose-stimulated insulin secretion -- i.e. they only boost insulin release when blood glucose is already elevated -- and also influence fat storage in adipose tissue and bone turnover. This mechanism underlies newer incretin-based diabetes/obesity therapies (e.g. dual GIP/GLP-1 receptor agonists).",
+    "pathway": "GIP receptor (GIPR) signaling, a class B GPCR pathway coupled mainly to Gs/cAMP/PKA.",
+    "typically_affects": "Glucose-stimulated insulin secretion from pancreatic beta cells; also adipocyte lipid storage and bone metabolism.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Glucose-dependent insulinotropic polypeptide - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Glucose-dependent_insulinotropic_polypeptide"
+      }
+    ]
+  },
+  "trk inhibitor": {
+    "description": "TRK (tropomyosin receptor kinase) inhibitors block the TRKA/B/C family of receptor tyrosine kinases, which are normally activated by neurotrophins (e.g. nerve growth factor) to drive cell growth and survival signaling. A subset of cancers carry NTRK gene fusions that produce a constitutively active TRK fusion protein independent of ligand binding; TRK inhibitors shut down this fusion-driven signaling, which is the basis for tumor-agnostic NTRK-fusion cancer therapies like larotrectinib.",
+    "pathway": "TRK receptor tyrosine kinase signaling (RAS/MAPK and PI3K/AKT downstream of TRKA/B/C).",
+    "typically_affects": "Cell growth and survival signaling, particularly in NTRK fusion-driven tumors.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Larotrectinib - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Larotrectinib"
+      }
+    ]
+  },
+  "ccr1 antagonist": {
+    "description": "CCR1 is a chemokine receptor expressed on immune cells such as monocytes and neutrophils. Its natural ligands (chemokines like CCL3/MIP-1alpha and CCL5/RANTES) bind CCR1 to recruit these cells to sites of inflammation. CCR1 antagonists block this chemokine binding, reducing immune cell trafficking and recruitment -- a strategy explored for inflammatory and autoimmune conditions such as rheumatoid arthritis.",
+    "pathway": "CCR1 chemokine receptor signaling (a Gi-coupled GPCR pathway).",
+    "typically_affects": "Immune cell (monocyte/neutrophil) chemotaxis and recruitment to inflamed tissue.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "CCR1 - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/CCR1"
+      }
+    ]
+  },
+  "hif pathway activator": {
+    "description": "The hypoxia-inducible factor (HIF) pathway is the cell's master response to low oxygen. Under normal oxygen levels, HIF-1alpha is continuously degraded; HIF pathway activators block this degradation (mimicking hypoxia), allowing HIF-1alpha to accumulate, enter the nucleus, and switch on genes for angiogenesis, red blood cell production, and metabolic adaptation. This mechanism is being explored for anemia treatment and regenerative/wound-healing applications.",
+    "pathway": "HIF-1alpha stabilization and nuclear transcriptional activation of hypoxia-response genes.",
+    "typically_affects": "Cellular oxygen-sensing response, including angiogenesis, erythropoiesis, and metabolic gene expression.",
+    "target_organelles": ["DNA"],
+    "sources": [
+      {
+        "title": "Hypoxia-inducible factors - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Hypoxia-inducible_factors"
+      }
+    ]
+  },
+  "gpr55 antagonist": {
+    "description": "GPR55 is an atypical, cannabinoid-related G-protein-coupled receptor activated by lipid signaling molecules such as lysophosphatidylinositol. GPR55 antagonists block this receptor, which has been implicated in bone physiology, cancer cell proliferation, and pain signaling, making it a target of interest in oncology and pain research.",
+    "pathway": "GPR55 signaling (a lipid-activated GPCR coupled to G12/13 and Gq pathways).",
+    "typically_affects": "Bone cell activity, cancer cell proliferation, and nociceptive (pain) signaling.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "GPR55 - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/GPR55"
+      }
+    ]
+  },
+  "ffa4 (gpr120) agonist": {
+    "description": "FFA4 (also called GPR120) is a G-protein-coupled receptor activated by long-chain free fatty acids, expressed in the gut, adipose tissue, and immune cells. FFA4 agonists mimic dietary fatty acid signaling, stimulating secretion of the incretin hormone GLP-1, improving insulin sensitivity, and reducing inflammatory signaling in macrophages -- effects under investigation for type 2 diabetes and metabolic disease.",
+    "pathway": "FFA4/GPR120 free fatty acid receptor signaling (Gq-coupled).",
+    "typically_affects": "Incretin hormone secretion, insulin sensitivity, and macrophage inflammatory signaling.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Free fatty acid receptor 4 - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Free_fatty_acid_receptor_4"
+      }
+    ]
+  },
+  "usp1-uaf1 inhibitor": {
+    "description": "USP1 is a deubiquitinating enzyme that, together with its cofactor UAF1, removes ubiquitin marks from proteins involved in the DNA damage response -- including FANCD2 (Fanconi anemia pathway) and PCNA (translesion DNA synthesis). Inhibiting USP1-UAF1 traps these proteins in their ubiquitinated state, disrupting DNA repair and replication-stress tolerance, which is being explored as a way to sensitize cancer cells (particularly BRCA-mutant tumors) to DNA-damaging therapy.",
+    "pathway": "USP1-UAF1 deubiquitinase activity in the Fanconi anemia / DNA damage response pathway.",
+    "typically_affects": "DNA repair and replication-stress tolerance via FANCD2 and PCNA ubiquitination status.",
+    "target_organelles": ["DNA"],
+    "sources": [
+      {
+        "title": "USP1 (gene) - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/USP1_(gene)"
+      }
+    ]
+  },
+  "glutathione precursor": {
+    "description": "Glutathione is the cell's major antioxidant, built from three building-block amino acids: glutamate, cysteine, and glycine. Compounds classed as glutathione precursors (e.g. L-glutamine, which is converted to glutamate, or L-cystine, a cysteine source) supply or feed into these building blocks, supporting glutathione synthesis and the cell's capacity to neutralize oxidative stress.",
+    "pathway": "Glutathione biosynthesis (gamma-glutamyl cycle) from glutamate, cysteine, and glycine.",
+    "typically_affects": "Cellular antioxidant (glutathione) capacity and redox/oxidative-stress buffering.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Glutathione - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Glutathione"
+      }
+    ]
+  },
+  "low-threshold calcium channel inhibitor": {
+    "description": "Low-threshold (T-type) calcium channels open in response to small changes in membrane potential near resting voltage, unlike high-threshold channels that require stronger depolarization. Inhibitors of these channels reduce calcium influx that would otherwise trigger processes like neuronal firing, hormone secretion, and smooth muscle contraction. 1-octanol, in particular, is also a well-characterized gap-junction blocker, so its effects reflect both of these actions.",
+    "pathway": "T-type (low-voltage-activated) calcium channel signaling.",
+    "typically_affects": "Neuronal excitability, hormone secretion, and smooth muscle contraction via calcium influx.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "T-type calcium channel - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/T-type_calcium_channel"
+      }
+    ]
+  },
+  "calcineurin inhibitor": {
+    "description": "Calcineurin is a calcium-activated phosphatase that, once activated in T cells, removes a phosphate group from the transcription factor NFAT, allowing it to enter the nucleus and switch on interleukin-2 (IL-2) production. Calcineurin inhibitors like cyclosporine block this phosphatase, preventing T-cell activation and proliferation -- the basis for their use as immunosuppressants in organ transplantation and autoimmune disease.",
+    "pathway": "Calcineurin-NFAT signaling in T-cell activation.",
+    "typically_affects": "T-cell activation and IL-2-driven immune proliferation.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Calcineurin inhibitor - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Calcineurin_inhibitor"
+      }
+    ]
+  },
+  "jak2 inhibitor": {
+    "description": "JAK2 is a cytoplasmic tyrosine kinase that transmits signals from cytokine receptors (e.g. for erythropoietin and thrombopoietin) to the STAT transcription factors, driving blood cell production. Many myeloproliferative neoplasms carry an activating JAK2 mutation (JAK2 V617F) that causes excessive, uncontrolled blood cell production. JAK2 inhibitors block this kinase activity, reducing the abnormal proliferation signal in conditions like myelofibrosis and polycythemia vera.",
+    "pathway": "JAK2/STAT cytokine receptor signaling.",
+    "typically_affects": "Blood cell (myeloid) proliferation downstream of cytokine receptor signaling.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Janus kinase 2 - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Janus_kinase_2"
+      }
+    ]
+  },
+  "buffering agent": {
+    "description": "A buffering agent resists changes in pH by accepting or donating protons (H+) as acid or base is added, rather than acting on any specific biological receptor. Trometamol (Tris, or THAM), for example, is used clinically to neutralize excess acid (e.g. in metabolic or respiratory acidosis) and is a common laboratory buffer. Because its effect is a general physicochemical one, it doesn't map onto a specific signaling pathway the way most other MoAs in this dataset do.",
+    "pathway": "None -- acts as a chemical proton buffer rather than through a specific biological signaling pathway.",
+    "typically_affects": "Extracellular and intracellular pH/acid-base balance.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Buffer solution - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Buffer_solution"
+      }
+    ]
+  },
+  "cholinergic modulator": {
+    "description": "A cholinergic modulator influences acetylcholine-based neurotransmission, the signaling system central to learning, memory, and neuromuscular control. Pidolic acid (pyroglutamic acid, PCA), for example, is a naturally occurring cyclic amino acid derivative involved in the gamma-glutamyl cycle that has been studied for proposed effects on cholinergic signaling, though its precise mechanism is less well-defined than for classical receptor-targeted cholinergic drugs.",
+    "pathway": "Cholinergic (acetylcholine) neurotransmission.",
+    "typically_affects": "Neurotransmission implicated in learning, memory, and neuromuscular signaling.",
+    "target_organelles": [],
+    "sources": [
+      {
+        "title": "Cholinergic - Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Cholinergic"
+      }
+    ]
   }
 }
