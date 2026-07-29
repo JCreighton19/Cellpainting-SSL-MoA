@@ -173,16 +173,25 @@ body {
 
 /* ---- Custom map legend (replaces Plotly's single-column legend) ---- */
 
-/* Gap + divider live here (between the plot and the caption) rather than
-   between the caption and .map-legend below, so the caption reads as a
-   label sitting right on top of the legend it describes. */
-.map-legend-caption {
+/* Gap + divider live here (between the plot and the legend section as a
+   whole, via the <summary> toggle) rather than on .map-legend-caption
+   below, so the divider stays visible whether the legend is currently
+   expanded or collapsed -- see #map-legend-details/map.js's toggle
+   listener for the collapse behavior itself. */
+.map-legend-summary {
   margin-top: 0.75rem;
   padding-top: 0.5rem;
-  margin-bottom: 0.25rem;
   border-top: 1px solid #e9ecef;
   font-size: 0.75rem;
   font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.map-legend-caption {
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
 }
 
 .map-legend {

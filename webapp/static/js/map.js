@@ -21,6 +21,7 @@ const PLATE_PALETTE = [
 ];
 const OTHER_ANNOTATED_COLOR = "#adb5bd";
 const UNANNOTATED_COLOR = "#495057";
+const LEGEND_COLLAPSED_KEY = "cpee_legend_collapsed";
 
 // Sub-1 opacity so overlapping points in dense clusters stay distinguishable
 // instead of flattening into a single opaque blob.
@@ -1036,6 +1037,31 @@ function initMap() {
   document.getElementById("color-by-plate").addEventListener("click", () => setColorBy("plate"));
 
   document.getElementById("view-3d-toggle").addEventListener("change", (e) => setDimension(e.target.checked));
+
+  // Legend visibility persists across visits (e.g. a shorter laptop screen
+  // where the legend's 2-3 rows crowd the plot) -- applied before the
+  // toggle listener below is attached, so restoring a saved "collapsed"
+  // preference on load doesn't itself fire that listener and re-save.
+  const legendDetails = document.getElementById("map-legend-details");
+  try {
+    if (localStorage.getItem(LEGEND_COLLAPSED_KEY) === "1") {
+      legendDetails.open = false;
+    }
+  } catch (e) {
+    /* localStorage unavailable (private mode, etc.) -- legend just stays expanded */
+  }
+  legendDetails.addEventListener("toggle", () => {
+    try {
+      localStorage.setItem(LEGEND_COLLAPSED_KEY, legendDetails.open ? "0" : "1");
+    } catch (e) {
+      /* best-effort -- preference just won't persist to the next visit */
+    }
+    // The plot is a flex-grow sibling of the (now taller/shorter) legend
+    // section -- Plotly doesn't know the space available to it just
+    // changed on its own, same reason render() above calls this after
+    // renderLegend() changes the legend's height.
+    if (plotEl) Plotly.Plots.resize(plotEl);
+  });
 
   // Delegated listener: _right_sidebar.html is swapped in via innerHTML on
   // every well selection, so the Image/Attention/Overlay buttons don't exist

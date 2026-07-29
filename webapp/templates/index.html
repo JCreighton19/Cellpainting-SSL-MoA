@@ -115,8 +115,11 @@
       </div>
     </div>
     <div id="umap-plot" class="umap-plot"></div>
-    <p class="small text-muted map-legend-caption">Click a color to isolate it or double-click to hide it. Click or double-click again to restore it.</p>
-    <div id="map-legend" class="map-legend"></div>
+    <details id="map-legend-details" open>
+      <summary class="map-legend-summary small text-muted">Legend</summary>
+      <p class="small text-muted map-legend-caption">Click a color to isolate it or double-click to hide it. Click or double-click again to restore it.</p>
+      <div id="map-legend" class="map-legend"></div>
+    </details>
   </section>
 
   <div class="resize-handle" id="resize-handle-right"></div>
