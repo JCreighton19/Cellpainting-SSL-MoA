@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+dist/
+embeddings/
+webapp/static/thumbnails/
+webapp/static/attention/
