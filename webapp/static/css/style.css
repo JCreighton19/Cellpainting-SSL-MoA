@@ -99,6 +99,27 @@ body {
   min-height: 0;
 }
 
+/* Desktop only (matches the max-width:900px breakpoint used for the mobile
+   layout elsewhere in this file, which already sets its own explicit
+   height on .umap-plot -- this doesn't touch that). Without a floor here,
+   the plot is a plain flex-grow item with no minimum, so on a shorter
+   laptop screen it can get squeezed down by the legend below it (which can
+   run 2-3 rows tall) to the point of being hard to actually read. Paired
+   with .center-panel becoming scrollable, so on a screen too short to fit
+   even this minimum, the legend below the plot stays reachable by
+   scrolling instead of being silently clipped by .app-main's
+   overflow:hidden -- previously the only way to see clipped content here
+   at all. */
+@media (min-width: 901px) {
+  .center-panel {
+    overflow-y: auto;
+  }
+
+  .umap-plot {
+    min-height: 420px;
+  }
+}
+
 /* 3D's selected-point indicator: a plain DOM dot positioned via manual camera
    projection (see startHighlight3D in map.js) rather than a Plotly trace, so
    selecting a point in 3D never triggers a Plotly restyle/redraw. */
