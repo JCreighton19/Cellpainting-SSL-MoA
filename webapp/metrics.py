@@ -24,13 +24,17 @@ N_RANDOM_PAIRS = 5000
 RANDOM_SEED = 42
 
 
-def compute_model_metrics(store, sim_index):
+def compute_model_metrics(store):
     """Returns a dict of display-ready evaluation numbers -- see the inline
     comments below for what each one means and how it's computed."""
     wells = store.wells
     embeddings = store.embeddings
-    moa_values = wells["moa"].values
-    plate_values = wells["plate"].values
+    # .to_numpy() (not .values) -- wells["moa"]/["plate"] can be Arrow-backed
+    # pandas extension arrays depending on the pyarrow/pandas version, which
+    # only support 1D fancy indexing; the batched neighbor lookup below
+    # indexes with a 2D (batch, k) array, which needs a plain numpy array.
+    moa_values = wells["moa"].to_numpy()
+    plate_values = wells["plate"].to_numpy()
     n = len(wells)
 
     # ---- Random-chance baselines: what a model with no learned signal at
@@ -58,33 +62,61 @@ def compute_model_metrics(store, sim_index):
     #   3. plate_neighbor_agreement: mean fraction of a well's k neighbors
     #      that come from the SAME PLATE -- a direct, previously-unquantified
     #      measurement of the plate/batch effect described in Limitations.
+    #
+    # Batched/vectorized rather than one sim_index.search() call per well --
+    # at this dataset's size (thousands of wells), an O(n) dot-product +
+    # argsort per well in a Python loop was the dominant cost of this whole
+    # function (and, at startup, of the app becoming ready to serve traffic
+    # at all). Each batch computes a (batch x n) similarity matrix in one
+    # matmul and uses argpartition for an *unordered* top-k -- sufficient
+    # since none of these 3 metrics depend on rank order within the k
+    # neighbors, only on which k they are. Batched (not one n x n matmul)
+    # so peak memory stays small instead of materializing the full
+    # similarity matrix at once. self-similarity is excluded by forcing the
+    # diagonal to -inf before the top-k selection, rather than requesting
+    # k+1 and filtering afterward.
     # ----
-    fracs = []
+    query_idxs = wells.index[wells["moa"].notna()].to_numpy()
+    n_queries = len(query_idxs)
+
+    fracs = np.empty(n_queries, dtype=np.float64)
+    plate_fracs = np.empty(n_queries, dtype=np.float64)
     moa_fracs = {}
     moa_hits = 0
-    moa_total = 0
-    plate_fracs = []
-    for idx in wells.index[wells["moa"].notna()]:
-        moa = moa_values[idx]
-        neighbor_idxs, _ = sim_index.search(idx, k=NEIGHBOR_K)
-        if len(neighbor_idxs) == 0:
-            continue
-        neighbor_moas = moa_values[neighbor_idxs]
-        frac = float(np.count_nonzero(neighbor_moas == moa)) / len(neighbor_idxs)
-        fracs.append(frac)
-        moa_fracs.setdefault(moa, []).append(frac)
 
-        majority_moa = Counter(neighbor_moas).most_common(1)[0][0]
-        moa_hits += int(majority_moa == moa)
-        moa_total += 1
+    BATCH_SIZE = 1024
+    for start in range(0, n_queries, BATCH_SIZE):
+        batch = query_idxs[start:start + BATCH_SIZE]
+        sims = embeddings[batch] @ embeddings.T  # (batch, n)
+        sims[np.arange(len(batch)), batch] = -np.inf  # exclude self
+        neighbor_idxs = np.argpartition(-sims, NEIGHBOR_K - 1, axis=1)[:, :NEIGHBOR_K]
+        # argpartition gives the correct top-k *set* but arbitrary order within
+        # it; the majority-vote below breaks ties by first-seen order, so
+        # restore descending-similarity order among just these k columns to
+        # match the original sim_index.search() (argsort-based) ordering --
+        # cheap, since it's only sorting k=NEIGHBOR_K elements per row.
+        neighbor_sims = np.take_along_axis(sims, neighbor_idxs, axis=1)
+        order = np.argsort(-neighbor_sims, axis=1)
+        neighbor_idxs = np.take_along_axis(neighbor_idxs, order, axis=1)
 
-        plate_fracs.append(
-            float(np.count_nonzero(plate_values[neighbor_idxs] == plate_values[idx])) / len(neighbor_idxs)
-        )
+        batch_moas = moa_values[batch]
+        neighbor_moas = moa_values[neighbor_idxs]  # (batch, k)
+        batch_fracs = (neighbor_moas == batch_moas[:, None]).mean(axis=1)
+        fracs[start:start + len(batch)] = batch_fracs
 
-    overall_consistency = float(np.mean(fracs)) if fracs else 0.0
-    moa_topk_accuracy = (moa_hits / moa_total) if moa_total else 0.0
-    plate_neighbor_agreement = float(np.mean(plate_fracs)) if plate_fracs else 0.0
+        neighbor_plates = plate_values[neighbor_idxs]
+        plate_fracs[start:start + len(batch)] = (
+            neighbor_plates == plate_values[batch][:, None]
+        ).mean(axis=1)
+
+        for i, moa in enumerate(batch_moas):
+            moa_fracs.setdefault(moa, []).append(batch_fracs[i])
+            majority_moa = Counter(neighbor_moas[i]).most_common(1)[0][0]
+            moa_hits += int(majority_moa == moa)
+
+    overall_consistency = float(fracs.mean()) if n_queries else 0.0
+    moa_topk_accuracy = (moa_hits / n_queries) if n_queries else 0.0
+    plate_neighbor_agreement = float(plate_fracs.mean()) if n_queries else 0.0
 
     top_moas = sorted(
         (

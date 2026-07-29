@@ -18,7 +18,7 @@ def create_app():
     app.jinja_env.filters["organelles"] = format_organelles
     store = DataStore(DATA_DIR)
     sim_index = SimilarityIndex(store.embeddings)
-    model_metrics = compute_model_metrics(store, sim_index)
+    model_metrics = compute_model_metrics(store)
     register_routes(app, store, sim_index, model_metrics)
     return app
 
