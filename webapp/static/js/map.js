@@ -810,12 +810,24 @@ function setImageView(view) {
 
   if (!attn) return; // this well has no attention map
 
+  const revealAttn = () => {
+    attn.classList.toggle("d-none", view === "image");
+    attn.classList.toggle("overlay-mode", view === "overlay");
+  };
+
   if (!attn.src) {
+    // Wait for the image to actually finish loading before un-hiding it --
+    // otherwise the browser paints this (non-interlaced) PNG top-to-bottom
+    // as bytes stream in, which looks like it's loading in a torn/partial
+    // state for the ~0.5s the first request takes. Only affects this first
+    // load per well selection; the src (and browser cache) persist across
+    // later Image/Attention/Overlay toggles, which stay instant as before.
+    attn.addEventListener("load", revealAttn, { once: true });
     attn.src = `/api/attention/${encodeURIComponent(attn.dataset.wellId)}.png`;
+  } else {
+    revealAttn();
   }
 
-  attn.classList.toggle("d-none", view === "image");
-  attn.classList.toggle("overlay-mode", view === "overlay");
   if (thumb) {
     thumb.classList.toggle("d-none", view === "attention");
     thumb.classList.toggle("overlay-brighten", view === "overlay");
