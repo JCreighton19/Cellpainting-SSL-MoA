@@ -778,7 +778,12 @@ function selectWell(wellId, opts) {
     if (idx !== -1) centerOn(umapData.x[idx], umapData.y[idx]);
   }
 
-  fetch(`/api/well/${encodeURIComponent(wellId)}`)
+  // Returns the fetch chain (previously fire-and-forget) so callers that
+  // need to know once the real content has actually loaded -- e.g. the
+  // onboarding tour repositioning its spotlight once the sidebar's real
+  // size is known -- can do so; existing callers that ignore the return
+  // value behave exactly as before.
+  return fetch(`/api/well/${encodeURIComponent(wellId)}`)
     .then((r) => r.text())
     .then((html) => {
       document.getElementById("sidebar-content").innerHTML = html;

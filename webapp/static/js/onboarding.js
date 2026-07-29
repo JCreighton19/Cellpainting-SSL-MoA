@@ -87,9 +87,28 @@
       if (typeof window.selectWell !== "function") return;
       const anchor = pickAnchorPoint();
       if (!anchor) return;
+      const slideIndexAtCall = currentIndex;
       // { center: false } matches exactly what a real click passes in
       // map.js's plotly_click handler -- the view doesn't jump.
-      window.selectWell(anchor.wellId, { center: false });
+      const loaded = window.selectWell(anchor.wellId, { center: false });
+      // selectWell's fetch is async, so the current slide's target() (which,
+      // for the mobile "Sample details" slide above, looks for a thumbnail
+      // that doesn't exist yet at this point) was already evaluated against
+      // the stale/empty sidebar before this ever runs. Once the real content
+      // has actually loaded, re-resolve the target and reposition -- a no-op
+      // on desktop and on every other slide (same target, same rect), and
+      // what lets the mobile thumbnail-specific target above actually take
+      // effect once it's real. Guarded on still being the same slide, since
+      // the user may have already clicked Next/Back by the time this resolves.
+      if (loaded && typeof loaded.then === "function") {
+        loaded.then(() => {
+          if (!tourActive || currentIndex !== slideIndexAtCall || !currentTargetFn) return;
+          const targetEl = currentTargetFn();
+          ensureTargetVisible(targetEl);
+          updateSpotlight(targetEl);
+          positionCardNear(targetEl);
+        });
+      }
     } catch (e) {
       /* best-effort -- the slide's text still explains clicking either way */
     }
@@ -250,7 +269,24 @@
     },
     {
       group: 3,
-      target: () => document.getElementById("sidebar-right"),
+      // On the stacked mobile layout, #sidebar-right has no internal scroll
+      // of its own (see the matching CSS breakpoint) -- it's just as tall as
+      // all of its real content, which for a populated well can be much
+      // taller than the viewport. Spotlighting the whole element there left
+      // most of the "highlighted" region below the fold, with only a sliver
+      // of the thumbnail visible at the top. Once the thumbnail actually
+      // exists (see simulateSelect below), target it specifically instead --
+      // small and predictably sized, so it reliably fits the viewport.
+      // Desktop is untouched: sidebar-right is viewport-height-constrained
+      // there (its own overflow-y:auto), so this mobile check never matches
+      // and the original whole-sidebar target is used exactly as before.
+      target: () => {
+        if (window.matchMedia("(max-width: 900px)").matches) {
+          const thumb = document.querySelector("#sidebar-right .thumbnail-placeholder");
+          if (thumb) return thumb;
+        }
+        return document.getElementById("sidebar-right");
+      },
       onEnter: simulateSelect,
       html: () => `
         <h3 class="tour-title">Sample details</h3>

@@ -269,6 +269,18 @@ body {
    touch-event handling was added because none was needed. */
 @media (hover: none) and (pointer: coarse) {
   .resize-handle { display: none; }
+
+  /* Without this, the browser's own native page-pinch-zoom gesture
+     intercepts a 2-finger pinch over the chart (since the page's viewport
+     meta tag allows user-scalable zoom), so Plotly's own touch-gesture
+     handling for pinch-to-zoom never gets a chance to see it. Scoped to
+     touch devices only via this same media query pattern used above --
+     touch-action has no effect on mouse/wheel interaction, so desktop is
+     unaffected either way, but keeping it inside this block matches how
+     every other touch-only override in this file is scoped. */
+  .umap-plot {
+    touch-action: none;
+  }
 }
 
 /* ---- Info dialogs (How to Read This Map / About the Project / Technical Details) ----
@@ -286,8 +298,23 @@ body {
   border: none;
   border-radius: 0.5rem;
   padding: 0;
-  display: flex;
   flex-direction: column;
+}
+
+/* display:flex only applies once actually open (native <dialog> already
+   hides it via [open]-gated UA styles otherwise, but that hidden state is
+   determined by browser-engine-specific specificity rules against author
+   CSS -- observed to hold on desktop Chrome but not reliably on mobile
+   Safari, where these dialogs stayed in normal document flow at the
+   bottom of the page, always expanded, once any author `display` rule on
+   `.info-dialog` existed at all). Making the show/hide state explicit here
+   removes that cross-engine ambiguity entirely rather than relying on it. */
+.info-dialog[open] {
+  display: flex;
+}
+
+.info-dialog:not([open]) {
+  display: none;
 }
 
 .info-dialog::backdrop {
