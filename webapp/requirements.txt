@@ -4,3 +4,4 @@ numpy
 pyarrow
 Pillow
 matplotlib
+gunicorn
